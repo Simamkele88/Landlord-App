@@ -1,0 +1,183 @@
+/* eslint-disable no-unused-vars */
+// src/utils/pdfExport.js
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+
+export function exportToPDF(payments, summary, dateRange = 'Current Month') {
+  const doc = new jsPDF();
+  
+  // Colors
+  const primaryColor = [37, 99, 235]; // Blue
+  const successColor = [5, 150, 105]; // Green
+  const warningColor = [245, 158, 11]; // Yellow
+  const dangerColor = [220, 38, 38]; // Red
+  
+  // Add title
+  doc.setFontSize(24);
+  doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+  doc.text('RentPay', 14, 20);
+  
+  doc.setFontSize(18);
+  doc.setTextColor(0, 0, 0);
+  doc.text('Payment Report', 14, 32);
+  
+  // Add date and range
+  doc.setFontSize(10);
+  doc.setTextColor(100, 100, 100);
+  doc.text(`Generated: ${new Date().toLocaleDateString('en-ZA', { 
+    day: '2-digit', 
+    month: 'long', 
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })}`, 14, 42);
+  
+  doc.text(`Period: ${dateRange}`, 14, 49);
+  
+  // Add summary section
+  doc.setFontSize(14);
+  doc.setTextColor(0, 0, 0);
+  doc.text('Summary', 14, 65);
+  
+  // Summary boxes
+  const boxY = 72;
+  const boxHeight = 35;
+  
+  // Total Expected box
+  doc.setFillColor(240, 240, 240);
+  doc.rect(14, boxY, 55, boxHeight, 'F');
+  doc.setFontSize(9);
+  doc.setTextColor(100, 100, 100);
+  doc.text('Total Expected', 16, boxY + 10);
+  doc.setFontSize(14);
+  doc.setTextColor(0, 0, 0);
+  doc.text(`R ${summary.totalExpected.toLocaleString()}`, 16, boxY + 25);
+  
+  // Total Collected box
+  doc.setFillColor(240, 240, 240);
+  doc.rect(73, boxY, 55, boxHeight, 'F');
+  doc.setFontSize(9);
+  doc.setTextColor(100, 100, 100);
+  doc.text('Total Collected', 75, boxY + 10);
+  doc.setFontSize(14);
+  doc.setTextColor(successColor[0], successColor[1], successColor[2]);
+  doc.text(`R ${summary.totalCollected.toLocaleString()}`, 75, boxY + 25);
+  
+  // Collection Rate box
+  doc.setFillColor(240, 240, 240);
+  doc.rect(132, boxY, 55, boxHeight, 'F');
+  doc.setFontSize(9);
+  doc.setTextColor(100, 100, 100);
+  doc.text('Collection Rate', 134, boxY + 10);
+  doc.setFontSize(14);
+  doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+  doc.text(`${summary.collectionRate}%`, 134, boxY + 25);
+  
+  // Second row of stats
+  const boxY2 = boxY + boxHeight + 5;
+  
+  // Paid box
+  doc.setFillColor(240, 240, 240);
+  doc.rect(14, boxY2, 55, 25, 'F');
+  doc.setFontSize(9);
+  doc.setTextColor(100, 100, 100);
+  doc.text('Paid', 16, boxY2 + 10);
+  doc.setFontSize(12);
+  doc.setTextColor(successColor[0], successColor[1], successColor[2]);
+  doc.text(`${summary.paidCount} payments`, 16, boxY2 + 20);
+  
+  // Pending box
+  doc.setFillColor(240, 240, 240);
+  doc.rect(73, boxY2, 55, 25, 'F');
+  doc.setFontSize(9);
+  doc.setTextColor(100, 100, 100);
+  doc.text('Pending Approval', 75, boxY2 + 10);
+  doc.setFontSize(12);
+  doc.setTextColor(warningColor[0], warningColor[1], warningColor[2]);
+  doc.text(`${summary.pending} payments`, 75, boxY2 + 20);
+  
+  // Late/Collections box
+  doc.setFillColor(240, 240, 240);
+  doc.rect(132, boxY2, 55, 25, 'F');
+  doc.setFontSize(9);
+  doc.setTextColor(100, 100, 100);
+  doc.text('Late/Collections', 134, boxY2 + 10);
+  doc.setFontSize(12);
+  doc.setTextColor(dangerColor[0], dangerColor[1], dangerColor[2]);
+  doc.text(`${summary.late} payments`, 134, boxY2 + 20);
+  
+  // Add status breakdown
+  const statusBreakdown = {
+    'Paid': payments.filter(p => p.status === 'Paid').length,
+    'Pending Approval': payments.filter(p => p.status === 'Pending Approval').length,
+    'Late': payments.filter(p => p.status === 'Late').length,
+    'Collections': payments.filter(p => p.status === 'Collections').length,
+  };
+  
+  // Create table
+  const tableHeaders = [
+    'Tenant', 
+    'Unit', 
+    'Property', 
+    'Amount', 
+    'Due Date', 
+    'Paid Date', 
+    'Status'
+  ];
+  
+  const tableData = payments.map(p => [
+    p.tenant,
+    p.unit,
+    p.property,
+    `R ${p.amount.toLocaleString()}`,
+    p.due,
+    p.paid || '—',
+    p.status
+  ]);
+  
+  // Add table
+  autoTable(doc, {
+    head: [tableHeaders],
+    body: tableData,
+    startY: 145,
+    styles: {
+      fontSize: 9,
+      cellPadding: 3,
+    },
+    headStyles: {
+      fillColor: primaryColor,
+      textColor: 255,
+      fontStyle: 'bold',
+    },
+    alternateRowStyles: {
+      fillColor: [245, 245, 245],
+    },
+    columnStyles: {
+      0: { cellWidth: 40 }, // Tenant
+      1: { cellWidth: 25 }, // Unit
+      2: { cellWidth: 35 }, // Property
+      3: { cellWidth: 25 }, // Amount
+      4: { cellWidth: 25 }, // Due Date
+      5: { cellWidth: 25 }, // Paid Date
+      6: { cellWidth: 25 }, // Status
+    },
+  });
+  
+  // Add footer
+  const pageCount = doc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setTextColor(150, 150, 150);
+    doc.text(
+      `Page ${i} of ${pageCount} | Generated by RentPay Landlord Portal`,
+      doc.internal.pageSize.width / 2,
+      doc.internal.pageSize.height - 10,
+      { align: 'center' }
+    );
+  }
+  
+  // Save PDF
+  const filename = `payment_report_${new Date().toISOString().split('T')[0]}.pdf`;
+  doc.save(filename);
+}

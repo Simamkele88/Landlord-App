@@ -1,5 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
-// src/contexts/PaymentsContext.jsx
+// Created this context to manage payment data and actions across the app.
+//  It provides a centralized way to access and manipulate payment information, 
+// making it easier to maintain and update the state related to payments throughout the application.
 import { createContext, useContext, useState } from 'react';
 
 const PaymentsContext = createContext(null);

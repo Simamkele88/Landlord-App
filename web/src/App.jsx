@@ -10,6 +10,7 @@ import PaymentReview from "./pages/landlord/payments/PaymentReview";
 import { ToastProvider } from "./contexts/ToastContext";
 import { PaymentsProvider } from "./contexts/PaymentsContext";
 import PaymentReceipt from "./pages/landlord/payments/PaymentReceipt";
+import LandlordMaintenance from "./pages/landlord/maintenance/MaintenanceDashbord"
 
 import "./index.css";
 
@@ -76,6 +77,7 @@ export default function App() {
                 <Route path="payments" element={<Payments />} />
                 <Route path="payments/review" element={<PaymentReview />} />
                 <Route path="payments/receipt" element={<PaymentReceipt />} />
+                <Route path="maintenance" element={<LandlordMaintenance />} />
               </Route>
 
               {/* Default redirect */}

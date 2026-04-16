@@ -224,7 +224,7 @@ export default function LandlordTopBar() {
               L
             </div>
             <div className="hidden sm:block text-left">
-              <p className="text-sm font-medium text-white leading-tight">{user?.name}</p>
+              <p className="text-sm font-medium text-white leading-tight">{user?.full_name}</p>
               <p className="text-xs text-gray-400 leading-tight">Landlord</p>
             </div>
             <svg className="w-4 h-4 text-gray-400 group-hover:text-white hidden sm:block transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -236,7 +236,7 @@ export default function LandlordTopBar() {
             <div className="absolute right-0 mt-2 w-56 bg-gray-800 border border-gray-700 rounded-xl shadow-2xl overflow-hidden">
               {/* Identity */}
               <div className="px-4 py-3 border-b border-gray-700">
-                <p className="text-sm font-semibold text-white">{user?.name}</p>
+                <p className="text-sm font-semibold text-white">{user?.full_name}</p>
                 <p className="text-xs text-gray-400 truncate">{user?.email}</p>
               </div>
 

@@ -1,5 +1,7 @@
 /* eslint-disable no-unused-vars */
-// src/components/FullReportModal.jsx
+// This component is a modal for generating and exporting payment reports in CSV or PDF format.
+//  It allows users to select a date range and export their payment data with a summary preview. 
+// The modal handles export logic, shows loading states, and provides feedback on success or failure of exports.
 import { useState } from 'react';
 import { exportToCSV, generatePaymentSummary } from '../utils/exportUtils';
 import { exportToPDF } from '../utils/pdfExport';
@@ -13,7 +15,7 @@ export default function FullReportModal({ onClose }) {
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
   const [exporting, setExporting] = useState(false);
-  const [exportFormat, setExportFormat] = useState(null); // 'csv', 'pdf', null
+  const [exportFormat, setExportFormat] = useState(null); // 'csv', 'pdf'
 
   const summary = generatePaymentSummary(payments);
 
@@ -230,9 +232,6 @@ export default function FullReportModal({ onClose }) {
                       </svg>
                     </div>
                     <h5 className="text-base font-semibold text-gray-900 dark:text-white mb-1">CSV Format</h5>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                      Excel compatible • Easy to edit
-                    </p>
                     <span className="text-xs font-medium text-green-600 bg-green-50 dark:bg-green-900/20 px-3 py-1 rounded-full">
                       .csv file
                     </span>
@@ -254,9 +253,6 @@ export default function FullReportModal({ onClose }) {
                       </svg>
                     </div>
                     <h5 className="text-base font-semibold text-gray-900 dark:text-white mb-1">PDF Format</h5>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                      Professional • Ready to share
-                    </p>
                     <span className="text-xs font-medium text-red-600 bg-red-50 dark:bg-red-900/20 px-3 py-1 rounded-full">
                       .pdf file
                     </span>

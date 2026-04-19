@@ -1,9 +1,32 @@
 import useDocumentTitle from "../../../hooks/useDocumentTitle";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useToast } from '../../../contexts/ToastContext';
+import {useState} from 'react';
+import AddPropertyModal from "../../../components/AddPropertyModal";
 
-/**Creating hard coded values for properties */
-const properties = [
+function PropertiesDetails(){
+    return(
+      <>
+      <label>Name : </label>
+      <input> </input>
+      <label> Number Of units   : </label>
+      <input> </input>
+      <label>Number Of Tenant: </label>
+      <input> </input>
+      <label>Location : </label>
+      <input> </input>
+      <label>Date : </label>
+      <input type='Date' > </input>
+      
+      </>
+    );
+       
+}
+
+export default function PropertyDashboard() {
+
+    /**Creating hard coded values for properties */
+const [properties, setProperties]  = useState([
   {
     name:"Gray Town",
     units : 10,
@@ -32,12 +55,11 @@ const properties = [
     DateCreated : "2021/03/10",
     Located : "Durban",
  },
-];
-
-export default function PropertyDashboard() {
+]);
+  
   //const { user, logout } = useAuth();
+ // const [AddPropertyModal, setAddPropertyModal] = useState(false);
   const location = useLocation();
-
   const navigate = useNavigate();
 
   useDocumentTitle("Properties");
@@ -47,10 +69,24 @@ export default function PropertyDashboard() {
     navigate("/login");
   }
 
+  function testFunction(){
+       const value = prompt("Enter Property Name");
+        let newProp  = {
+            name: value,
+            units: 10,
+            totalTenant : 5,
+            DateCreated: "2016/05/20",
+            Located: "witBank"
+
+        };
+        setProperties(prev => [...prev, newProp]);
+  }
+
+
   return (
     <>
     
-          <button 
+          <button  onClick={() =>{testFunction()}}
             className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

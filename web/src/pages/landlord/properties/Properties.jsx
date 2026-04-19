@@ -58,7 +58,7 @@ const [properties, setProperties]  = useState([
 ]);
   
   //const { user, logout } = useAuth();
- // const [AddPropertyModal, setAddPropertyModal] = useState(false);
+  const [showPropertyModal, setShowPropertyModal] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -67,6 +67,10 @@ const [properties, setProperties]  = useState([
   function handleLogout() {
     logout();
     navigate("/login");
+  }
+
+  function handleAddProperty(newProperty){
+       setProperties(prev => [...prev, newProperty]);
   }
 
   function testFunction(){
@@ -86,7 +90,7 @@ const [properties, setProperties]  = useState([
   return (
     <>
     
-          <button  onClick={() =>{testFunction()}}
+          <button  onClick={() => setShowPropertyModal(true)}
             className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -158,6 +162,12 @@ const [properties, setProperties]  = useState([
                 ))}
               </tbody>
             </table>
+              {showPropertyModal && (
+            <AddPropertyModal 
+              onClose={() => setShowPropertyModal(false)}
+              onAdd={handleAddProperty}
+            />
+          )}
           </div>
 
     </>

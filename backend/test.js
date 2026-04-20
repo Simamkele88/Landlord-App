@@ -2,7 +2,7 @@
 const bcrypt = require('bcryptjs');
 
 async function generateHash() {
-  const password = "Wekeza2004@";
+  const password = "Landlord@2026";
   
   // Generate hash with 12 rounds
   const hash = await bcrypt.hash(password, 12);

@@ -528,10 +528,3 @@ export default function Maintenance() {
     </div>
   );
 }
-
-// ─── WIRING ───────────────────────────────────────────────────────────────────
-// In App.jsx add:
-//   import Maintenance from "./pages/landlord/Maintenance";
-//   <Route path="maintenance" element={<Maintenance />} />
-//
-// In LandlordSidebar.jsx the /landlord/maintenance NavLink is already defined.

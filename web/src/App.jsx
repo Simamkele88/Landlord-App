@@ -11,6 +11,7 @@ import { ToastProvider } from "./contexts/ToastContext";
 import { PaymentsProvider } from "./contexts/PaymentsContext";
 import PaymentReceipt from "./pages/landlord/payments/PaymentReceipt";
 import LandlordMaintenance from "./pages/landlord/maintenance/MaintenanceDashbord"
+import PropertyDashboard from "./pages/landlord/properties/Properties";
 
 import "./index.css";
 
@@ -31,9 +32,12 @@ function PrivateRoute({ children }) {
 export default function App() {
   const [token, setToken] = useState(() => localStorage.getItem("token"));
   const [user, setUser] = useState(() => {
+
     const saved = localStorage.getItem("user");
     return saved ? JSON.parse(saved) : null;
-  });
+ 
+   });
+
 
   useEffect(() => {
     if (token) localStorage.setItem("token", token);
@@ -78,6 +82,7 @@ export default function App() {
                 <Route path="payments/review" element={<PaymentReview />} />
                 <Route path="payments/receipt" element={<PaymentReceipt />} />
                 <Route path="maintenance" element={<LandlordMaintenance />} />
+                <Route path="properties"  element={<PropertyDashboard />} />
               </Route>
 
               {/* Default redirect */}

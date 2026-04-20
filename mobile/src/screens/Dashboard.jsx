@@ -216,7 +216,7 @@ export default function TenantDashboard({ navigation }) {
             <Text style={styles.greeting}>{getGreeting()},</Text>
             <View style={styles.nameRow}>
               <Text style={styles.tenantName}>{firstName(TENANT.name)}</Text>
-              <Ionicons name="hand-left" size={22} color={C.warning} style={{ marginLeft: 6 }} />
+
             </View>
           </View>
           

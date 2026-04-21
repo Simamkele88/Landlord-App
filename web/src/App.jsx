@@ -14,11 +14,11 @@ import { PaymentsProvider } from "./contexts/PaymentsContext";
 import PaymentReceipt from "./pages/landlord/payments/PaymentReceipt";
 import LandlordMaintenance from "./pages/landlord/maintenance/MaintenanceDashbord"
 import PropertyDashboard from "./pages/landlord/properties/Properties";
-import Tenants from "./pages/landlord/Tenants/Tenants";
+
 
 import "./index.css";
 
-// AUTHENTICATION CONTEXT TO MANAGE TOKEN AND USER STATE GLOBALLY YEP
+// AUTHENTICATION CONTEXT TO MANAGE TOKEN AND USER STATE GLOBALLY
 export const AuthContext = createContext(null);
 
 export function useAuth() {
@@ -87,7 +87,7 @@ export default function App() {
                 <Route path="payments/receipt" element={<PaymentReceipt />} />
                 <Route path="maintenance" element={<LandlordMaintenance />} />
                 <Route path="properties"  element={<PropertyDashboard />} />
-                <Route path="tenants" element={<Tenants />} />
+                
               </Route>
 
             {/* REDIRECT TO LOGIN ROUTE IF THERE IS NO TOKEN, ELSE REDIRECT TO DASHBOARD */}

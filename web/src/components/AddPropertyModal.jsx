@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-vars */
-// This component is a modal for generating and exporting payment reports in CSV or PDF format.
-//  It allows users to select a date range and export their payment data with a summary preview. 
-// The modal handles export logic, shows loading states, and provides feedback on success or failure of exports.
+// ADD PROPERTY MODAL COMPONENT
+// AUTHOR: SIMAMKELE WEKEZA
+// IF YOU DO NOT UNDERSTAND THIS CODE, PLEASE ASK ME TO EXPLAIN AND DON'T ASSUME OTHERWISE.
 import { useState } from 'react';
 import { exportToCSV, generatePaymentSummary } from '../utils/exportUtils';
 import { exportToPDF } from '../utils/pdfExport';

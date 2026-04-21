@@ -169,7 +169,7 @@ function DetailModal({ request, onClose }) {
 
         {/* BODY */}
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-          {/* Badges row */}
+          {/* BADGES ROW */}
           <div className="flex items-center gap-2 flex-wrap">
             <StatusBadge status={request.status} />
             <PriorityBadge priority={request.priority} />

@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from "../../../App";
 
-// ─── Page title map (mirrors sidebar nav) ────────────────────────────────────
+// PAGE TITLE MAPPING BASED ON ROUTE PATH
 const PAGE_TITLES = {
   '/landlord/dashboard':        'Dashboard',
   '/landlord/properties':       'Properties',
@@ -18,7 +18,7 @@ const PAGE_TITLES = {
   '/landlord/payments/receipt': 'Payments-Receipt'
 };
 
-// ─── Mock notifications ───────────────────────────────────────────────────────
+// MOCK NOTIFICATIONS
 const INITIAL_NOTIFICATIONS = [
   { id: 1, read: false, icon: 'payment',     text: 'Lerato Mokoena uploaded proof of payment for Unit 2B.',  time: '2 min ago' },
   { id: 2, read: false, icon: 'late',        text: 'Ahmed Patel (Unit 1C) is 14 days overdue — R 7,200.',   time: '1 hr ago'  },
@@ -27,6 +27,7 @@ const INITIAL_NOTIFICATIONS = [
   { id: 5, read: true,  icon: 'payment',     text: 'Priya Naidoo uploaded proof of payment for Unit 2A.',   time: 'Yesterday' },
 ];
 
+// ICONS AND COLORS FOR NOTIFICATIONS
 const ICON_MAP = {
   payment: (
     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -58,7 +59,7 @@ const ICON_COLORS = {
   complaint:   'bg-purple-100 text-purple-600 dark:bg-purple-900/40 dark:text-purple-400',
 };
 
-// ─── Dropdown wrapper ─────────────────────────────────────────────────────────
+// DROPDOWN COMPONENT TO HANDLE BOTH NOTIFICATIONS AND PROFILE MENU, CLOSES WHEN CLICKING OUTSIDE
 function Dropdown({ children, open, onClose }) {
   const ref = useRef(null);
   useEffect(() => {
@@ -69,7 +70,7 @@ function Dropdown({ children, open, onClose }) {
   return <div ref={ref} className="relative">{children}</div>;
 }
 
-// ─── Main TopBar ──────────────────────────────────────────────────────────────
+// MAIN TOP BAR COMPONENT FOR LANDLORD AREA, SHOWS PAGE TITLE, SEARCH, NOTIFICATIONS, MESSAGES SHORTCUT, AND PROFILE MENU
 export default function LandlordTopBar() {
   const { user }  = useAuth();
   const location  = useLocation();
@@ -91,6 +92,10 @@ export default function LandlordTopBar() {
     setNotifications(n => n.map(x => x.id === id ? { ...x, read: true } : x));
   }
 
+  function initials(name) {
+    return name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
+  }
+
   function handleLogout() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -100,9 +105,8 @@ export default function LandlordTopBar() {
   return (
     <header className="sticky top-0 z-40 flex items-center justify-between h-16 px-4 sm:px-6 bg-gray-900 border-b border-gray-700">
 
-      {/* ── Left: Page title ── */}
+      {/* LEFT: PAGE TITLE */}
       <div className="flex items-center gap-3 min-w-0">
-        {/* Breadcrumb-style title */}
         <div>
           <p className="text-xs text-gray-500 uppercase tracking-widest font-medium hidden sm:block">
             Chihwa Rentals
@@ -113,10 +117,10 @@ export default function LandlordTopBar() {
         </div>
       </div>
 
-      {/* ── Right: Actions ── */}
+      {/* RIGHT: ACTIONS */}
       <div className="flex items-center gap-2 sm:gap-3">
 
-        {/* Search */}
+        {/* SEARCH */}
         <div className="relative hidden md:block">
           <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 105 11a6 6 0 0012 0z" />
@@ -128,7 +132,7 @@ export default function LandlordTopBar() {
           />
         </div>
 
-        {/* Notifications */}
+        {/* NOTIFICATIONS */}
         <Dropdown open={notifOpen} onClose={() => setNotifOpen(false)}>
           <button
             onClick={() => { setNotifOpen(o => !o); setProfileOpen(false); }}
@@ -160,7 +164,7 @@ export default function LandlordTopBar() {
                 )}
               </div>
 
-              {/* List */}
+              {/* LIST */}
               <ul className="max-h-80 overflow-y-auto divide-y divide-gray-700">
                 {notifications.map(n => (
                   <li
@@ -169,18 +173,18 @@ export default function LandlordTopBar() {
                     className={`flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors hover:bg-gray-700/50
                       ${!n.read ? 'bg-gray-700/30' : ''}`}
                   >
-                    {/* Icon */}
+                    {/* ICON */}
                     <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center mt-0.5 ${ICON_COLORS[n.icon]}`}>
                       {ICON_MAP[n.icon]}
                     </div>
-                    {/* Text */}
+                    {/* TEXT */}
                     <div className="flex-1 min-w-0">
                       <p className={`text-xs leading-snug ${n.read ? 'text-gray-400' : 'text-gray-200 font-medium'}`}>
                         {n.text}
                       </p>
                       <p className="text-[11px] text-gray-500 mt-0.5">{n.time}</p>
                     </div>
-                    {/* Unread dot */}
+                    {/* UNREAD DOT */}
                     {!n.read && (
                       <span className="flex-shrink-0 w-2 h-2 mt-1.5 rounded-full bg-blue-500" />
                     )}
@@ -188,7 +192,7 @@ export default function LandlordTopBar() {
                 ))}
               </ul>
 
-              {/* Footer */}
+              {/* FOOTER */}
               <div className="px-4 py-3 border-t border-gray-700 text-center">
                 <button className="text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors">
                   View all notifications →
@@ -198,7 +202,7 @@ export default function LandlordTopBar() {
           )}
         </Dropdown>
 
-        {/* Messages shortcut */}
+        {/* MESSAGES SHORTCUT */}
         <button
           onClick={() => navigate('/landlord/messages')}
           className="relative p-2 rounded-lg text-gray-400 hover:bg-gray-700 hover:text-white transition-colors"
@@ -210,7 +214,7 @@ export default function LandlordTopBar() {
           </svg>
         </button>
 
-        {/* Divider */}
+        {/* DIVIDER */}
         <div className="hidden sm:block w-px h-6 bg-gray-700" />
 
         {/* Profile dropdown */}
@@ -221,7 +225,7 @@ export default function LandlordTopBar() {
             aria-label="Profile menu"
           >
             <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-              L
+              {initials(user?.full_name)}
             </div>
             <div className="hidden sm:block text-left">
               <p className="text-sm font-medium text-white leading-tight">{user?.full_name}</p>
@@ -234,13 +238,13 @@ export default function LandlordTopBar() {
 
           {profileOpen && (
             <div className="absolute right-0 mt-2 w-56 bg-gray-800 border border-gray-700 rounded-xl shadow-2xl overflow-hidden">
-              {/* Identity */}
+              {/* IDENTITY */}
               <div className="px-4 py-3 border-b border-gray-700">
                 <p className="text-sm font-semibold text-white">{user?.full_name}</p>
                 <p className="text-xs text-gray-400 truncate">{user?.email}</p>
               </div>
 
-              {/* Menu items */}
+              {/* MENU ITEMS */}
               <ul className="py-1">
                 {[
                   { label: 'My Profile',    icon: 'M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z', to: '/landlord/profile' },
@@ -260,7 +264,7 @@ export default function LandlordTopBar() {
                 ))}
               </ul>
 
-              {/* Logout */}
+              {/* LOGOUT */}
               <div className="border-t border-gray-700 py-1">
                 <button
                   onClick={handleLogout}

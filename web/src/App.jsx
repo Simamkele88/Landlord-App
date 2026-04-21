@@ -18,7 +18,7 @@ import Tenants from "./pages/landlord/Tenants/Tenants";
 
 import "./index.css";
 
-// AUTHENTICATION CONTEXT TO MANAGE TOKEN AND USER STATE GLOBALLY
+// AUTHENTICATION CONTEXT TO MANAGE TOKEN AND USER STATE GLOBALLY YEP
 export const AuthContext = createContext(null);
 
 export function useAuth() {

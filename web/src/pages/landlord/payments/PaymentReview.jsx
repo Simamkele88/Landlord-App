@@ -1,10 +1,13 @@
+// PAYMENT REVIEW PAGE
+// AUTHOR: SIMAMKELE WEKEZA
+// IF YOU DO NOT UNDERSTAND THIS CODE, PLEASE ASK ME TO EXPLAIN AND DON'T ASSUME OTHERWISE.
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useToast } from '../../../contexts/ToastContext';
 import { usePayments } from "../../../contexts/PaymentsContext";
 import useDocumentTitle from "../../../hooks/useDocumentTitle";
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// HELPER FUNCTIONS
 function fmt(amount) { return `R ${Number(amount).toLocaleString()}`; }
 function initials(name) { return name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase(); }
 
@@ -31,6 +34,9 @@ function Spinner() {
   );
 }
 
+// HELPER COMPONENTS
+
+// TOAST COMPONENT
 function Toast({ toast }) {
   if (!toast) return null;
   const colours = {
@@ -48,6 +54,7 @@ function Toast({ toast }) {
   );
 }
 
+// RECEIPT MODAL COMPONENT
 function ReceiptModal({ payment, onClose }) {
   const receiptNo = `RCP-${String(payment.id).padStart(4, "0")}-2604`;
   const today = new Date().toLocaleDateString("en-ZA", { day: "2-digit", month: "long", year: "numeric" });
@@ -111,6 +118,7 @@ function ReceiptModal({ payment, onClose }) {
   );
 }
 
+// REJECTION MODAL COMPONENT
 function RejectionModal({ payment, onClose, onConfirmReject }) {
   const [reason, setReason] = useState("");
   const [customNote, setCustomNote] = useState("");
@@ -238,6 +246,7 @@ function RejectionModal({ payment, onClose, onConfirmReject }) {
   );
 }
 
+// MAIN PAYMENT REVIEW COMPONENT
 export default function PaymentReview() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -284,12 +293,12 @@ export default function PaymentReview() {
     navigate("/landlord/payments");
   }
 
-  // Approved state
+
   if (step === "approved") {
     return <ReceiptModal payment={payment} onClose={handleCancel} />;
   }
 
-  // Rejecting state
+  
   if (step === "rejecting") {
     return (
       <RejectionModal
@@ -300,11 +309,11 @@ export default function PaymentReview() {
     );
   }
 
-  // Main review page
+  // MAIN REVIEW PAGE
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6">
       <div className="max-w-2xl mx-auto space-y-5">
-        {/* Top nav */}
+        {/* TOP NAV */}
         <div className="flex items-center justify-between">
           <button
             onClick={handleCancel}
@@ -318,7 +327,7 @@ export default function PaymentReview() {
           <span className="text-xs text-gray-400 dark:text-gray-500 font-mono">REF: {receiptNo}</span>
         </div>
 
-        {/* Page title */}
+        {/* PAGE TITLE */}
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 flex items-center justify-center text-sm font-bold flex-shrink-0">
             {initials(payment.tenant)}
@@ -332,7 +341,7 @@ export default function PaymentReview() {
           </span>
         </div>
 
-        {/* Tabs */}
+        {/* TABS */}
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
           <div className="flex border-b border-gray-200 dark:border-gray-700">
             {[["details", "Payment Details"], ["proof", "Proof of Payment"]].map(([key, label]) => (
@@ -352,7 +361,7 @@ export default function PaymentReview() {
             ))}
           </div>
 
-          {/* Details tab */}
+          {/* DETAILS TAB */}
           {activeTab === "details" && (
             <div className="p-6 space-y-4">
               <div className="divide-y divide-gray-100 dark:divide-gray-700 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden text-sm">
@@ -397,7 +406,7 @@ export default function PaymentReview() {
             </div>
           )}
 
-          {/* Proof tab */}
+          {/* PROOF TAB */}
           {activeTab === "proof" && (
             <div className="p-6 space-y-5">
               <div className="rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/40 p-8 flex flex-col items-center gap-3 text-center">
@@ -460,7 +469,7 @@ export default function PaymentReview() {
           )}
         </div>
 
-        {/* Action bar */}
+        {/* ACTION BAR */}
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm px-6 py-4 flex flex-col sm:flex-row gap-3">
           <button
             onClick={handleCancel}

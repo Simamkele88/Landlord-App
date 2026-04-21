@@ -1,7 +1,10 @@
+// LANDLORD SIDEBAR COMPONENT, RENDERED ON ALL LANDLORD PAGES, PROVIDES NAVIGATION AND LOGOUT FUNCTIONALITY
+// AUTHOR: SIMAMKELE WEKEZA
+// IF YOU HAVE ANY QUESTIONS ABOUT THIS CODE, ASK SIMAMKELE.
 import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 
-// ─── Nav item definitions ────────────────────────────────────────────────────
+// NAVIGATION ITEMS CONFIGURATION
 const NAV_ITEMS = [
   {
     label: 'Dashboard',
@@ -99,7 +102,7 @@ const NAV_ITEMS = [
   },
 ];
 
-// ─── Component ───────────────────────────────────────────────────────────────
+// MAIN COMPONENT
 export default function LandlordSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
@@ -120,8 +123,8 @@ export default function LandlordSidebar() {
         ${collapsed ? 'w-16' : 'w-64'}
       `}
     >
-      {/* ── Logo / Brand ── */}
-      <div className="flex items-center justify-between px-4 py-5 border-b border-gray-700">
+      {/* LOGO / BRAND */}
+      <div className="flex items-center justify-between px-4 py-4 border-b border-gray-700">
         {!collapsed && (
           <div className="flex items-center gap-2">
             <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-600">
@@ -151,7 +154,7 @@ export default function LandlordSidebar() {
         </button>
       </div>
 
-      {/* ── Navigation ── */}
+      {/* NAVIGATION */}
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
         {NAV_ITEMS.map((item) => (
           <NavLink
@@ -169,10 +172,10 @@ export default function LandlordSidebar() {
             }
             title={collapsed ? item.label : undefined}
           >
-            {/* Icon */}
+            {/* ICON */}
             <span className="flex-shrink-0">{item.icon}</span>
 
-            {/* Label + badge */}
+            {/* LABEL + BADGE */}
             {!collapsed && (
               <>
                 <span className="flex-1">{item.label}</span>
@@ -184,7 +187,7 @@ export default function LandlordSidebar() {
               </>
             )}
 
-            {/* Collapsed badge dot */}
+            {/* COLLAPSED BADGE */}
             {collapsed && item.badge != null && item.badge > 0 && (
               <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
             )}
@@ -192,7 +195,7 @@ export default function LandlordSidebar() {
         ))}
       </nav>
 
-      {/* ── Bottom: Logout ── */}
+      {/* LOGOUT */}
       <div className="px-3 py-4 border-t border-gray-700">
         <button
           onClick={handleLogout}

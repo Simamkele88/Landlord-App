@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
-// Created this context to manage payment data and actions across the app.
-//  It provides a centralized way to access and manipulate payment information, 
-// making it easier to maintain and update the state related to payments throughout the application.
+// PAYMENTS CONTEXT - MANAGES PAYMENT DATA AND ACTIONS
+// AUTHOR: SIMAMKELE WEKEZA
+// IF YOU DO NOT UNDERSTAND THIS CODE, PLEASE ASK ME TO EXPLAIN AND DON'T ASSUME OTHERWISE.
 import { createContext, useContext, useState } from 'react';
 
 const PaymentsContext = createContext(null);
@@ -14,7 +14,7 @@ export function usePayments() {
   return context;
 }
 
-// Initial mock data
+// MOCK PAYMENT DATA 
 const INITIAL_PAYMENTS = [
   { id: 1, tenant: "Sipho Dlamini", unit: "Unit 4A", property: "Hillbrow Heights", amount: 6500, due: "2026-04-01", paid: "2026-04-01", method: "Upload", proof: true, status: "Paid" },
   { id: 2, tenant: "Lerato Mokoena", unit: "Unit 2B", property: "Hillbrow Heights", amount: 5800, due: "2026-04-01", paid: "2026-04-03", method: "Upload", proof: true, status: "Pending Approval" },
@@ -26,6 +26,7 @@ const INITIAL_PAYMENTS = [
   { id: 8, tenant: "Zanele Moyo", unit: "Unit 1A", property: "Berea Flats", amount: 7500, due: "2026-04-01", paid: null, method: null, proof: false, status: "Late" },
 ];
 
+// PAYMENTS PROVIDER - MANAGES PAYMENT STATE AND ACTIONS
 export function PaymentsProvider({ children }) {
   const [payments, setPayments] = useState(INITIAL_PAYMENTS);
 

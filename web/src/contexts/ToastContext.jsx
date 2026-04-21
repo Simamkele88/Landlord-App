@@ -1,14 +1,14 @@
 /* eslint-disable react-refresh/only-export-components */
-// Created this context to manage toast notifications across the app.
-//  It provides a centralized way to trigger and display toast messages, 
-// making it easier to maintain and update the state related to notifications throughout the application.
+// TOAST CONTEXT
+// AUTHOR: SIMAMKELE WEKEZA
+// IF YOU DO NOT UNDERSTAND THIS CODE, PLEASE ASK ME TO EXPLAIN AND DON'T ASSUME OTHERWISE.
 import { createContext, useContext, useState } from 'react';
 import { createPortal } from 'react-dom';
 
-// Create the context
+// CREATE THE TOAST CONTEXT
 const ToastContext = createContext(null);
 
-// Custom hook - exported separately
+// CUSTOM HOOK TO USE THE TOAST CONTEXT
 export function useToast() {
   const context = useContext(ToastContext);
   if (!context) {
@@ -17,7 +17,7 @@ export function useToast() {
   return context;
 }
 
-// Toast component 
+// TOAST COMPONENT TO DISPLAY THE TOAST MESSAGE
 function ToastComponent({ toast }) {
   if (!toast) return null;
   
@@ -46,7 +46,7 @@ function ToastComponent({ toast }) {
   );
 }
 
-// Main provider component
+// MAIN PROVIDER COMPONENT TO WRAP THE APP AND PROVIDE THE TOAST CONTEXT
 export function ToastProvider({ children }) {
   const [toast, setToast] = useState(null);
 

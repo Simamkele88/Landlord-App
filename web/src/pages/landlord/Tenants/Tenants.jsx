@@ -530,7 +530,6 @@ export default function Tenants() {
         {/* HEADER */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Tenants</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
               {tenants.length} tenants across all properties
             </p>

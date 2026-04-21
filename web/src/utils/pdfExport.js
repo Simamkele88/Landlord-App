@@ -1,27 +1,30 @@
 /* eslint-disable no-unused-vars */
-
+// PDF EXPORT UTILITY FUNCTION, GENERATES A DETAILED PDF REPORT OF PAYMENTS WITH SUMMARY AND TABLE, USING JSPDF AND AUTOTABLE
+// AUTHOR: SIMAMKELE WEKEZA
+// IF YOU HAVE ANY QUESTIONS REGARDING ANYTHING ASK ME.
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+
 
 export function exportToPDF(payments, summary, dateRange = 'Current Month') {
   const doc = new jsPDF();
   
-  // Colors
-  const primaryColor = [37, 99, 235]; // Blue
-  const successColor = [5, 150, 105]; // Green
-  const warningColor = [245, 158, 11]; // Yellow
-  const dangerColor = [220, 38, 38]; // Red
+  // COLORS
+  const primaryColor = [37, 99, 235]; // BLUE
+  const successColor = [5, 150, 105]; // GREEN
+  const warningColor = [245, 158, 11]; // YELLOW
+  const dangerColor = [220, 38, 38]; // RED
   
-  // Add title
+  // ADD TITLE
   doc.setFontSize(24);
   doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-  doc.text('RentPay', 14, 20);
+  doc.text('Chihwa Rentals', 14, 20);
   
   doc.setFontSize(18);
   doc.setTextColor(0, 0, 0);
   doc.text('Payment Report', 14, 32);
   
-  // Add date and range
+  // ADD DATE AND RANGE
   doc.setFontSize(10);
   doc.setTextColor(100, 100, 100);
   doc.text(`Generated: ${new Date().toLocaleDateString('en-ZA', { 
@@ -34,16 +37,16 @@ export function exportToPDF(payments, summary, dateRange = 'Current Month') {
   
   doc.text(`Period: ${dateRange}`, 14, 49);
   
-  // Add summary section
+  // ADD SUMMARY SECTION
   doc.setFontSize(14);
   doc.setTextColor(0, 0, 0);
   doc.text('Summary', 14, 65);
   
-  // Summary boxes
+  // SUMMARY BOXES
   const boxY = 72;
   const boxHeight = 35;
   
-  // Total Expected box
+  // TOTAL EXPECTED BOX
   doc.setFillColor(240, 240, 240);
   doc.rect(14, boxY, 55, boxHeight, 'F');
   doc.setFontSize(9);
@@ -53,7 +56,7 @@ export function exportToPDF(payments, summary, dateRange = 'Current Month') {
   doc.setTextColor(0, 0, 0);
   doc.text(`R ${summary.totalExpected.toLocaleString()}`, 16, boxY + 25);
   
-  // Total Collected box
+  // TOTAL COLLECTED BOX
   doc.setFillColor(240, 240, 240);
   doc.rect(73, boxY, 55, boxHeight, 'F');
   doc.setFontSize(9);
@@ -63,7 +66,7 @@ export function exportToPDF(payments, summary, dateRange = 'Current Month') {
   doc.setTextColor(successColor[0], successColor[1], successColor[2]);
   doc.text(`R ${summary.totalCollected.toLocaleString()}`, 75, boxY + 25);
   
-  // Collection Rate box
+  // COLLECTION RATE BOX
   doc.setFillColor(240, 240, 240);
   doc.rect(132, boxY, 55, boxHeight, 'F');
   doc.setFontSize(9);
@@ -73,10 +76,10 @@ export function exportToPDF(payments, summary, dateRange = 'Current Month') {
   doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
   doc.text(`${summary.collectionRate}%`, 134, boxY + 25);
   
-  // Second row of stats
+  // SECOND ROW OF SUMMARY BOXES FOR STATUS BREAKDOWN
   const boxY2 = boxY + boxHeight + 5;
   
-  // Paid box
+  // PAID BOX
   doc.setFillColor(240, 240, 240);
   doc.rect(14, boxY2, 55, 25, 'F');
   doc.setFontSize(9);
@@ -86,7 +89,7 @@ export function exportToPDF(payments, summary, dateRange = 'Current Month') {
   doc.setTextColor(successColor[0], successColor[1], successColor[2]);
   doc.text(`${summary.paidCount} payments`, 16, boxY2 + 20);
   
-  // Pending box
+  // PENDING APPROVAL BOX
   doc.setFillColor(240, 240, 240);
   doc.rect(73, boxY2, 55, 25, 'F');
   doc.setFontSize(9);
@@ -96,7 +99,7 @@ export function exportToPDF(payments, summary, dateRange = 'Current Month') {
   doc.setTextColor(warningColor[0], warningColor[1], warningColor[2]);
   doc.text(`${summary.pending} payments`, 75, boxY2 + 20);
   
-  // Late/Collections box
+  // LATE/COLLECTIONS BOX
   doc.setFillColor(240, 240, 240);
   doc.rect(132, boxY2, 55, 25, 'F');
   doc.setFontSize(9);
@@ -106,7 +109,7 @@ export function exportToPDF(payments, summary, dateRange = 'Current Month') {
   doc.setTextColor(dangerColor[0], dangerColor[1], dangerColor[2]);
   doc.text(`${summary.late} payments`, 134, boxY2 + 20);
   
-  // Add status breakdown
+  // ADD STATUS BREAKDOWN
   const statusBreakdown = {
     'Paid': payments.filter(p => p.status === 'Paid').length,
     'Pending Approval': payments.filter(p => p.status === 'Pending Approval').length,
@@ -114,7 +117,7 @@ export function exportToPDF(payments, summary, dateRange = 'Current Month') {
     'Collections': payments.filter(p => p.status === 'Collections').length,
   };
   
-  // Create table
+  // CREATE TABLE
   const tableHeaders = [
     'Tenant', 
     'Unit', 
@@ -135,7 +138,7 @@ export function exportToPDF(payments, summary, dateRange = 'Current Month') {
     p.status
   ]);
   
-  // Add table
+  // ADD TABLE USING AUTOTABLE
   autoTable(doc, {
     head: [tableHeaders],
     body: tableData,
@@ -153,31 +156,31 @@ export function exportToPDF(payments, summary, dateRange = 'Current Month') {
       fillColor: [245, 245, 245],
     },
     columnStyles: {
-      0: { cellWidth: 40 }, // Tenant
-      1: { cellWidth: 25 }, // Unit
-      2: { cellWidth: 35 }, // Property
-      3: { cellWidth: 25 }, // Amount
-      4: { cellWidth: 25 }, // Due Date
-      5: { cellWidth: 25 }, // Paid Date
-      6: { cellWidth: 25 }, // Status
+      0: { cellWidth: 40 }, // TENANT
+      1: { cellWidth: 25 }, // UNIT
+      2: { cellWidth: 35 }, // PROPERTY
+      3: { cellWidth: 25 }, // AMOUNT
+      4: { cellWidth: 25 }, // DUE DATE
+      5: { cellWidth: 25 }, // PAID DATE
+      6: { cellWidth: 25 }, // STATUS
     },
   });
   
-  // Add footer
+  // ADD FOOTER WITH PAGE NUMBERS
   const pageCount = doc.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
     doc.setFontSize(8);
     doc.setTextColor(150, 150, 150);
     doc.text(
-      `Page ${i} of ${pageCount} | Generated by RentPay Landlord Portal`,
+      `Page ${i} of ${pageCount} | Generated by Chihwa Rentals Landlord Portal`,
       doc.internal.pageSize.width / 2,
       doc.internal.pageSize.height - 10,
       { align: 'center' }
     );
   }
   
-  // Save PDF
+  // SAVE PDF WITH DYNAMIC FILENAME
   const filename = `payment_report_${new Date().toISOString().split('T')[0]}.pdf`;
   doc.save(filename);
 }

@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-vars */
-// This component is a modal for generating and exporting payment reports in CSV or PDF format.
-//  It allows users to select a date range and export their payment data with a summary preview. 
-// The modal handles export logic, shows loading states, and provides feedback on success or failure of exports.
+// FULL REPORT MODAL COMPONENT
+// AUTHOR: SIMAMKELE WEKEZA
+// IF YOU DO NOT UNDERSTAND THIS CODE, PLEASE ASK ME TO EXPLAIN AND DON'T ASSUME OTHERWISE.
 import { useState } from 'react';
 import { exportToCSV, generatePaymentSummary } from '../utils/exportUtils';
 import { exportToPDF } from '../utils/pdfExport';
@@ -15,7 +15,7 @@ export default function FullReportModal({ onClose }) {
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
   const [exporting, setExporting] = useState(false);
-  const [exportFormat, setExportFormat] = useState(null); // 'csv', 'pdf'
+  const [exportFormat, setExportFormat] = useState(null); 
 
   const summary = generatePaymentSummary(payments);
 
@@ -120,10 +120,10 @@ export default function FullReportModal({ onClose }) {
           </button>
         </div>
 
-        {/* Content */}
+        {/* CONTENT */}
         <div className="px-6 py-5 space-y-5">
           
-          {/* Preview Stats */}
+          {/* PREVIEW STATS */}
           <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-700 dark:to-gray-700 rounded-xl p-5 border border-blue-100 dark:border-gray-600">
             <div className="flex items-center justify-between mb-3">
               <h4 className="text-sm font-semibold text-gray-900 dark:text-white">Report Preview</h4>
@@ -159,7 +159,7 @@ export default function FullReportModal({ onClose }) {
             </div>
           </div>
 
-          {/* Date Range Selection */}
+          {/* DATE RANGE */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Date Range
@@ -188,7 +188,7 @@ export default function FullReportModal({ onClose }) {
             </div>
           </div>
 
-          {/* Custom Date Range */}
+          {/* CUSTOM DATE RANGE */}
           {dateRange === 'custom' && (
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -212,13 +212,13 @@ export default function FullReportModal({ onClose }) {
             </div>
           )}
 
-          {/* Export Format Selection */}
+          {/* EXPORT FORMAT SELECTION */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
               Select Export Format
             </label>
             <div className="grid grid-cols-2 gap-4">
-              {/* CSV Option */}
+              {/* CSV OPTION */}
               <button
                 onClick={() => handleExport('csv')}
                 disabled={exporting || (dateRange === 'custom' && (!customStartDate || !customEndDate))}
@@ -239,7 +239,7 @@ export default function FullReportModal({ onClose }) {
                 </div>
               </button>
 
-              {/* PDF Option */}
+              {/* PDF OPTION */}
               <button
                 onClick={() => handleExport('pdf')}
                 disabled={exporting || (dateRange === 'custom' && (!customStartDate || !customEndDate))}
@@ -263,7 +263,7 @@ export default function FullReportModal({ onClose }) {
           </div>
         </div>
 
-        {/* Footer */}
+        {/* FOOTER */}
         <div className="px-6 pb-6 flex gap-3 sticky bottom-0 bg-white dark:bg-gray-800 pt-4 border-t border-gray-200 dark:border-gray-700">
           <button
             onClick={onClose}

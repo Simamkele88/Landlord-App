@@ -1,4 +1,7 @@
 
+// PAYMENTS PAGE
+// AUTHOR: SIMAMKELE WEKEZA
+// IF YOU DO NOT UNDERSTAND THIS CODE, PLEASE ASK ME TO EXPLAIN AND DON'T ASSUME OTHERWISE.
 import { useState } from "react";
 import useDocumentTitle from "../../../hooks/useDocumentTitle";
 import { useNavigate } from "react-router-dom";
@@ -7,6 +10,7 @@ import { useToast } from "../../../contexts/ToastContext";
 import FullReportModal from "../../../components/FullReportModal";
 
 
+// STATUS STYLES
 const STATUS_STYLES = {
   "Paid":             "bg-green-100 text-green-800 dark:bg-gray-700 dark:text-green-400 border border-green-100 dark:border-green-500",
   "Pending Approval": "bg-yellow-100 text-yellow-800 dark:bg-gray-700 dark:text-yellow-400 border border-yellow-100 dark:border-yellow-500",
@@ -26,14 +30,14 @@ const REJECT_REASONS = [
 
 const FILTERS = ["All", "Paid", "Pending Approval", "Late", "Collections", "Rejected"];
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// HELPER FUNCTIONS
 function fmt(amount) { return `R ${amount.toLocaleString()}`; }
 
 function initials(name) {
   return name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
 }
 
-// ─── Spinner ──────────────────────────────────────────────────────────────────
+
 function Spinner() {
   return (
     <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
@@ -43,7 +47,7 @@ function Spinner() {
   );
 }
 
-// ─── StatCard ─────────────────────────────────────────────────────────────────
+// STAT CARD COMPONENT
 function StatCard({ label, value, sub, color }) {
   return (
     <div className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm dark:border-gray-700 sm:p-6 dark:bg-gray-800">
@@ -54,7 +58,7 @@ function StatCard({ label, value, sub, color }) {
   );
 }
 
-// ─── StatusBadge ──────────────────────────────────────────────────────────────
+// STATUS BADGE COMPONENT
 function StatusBadge({ status }) {
   return (
     <span className={`text-xs font-medium px-2.5 py-0.5 rounded-md ${STATUS_STYLES[status] ?? ""}`}>
@@ -64,7 +68,7 @@ function StatusBadge({ status }) {
 }
 
 
-// ─── CollectionsModal ─────────────────────────────────────────────────────────
+// COLLECTIONS MODAL COMPONENT
 function CollectionsModal({ payment, onClose, onConfirm }) {
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
@@ -121,7 +125,7 @@ function CollectionsModal({ payment, onClose, onConfirm }) {
   );
 }
 
-// ─── Toast ────────────────────────────────────────────────────────────────────
+// TOAST COMPONENT
 function Toast({ toast }) {
   if (!toast) return null;
   const colours = {
@@ -139,7 +143,7 @@ function Toast({ toast }) {
   );
 }
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
+// MAIN PAYMENTS PAGE COMPONENT
 export default function PaymentsPage() {
   const { payments, approvePayment, rejectPayment, sendToCollections } = usePayments();
   const [filter, setFilter] = useState("All");
@@ -184,7 +188,7 @@ export default function PaymentsPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
       
 
-      {/* Modals */}
+      {/* MODALS */}
       {reviewPayment && (
         <ReviewModal
           payment={reviewPayment}
@@ -206,7 +210,7 @@ export default function PaymentsPage() {
 
       <div className="px-4 pt-6 max-w-screen-xl mx-auto pb-10">
 
-        {/* Header */}
+        {/* HEADER */}
         <div className="flex items-center justify-between mb-6">
           <div>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">April 2026 · All Properties</p>
@@ -222,7 +226,7 @@ export default function PaymentsPage() {
           </button>
         </div>
 
-        {/* Stat Cards */}
+        {/* STAT CARDS */}
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 mb-6">
           <StatCard label="Total Expected (Apr)" value={fmt(totalExpected)} sub={`${payments.length} tenants`} />
           <StatCard label="Collected" value={fmt(totalCollected)} sub={`${payments.filter(p => p.status === "Paid").length} payments verified`} color="text-green-500" />
@@ -230,10 +234,10 @@ export default function PaymentsPage() {
           <StatCard label="Late / Collections" value={lateCount} sub="Require attention" color="text-red-500" />
         </div>
 
-        {/* Table card */}
+        {/* TABLE CARD */}
         <div className="bg-white border border-gray-200 rounded-lg shadow-sm dark:border-gray-700 dark:bg-gray-800">
 
-          {/* Toolbar */}
+          {/* TOOLBAR */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
             <div className="flex flex-wrap gap-2">
               {FILTERS.map(f => (
@@ -267,7 +271,7 @@ export default function PaymentsPage() {
             </div>
           </div>
 
-          {/* Table */}
+          {/* TABLE */}
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
               <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
@@ -372,7 +376,7 @@ export default function PaymentsPage() {
             </table>
           </div>
 
-          {/* Footer */}
+          {/* FOOTER */}
           <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 dark:border-gray-700">
             
           <span className="text-sm text-gray-500 dark:text-gray-400">

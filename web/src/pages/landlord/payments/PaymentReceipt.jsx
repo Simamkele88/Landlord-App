@@ -1,9 +1,10 @@
-// This is the payment receipt page that landlords see after approving a tenant's payment. 
-// It displays all relevant details about the payment in a clean, printable format, and allows landlords to download/print the receipt for their records. 
+// PAYMENT RECEIPT PAGE
+// AUTHOR: SIMAMKELE WEKEZA
+// IF YOU DO NOT UNDERSTAND THIS CODE, PLEASE ASK ME TO EXPLAIN AND DON'T ASSUME OTHERWISE.
 import { useLocation, useNavigate } from "react-router-dom";
 import useDocumentTitle from "../../../hooks/useDocumentTitle";
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// HELPER FUNCTIONS
 function fmt(amount) {
   return `R ${Number(amount).toLocaleString("en-ZA")}`;
 }
@@ -21,15 +22,15 @@ function formatDate(dateStr) {
   });
 }
 
-// Derive receipt number from payment id + paid date
+// DERIVE RECEIPT NUMBER FROM PAYMENT DATA 
 function receiptNumber(payment) {
   const datePart = payment.paid
-    ? payment.paid.replace(/-/g, "").slice(2) // e.g. "260401"
+    ? payment.paid.replace(/-/g, "").slice(2) 
     : "000000";
   return `RCP-${String(payment.id).padStart(4, "0")}-${datePart}`;
 }
 
-// ─── Row helper ───────────────────────────────────────────────────────────────
+// ROW HELPER COMPONENT FOR DETAILS TABLE
 function Row({ label, value, mono = false, highlight = false }) {
   return (
     <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700 last:border-0">
@@ -46,14 +47,14 @@ function Row({ label, value, mono = false, highlight = false }) {
   );
 }
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
+// MAIN PAGE COMPONENT
 export default function PaymentReceipt() {
   useDocumentTitle("Receipt");
 
   const { state } = useLocation();
   const navigate = useNavigate();
 
-  // If someone lands here without state  send them back
+  // IF SOMEONE LANDS ON THIS PAGE WITHOUT NAVIGATING FROM A PAYMENT SHOW A FRIENDLY MESSAGE INSTEAD OF A BROKEN PAGE
   const payment = state?.payment;
   if (!payment) {
     return (
@@ -78,7 +79,7 @@ export default function PaymentReceipt() {
     year: "numeric",
   });
 
-  // ── Download handler ────────────────────────────────────────────────────────
+  // DOWNLOAD HANDLER
   function handleDownload() {
     window.print();
   }
@@ -86,7 +87,7 @@ export default function PaymentReceipt() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-10 px-4">
 
-      {/* ── Back nav ── */}
+      {/* BACK-NAV */}
       <div className="max-w-2xl mx-auto mb-6">
         <button
           onClick={() => navigate("/landlord/payments")}
@@ -99,21 +100,21 @@ export default function PaymentReceipt() {
         </button>
       </div>
 
-      {/* ── Receipt card ── */}
+      {/* RECEIPT PANEL */}
       <div
         id="receipt-panel"
         className="max-w-2xl mx-auto bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden print:shadow-none print:border-0"
       >
 
-        {/* ── Green header ── */}
+        {/* GREEN HEADER*/}
         <div className="bg-green-600 px-8 py-8 text-white">
           <div className="flex items-start justify-between">
-            {/* Left: branding */}
+            {/* LEFT: BRANDING */}
             <div>
               <div className="flex items-center gap-2 mb-4">
                 <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
                   <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
+                    <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 00１.4１4-１.4１4l-7-7z" />
                   </svg>
                 </div>
                 <span className="font-semibold text-white/90 text-sm tracking-wide">
@@ -124,7 +125,7 @@ export default function PaymentReceipt() {
               <p className="text-green-100 text-sm mt-1">{payment.property}</p>
             </div>
 
-            {/* Right: verified badge */}
+            {/* RIGHT: VERIFIED BADGE */}
             <div className="flex flex-col items-center gap-1">
               <div className="w-14 h-14 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center">
                 <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -136,7 +137,7 @@ export default function PaymentReceipt() {
           </div>
         </div>
 
-        {/* ── Receipt number band ── */}
+        {/* RECEIPT NUMBER BAND */}
         <div className="bg-green-50 dark:bg-green-900/20 border-b border-green-100 dark:border-green-800 px-8 py-3 flex items-center justify-between">
           <span className="text-xs text-green-700 dark:text-green-400 font-medium uppercase tracking-wider">
             Receipt Number
@@ -146,10 +147,10 @@ export default function PaymentReceipt() {
           </span>
         </div>
 
-        {/* ── Body ── */}
+        {/* BODY */}
         <div className="px-8 py-6 space-y-6">
 
-          {/* Tenant info */}
+          {/* TENANT INFO */}
           <div className="flex items-center gap-4 p-4 rounded-xl bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700">
             <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 flex items-center justify-center text-sm font-bold flex-shrink-0">
               {initials(payment.tenant)}
@@ -170,7 +171,7 @@ export default function PaymentReceipt() {
             </div>
           </div>
 
-          {/* Payment details table */}
+          {/* PAYMENT DETAILS */}
           <div>
             <h2 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">
               Payment Details
@@ -194,7 +195,7 @@ export default function PaymentReceipt() {
             </div>
           </div>
 
-          {/* Amount summary */}
+          {/* AMOUNT SUMMARY */}
           <div className="rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden">
             <div className="px-4">
               <Row label="Rent Amount"   value={fmt(payment.amount)} />
@@ -208,13 +209,13 @@ export default function PaymentReceipt() {
             </div>
           </div>
 
-          {/* Approval metadata */}
+          {/* APPROVAL METADATA */}
           <div className="flex items-center justify-between text-xs text-gray-400 dark:text-gray-500 pt-1">
             <span>Approved by: <span className="font-medium text-gray-600 dark:text-gray-300">Landlord</span></span>
             <span>Issued: <span className="font-medium text-gray-600 dark:text-gray-300">{approvedOn}</span></span>
           </div>
 
-          {/* Dashed divider — receipt tear line feel */}
+          {/* DASHED DIVIDER */}
           <div className="border-t-2 border-dashed border-gray-200 dark:border-gray-700" />
 
           <p className="text-center text-xs text-gray-400 dark:text-gray-500">
@@ -223,7 +224,7 @@ export default function PaymentReceipt() {
           </p>
         </div>
 
-        {/* ── Action footer ── */}
+        {/* ACTION FOOTER */}
         <div className="px-8 pb-8 flex gap-3 print:hidden">
           <button
             onClick={() => navigate("/landlord/payments")}
@@ -247,7 +248,7 @@ export default function PaymentReceipt() {
         </div>
       </div>
 
-      {/* ── Print styles (injected inline so no extra CSS file needed) ── */}
+      {/* PRINT STYLES */}
       <style>{`
         @media print {
           body { background: white; }

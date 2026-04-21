@@ -1,4 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
+// ROOT COMPONENT OF THE APP, HANDLES ROUTING AND AUTHENTICATION STATE
+// ASK SIMAMKELE WEKEZA IF YOU HAVE ANY QUESTIONS ABOUT THIS CODE, HE WROTE IT AND KNOWS IT BEST. DO NOT ASSUME ANYTHING ABOUT THIS CODE WITHOUT ASKING HIM FIRST.
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useState, useEffect, createContext, useContext } from "react";
 
@@ -12,23 +14,24 @@ import { PaymentsProvider } from "./contexts/PaymentsContext";
 import PaymentReceipt from "./pages/landlord/payments/PaymentReceipt";
 import LandlordMaintenance from "./pages/landlord/maintenance/MaintenanceDashbord"
 import PropertyDashboard from "./pages/landlord/properties/Properties";
+import Tenants from "./pages/landlord/Tenants/Tenants";
 
 import "./index.css";
 
-// ── Auth Context ──────────────────────────────────────────────
+// AUTHENTICATION CONTEXT TO MANAGE TOKEN AND USER STATE GLOBALLY
 export const AuthContext = createContext(null);
 
 export function useAuth() {
   return useContext(AuthContext);
 }
 
-// ── Protected Route ───────────────────────────────────────────
+// PROTECTED ROUTE COMPONENT, CHECKS FOR AUTHENTICATION TOKEN
 function PrivateRoute({ children }) {
   const { token } = useAuth();
   return token ? children : <Navigate to="/login" replace />;
 }
 
-// ── Root App ──────────────────────────────────────────────────
+// ROOT COMPONENT OF THE APP, HANDLES ROUTING AND AUTHENTICATION STATE
 export default function App() {
   const [token, setToken] = useState(() => localStorage.getItem("token"));
   const [user, setUser] = useState(() => {
@@ -65,10 +68,10 @@ export default function App() {
         <ToastProvider>
           <BrowserRouter>
             <Routes>
-              {/* Public */}
+              {/* THE ONLY PUBLIC ROUTE */}
               <Route path="/login" element={<Login />} />
 
-              {/* Protected landlord area with sidebar layout */}
+              {/* LANDLORD AREA WITH SIDE BAR AND TOP BAR */}
               <Route
                 path="/landlord"
                 element={
@@ -77,15 +80,17 @@ export default function App() {
                   </PrivateRoute>
                 }
               >
+                {/* ROUTE THAT ARE ADDED TO THE LANDLORD LAYOUT */}
                 <Route path="dashboard" element={<Dashboard />} />
                 <Route path="payments" element={<Payments />} />
                 <Route path="payments/review" element={<PaymentReview />} />
                 <Route path="payments/receipt" element={<PaymentReceipt />} />
                 <Route path="maintenance" element={<LandlordMaintenance />} />
                 <Route path="properties"  element={<PropertyDashboard />} />
+                <Route path="tenants" element={<Tenants />} />
               </Route>
 
-              {/* Default redirect */}
+            {/* REDIRECT TO LOGIN ROUTE IF THERE IS NO TOKEN, ELSE REDIRECT TO DASHBOARD */}
               <Route
                 path="*"
                 element={

@@ -504,9 +504,9 @@ app.get("/auth/landlord/users", requireAuth, requireLandlord, async (req, res) =
 async function setupDatabase() {
   try {
     // Test connection
-    console.log("✅ Database connected successfully");
+    console.log(" Database connected successfully");
   } catch (error) {
-    console.error("❌ Database setup error:", error);
+    console.error(" Database setup error:", error);
     throw error;
   }
 }
@@ -515,8 +515,7 @@ async function setupDatabase() {
 const PORT = process.env.PORT || 4000;
 setupDatabase().then(() => {
   app.listen(PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
-    console.log(`📍 Landlord login: POST http://localhost:${PORT}/auth/landlord/login`);
-    console.log(`📍 User login: POST http://localhost:${PORT}/auth/login`);
+    console.log(` Server running on http://localhost:${PORT}`);
+    
   });
 });

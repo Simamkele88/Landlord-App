@@ -14,6 +14,8 @@ import { PaymentsProvider } from "./contexts/PaymentsContext";
 import PaymentReceipt from "./pages/landlord/payments/PaymentReceipt";
 import LandlordMaintenance from "./pages/landlord/maintenance/MaintenanceDashbord"
 import PropertyDashboard from "./pages/landlord/properties/Properties";
+import Tenants from "./pages/landlord/Tenants/Tenants";
+import Units from "./pages/landlord/units/Units";
 
 
 import "./index.css";
@@ -87,7 +89,8 @@ export default function App() {
                 <Route path="payments/receipt" element={<PaymentReceipt />} />
                 <Route path="maintenance" element={<LandlordMaintenance />} />
                 <Route path="properties"  element={<PropertyDashboard />} />
-                
+                <Route path="tenants"  element={<Tenants />} />
+                <Route path="units"  element={<Units />} /> 
               </Route>
 
             {/* REDIRECT TO LOGIN ROUTE IF THERE IS NO TOKEN, ELSE REDIRECT TO DASHBOARD */}

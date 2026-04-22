@@ -31,7 +31,7 @@ const REJECT_REASONS = [
 const FILTERS = ["All", "Paid", "Pending Approval", "Late", "Collections", "Rejected"];
 
 // HELPER FUNCTIONS
-function fmt(amount) { return `R ${amount.toLocaleString()}`; }
+function format(amount) { return `R ${amount.toLocaleString()}`; }
 
 function initials(name) {
   return name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
@@ -95,7 +95,7 @@ function CollectionsModal({ payment, onClose, onConfirm }) {
         </div>
         <div className="px-6 py-5 space-y-4">
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            You are escalating <span className="font-semibold text-gray-900 dark:text-white">{payment.tenant}</span> ({payment.unit}) to collections for an outstanding balance of <span className="font-semibold text-red-500">{fmt(payment.amount)}</span>.
+            You are escalating <span className="font-semibold text-gray-900 dark:text-white">{payment.tenant}</span> ({payment.unit}) to collections for an outstanding balance of <span className="font-semibold text-red-500">{format(payment.amount)}</span>.
           </p>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Note for collections agent <span className="text-gray-400 font-normal">(optional)</span>
@@ -228,8 +228,8 @@ export default function PaymentsPage() {
 
         {/* STAT CARDS */}
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 mb-6">
-          <StatCard label="Total Expected (Apr)" value={fmt(totalExpected)} sub={`${payments.length} tenants`} />
-          <StatCard label="Collected" value={fmt(totalCollected)} sub={`${payments.filter(p => p.status === "Paid").length} payments verified`} color="text-green-500" />
+          <StatCard label="Total Expected (Apr)" value={format(totalExpected)} sub={`${payments.length} tenants`} />
+          <StatCard label="Collected" value={format(totalCollected)} sub={`${payments.filter(p => p.status === "Paid").length} payments verified`} color="text-green-500" />
           <StatCard label="Pending Approval" value={pendingCount} sub="Proof uploaded, awaiting review" color="text-yellow-500" />
           <StatCard label="Late / Collections" value={lateCount} sub="Require attention" color="text-red-500" />
         </div>
@@ -316,7 +316,7 @@ export default function PaymentsPage() {
                       <div className="text-gray-900 dark:text-white font-medium">{p.unit}</div>
                       <div className="text-xs text-gray-400">{p.property}</div>
                     </td>
-                    <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white whitespace-nowrap">{fmt(p.amount)}</td>
+                    <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white whitespace-nowrap">{format(p.amount)}</td>
                     <td className="px-6 py-4 whitespace-nowrap">{p.due}</td>
                     <td className="px-6 py-4 whitespace-nowrap">{p.paid ?? <span className="text-red-400">—</span>}</td>
                     <td className="px-6 py-4 whitespace-nowrap">

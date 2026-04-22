@@ -51,7 +51,7 @@ const SCORE_CONFIG = {
 };
 
 // HELPER FUNCTIONS
-function fmt(n) { return `R ${Number(n).toLocaleString("en-ZA")}`; }
+function format(n) { return `R ${Number(n).toLocaleString("en-ZA")}`; }
 function initials(name = "") { return name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase(); }
 function leaseExpiresSoon(endDate) {
   const days = Math.ceil((new Date(endDate) - Date.now()) / 86400000);
@@ -169,7 +169,7 @@ function RepaymentModal({ tenant, onClose, onConfirm }) {
   return (
     <ModalShell
       title="Create Repayment Plan"
-      sub={`${tenant.name} · Outstanding: ${fmt(tenant.balance)}`}
+      sub={`${tenant.name} · Outstanding: ${format(tenant.balance)}`}
       icon={DollarSign}
       iconBg="bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400"
       onClose={onClose}
@@ -186,7 +186,7 @@ function RepaymentModal({ tenant, onClose, onConfirm }) {
       <div className="flex items-center justify-between p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700">
         <div>
           <p className="text-xs text-red-600 dark:text-red-400 font-semibold uppercase tracking-wider">Outstanding Balance</p>
-          <p className="text-2xl font-bold text-red-600 dark:text-red-400 mt-0.5">{fmt(tenant.balance)}</p>
+          <p className="text-2xl font-bold text-red-600 dark:text-red-400 mt-0.5">{format(tenant.balance)}</p>
         </div>
         <CreditCard size={28} className="text-red-400 dark:text-red-600" />
       </div>
@@ -200,7 +200,7 @@ function RepaymentModal({ tenant, onClose, onConfirm }) {
           onChange={e => { setInstalments(e.target.value); setErrors(er => ({ ...er, instalments: undefined })); }}
           className={ic("instalments")} placeholder="e.g. 3" />
         {instNum > 0 && tenant.balance > 0 && (
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">≈ {fmt(amountPerPeriod)} per instalment</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">≈ {format(amountPerPeriod)} per instalment</p>
         )}
       </div>
 
@@ -239,7 +239,7 @@ function RepaymentModal({ tenant, onClose, onConfirm }) {
                   <span className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 flex items-center justify-center text-xs font-bold flex-shrink-0">{row.no}</span>
                   <span className="text-sm text-gray-500 dark:text-gray-400">{row.date}</span>
                 </div>
-                <span className="text-sm font-semibold text-gray-900 dark:text-white">{fmt(row.amount)}</span>
+                <span className="text-sm font-semibold text-gray-900 dark:text-white">{format(row.amount)}</span>
               </div>
             ))}
           </div>
@@ -306,7 +306,7 @@ function RenewalModal({ tenant, onClose, onConfirm }) {
     >
       {/* Current lease summary */}
       <div className="rounded-xl border border-gray-100 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700 overflow-hidden">
-        {[["Current Lease End", tenant.leaseEnd], ["Current Rent", fmt(tenant.rentAmount)]].map(([label, val]) => (
+        {[["Current Lease End", tenant.leaseEnd], ["Current Rent", format(tenant.rentAmount)]].map(([label, val]) => (
           <div key={label} className="flex justify-between items-center px-4 py-3 bg-gray-50 dark:bg-gray-700/40 odd:bg-white odd:dark:bg-gray-800">
             <span className="text-sm text-gray-500 dark:text-gray-400">{label}</span>
             <span className="text-sm font-semibold text-gray-900 dark:text-white">{val}</span>
@@ -334,7 +334,7 @@ function RenewalModal({ tenant, onClose, onConfirm }) {
           className={ic("newRent")} placeholder="e.g. 6500" />
         {rentChanged && Number(newRent) > 0 && (
           <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1 flex items-center gap-1">
-            <AlertTriangle size={12} /> Rent will change from {fmt(tenant.rentAmount)} → {fmt(Number(newRent))}
+            <AlertTriangle size={12} /> Rent will change from {format(tenant.rentAmount)} → {format(Number(newRent))}
           </p>
         )}
       </div>
@@ -441,7 +441,7 @@ function TerminationModal({ tenant, onClose, onConfirm }) {
         <div className="flex items-start gap-2 p-3 rounded-lg bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700">
           <AlertTriangle size={15} className="text-orange-600 dark:text-orange-400 flex-shrink-0 mt-0.5" />
           <p className="text-xs text-orange-700 dark:text-orange-300">
-            Outstanding balance of <span className="font-bold">{fmt(tenant.balance)}</span> will be flagged for collections on termination.
+            Outstanding balance of <span className="font-bold">{format(tenant.balance)}</span> will be flagged for collections on termination.
           </p>
         </div>
       )}
@@ -529,7 +529,7 @@ function ProfileModal({ tenant, onClose, onEdit, onRepayment, onRenewal, onTermi
           {tenant.balance > 0 && (
             <div className="flex items-start gap-2 p-3 rounded-lg border bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700 text-sm font-medium text-red-700 dark:text-red-400">
               <CreditCard size={16} className="flex-shrink-0 mt-0.5" />
-              Outstanding balance: {fmt(tenant.balance)}
+              Outstanding balance: {format(tenant.balance)}
             </div>
           )}
 
@@ -541,7 +541,7 @@ function ProfileModal({ tenant, onClose, onEdit, onRepayment, onRenewal, onTermi
                 ["Email",       tenant.email,                              Mail],
                 ["Phone",       tenant.phone,                              Phone],
                 ["Unit",        `${tenant.unit} · ${tenant.property}`,    Home],
-                ["Rent",        `${fmt(tenant.rentAmount)} / ${tenant.frequency}`, CreditCard],
+                ["Rent",        `${format(tenant.rentAmount)} / ${tenant.frequency}`, CreditCard],
                 ["Lease Start", tenant.leaseStart,                        Calendar],
                 ["Lease End",   tenant.leaseEnd,                          Calendar],
               ].map(([label, val, Icon]) => (
@@ -567,7 +567,7 @@ function ProfileModal({ tenant, onClose, onEdit, onRepayment, onRenewal, onTermi
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-blue-700 dark:text-blue-300">Create Repayment Plan</p>
-                    <p className="text-xs text-blue-600 dark:text-blue-400">Split {fmt(tenant.balance)} into instalments</p>
+                    <p className="text-xs text-blue-600 dark:text-blue-400">Split {format(tenant.balance)} into instalments</p>
                   </div>
                   <ChevronRight size={16} className="text-blue-400 ml-auto flex-shrink-0" />
                 </button>
@@ -618,52 +618,212 @@ function ProfileModal({ tenant, onClose, onEdit, onRepayment, onRenewal, onTermi
 }
 
 // ADD / EDIT TENANT FORM MODAL
-const EMPTY_FORM = { name: "", email: "", phone: "", unit: "", property: "", rentAmount: "", frequency: "Monthly", leaseStart: "", leaseEnd: "" };
+
+const EMPTY_FORM = {
+  // Personal Information
+  name: "",
+  surname: "",
+  idNumber: "",
+  passportNumber: "",
+  dateOfBirth: "",
+  nationality: "South African",
+  gender: "",
+  maritalStatus: "Single",
+  email: "",
+  phone: "",
+  alternatePhone: "",
+  
+  // Residential Address (Previous)
+  previousAddress: "",
+  previousCity: "",
+  previousPostalCode: "",
+  
+  // Employment Information
+  employmentStatus: "Employed",
+  employerName: "",
+  employerContact: "",
+  jobTitle: "",
+  monthlyIncome: "",
+  employmentStartDate: "",
+  
+  // Emergency Contact
+  emergencyName: "",
+  emergencyRelationship: "",
+  emergencyPhone: "",
+  emergencyEmail: "",
+  
+  // Unit & Lease
+  unit: "",
+  property: "",
+  rentAmount: "",
+  depositAmount: "",
+  depositPaid: false,
+  frequency: "Monthly",
+  leaseStart: "",
+  leaseEnd: "",
+  
+  // Additional Occupants
+  occupants: "1",
+  hasPets: false,
+  petDetails: "",
+  
+  // Documents
+  idDocument: null,
+  proofOfIncome: null,
+  leaseAgreement: null,
+  
+  // Notes
+  specialNotes: "",
+};
+
+const NATIONALITIES = [
+  "South African", "Zimbabwean", "Mozambican", "Botswanan", "Namibian",
+  "Zambian", "Malawian", "Lesotho", "Eswatini", "Nigerian", "Other"
+];
+
+const GENDERS = ["Male", "Female", "Other", "Prefer not to say"];
+const MARITAL_STATUS = ["Single", "Married", "Divorced", "Widowed", "Separated", "Domestic Partnership"];
+const EMPLOYMENT_STATUSES = ["Employed", "Self-Employed", "Student", "Retired", "Unemployed", "Other"];
 
 function TenantFormModal({ tenant, onClose, onSave }) {
   const isEdit = !!tenant;
+  const [currentStep, setCurrentStep] = useState(1);
   const [form, setForm] = useState(tenant ? {
-    name: tenant.name, email: tenant.email, phone: tenant.phone,
-    unit: tenant.unit, property: tenant.property,
-    rentAmount: String(tenant.rentAmount), frequency: tenant.frequency,
-    leaseStart: tenant.leaseStart, leaseEnd: tenant.leaseEnd,
+    // Personal Information
+    name: tenant.name || "",
+    surname: tenant.surname || "",
+    idNumber: tenant.idNumber || "",
+    passportNumber: tenant.passportNumber || "",
+    dateOfBirth: tenant.dateOfBirth || "",
+    nationality: tenant.nationality || "South African",
+    gender: tenant.gender || "",
+    maritalStatus: tenant.maritalStatus || "Single",
+    email: tenant.email || "",
+    phone: tenant.phone || "",
+    alternatePhone: tenant.alternatePhone || "",
+    
+    // Previous Address
+    previousAddress: tenant.previousAddress || "",
+    previousCity: tenant.previousCity || "",
+    previousPostalCode: tenant.previousPostalCode || "",
+    
+    // Employment
+    employmentStatus: tenant.employmentStatus || "Employed",
+    employerName: tenant.employerName || "",
+    employerContact: tenant.employerContact || "",
+    jobTitle: tenant.jobTitle || "",
+    monthlyIncome: tenant.monthlyIncome || "",
+    employmentStartDate: tenant.employmentStartDate || "",
+    
+    // Emergency Contact
+    emergencyName: tenant.emergencyName || "",
+    emergencyRelationship: tenant.emergencyRelationship || "",
+    emergencyPhone: tenant.emergencyPhone || "",
+    emergencyEmail: tenant.emergencyEmail || "",
+    
+    // Unit & Lease
+    unit: tenant.unit || "",
+    property: tenant.property || "",
+    rentAmount: String(tenant.rentAmount || ""),
+    depositAmount: String(tenant.depositAmount || tenant.rentAmount || ""),
+    depositPaid: tenant.depositPaid || false,
+    frequency: tenant.frequency || "Monthly",
+    leaseStart: tenant.leaseStart || "",
+    leaseEnd: tenant.leaseEnd || "",
+    
+    // Additional
+    occupants: String(tenant.occupants || "1"),
+    hasPets: tenant.hasPets || false,
+    petDetails: tenant.petDetails || "",
+    specialNotes: tenant.specialNotes || "",
   } : EMPTY_FORM);
+  
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors]   = useState({});
+  const [errors, setErrors] = useState({});
 
-  function set(key, val) { setForm(f => ({ ...f, [key]: val })); setErrors(e => ({ ...e, [key]: undefined })); }
+  const totalSteps = 4;
+  const usePassport = form.nationality !== "South African";
 
-  function validate() {
+  function set(key, val) { 
+    setForm(f => ({ ...f, [key]: val })); 
+    setErrors(e => ({ ...e, [key]: undefined })); 
+  }
+
+  function validateStep(step) {
     const e = {};
-    if (!form.name.trim())       e.name       = "Required";
-    if (!form.email.trim())      e.email      = "Required";
-    if (!form.phone.trim())      e.phone      = "Required";
-    if (!form.unit.trim())       e.unit       = "Required";
-    if (!form.property.trim())   e.property   = "Required";
-    if (!form.rentAmount.trim()) e.rentAmount = "Required";
-    if (!form.leaseStart)        e.leaseStart = "Required";
-    if (!form.leaseEnd)          e.leaseEnd   = "Required";
+    
+    if (step === 1) {
+      if (!form.name.trim()) e.name = "Required";
+      if (!form.surname.trim()) e.surname = "Required";
+      if (!usePassport && !form.idNumber.trim()) e.idNumber = "ID number required";
+      if (usePassport && !form.passportNumber.trim()) e.passportNumber = "Passport number required";
+      if (!form.dateOfBirth) e.dateOfBirth = "Required";
+      if (!form.gender) e.gender = "Required";
+      if (!form.email.trim()) e.email = "Required";
+      if (!form.phone.trim()) e.phone = "Required";
+    }
+    
+    if (step === 2) {
+      if (!form.employmentStatus) e.employmentStatus = "Required";
+      if (form.employmentStatus === "Employed" || form.employmentStatus === "Self-Employed") {
+        if (!form.employerName.trim()) e.employerName = "Required";
+        if (!form.monthlyIncome.trim()) e.monthlyIncome = "Required";
+      }
+      if (!form.emergencyName.trim()) e.emergencyName = "Required";
+      if (!form.emergencyPhone.trim()) e.emergencyPhone = "Required";
+    }
+    
+    if (step === 3) {
+      if (!form.unit.trim()) e.unit = "Required";
+      if (!form.property.trim()) e.property = "Required";
+      if (!form.rentAmount.trim()) e.rentAmount = "Required";
+      if (!form.leaseStart) e.leaseStart = "Required";
+      if (!form.leaseEnd) e.leaseEnd = "Required";
+    }
+    
     return e;
   }
 
+  function handleNext() {
+    const e = validateStep(currentStep);
+    if (Object.keys(e).length) { setErrors(e); return; }
+    setCurrentStep(prev => Math.min(prev + 1, totalSteps));
+  }
+
+  function handleBack() {
+    setCurrentStep(prev => Math.max(prev - 1, 1));
+  }
+
   function handleSave() {
-    const e = validate();
+    const e = validateStep(totalSteps);
     if (Object.keys(e).length) { setErrors(e); return; }
     setLoading(true);
     setTimeout(() => {
-      onSave({ ...form, rentAmount: Number(form.rentAmount), id: tenant?.id ?? Date.now(), status: "Active", reliabilityScore: tenant?.reliabilityScore ?? "Reliable", paymentHistory: tenant?.paymentHistory ?? { onTime: 0, late: 0, missed: 0 }, balance: tenant?.balance ?? 0 });
+      onSave({ 
+        ...form, 
+        rentAmount: Number(form.rentAmount),
+        depositAmount: Number(form.depositAmount),
+        monthlyIncome: form.monthlyIncome ? Number(form.monthlyIncome) : null,
+        occupants: Number(form.occupants),
+        id: tenant?.id ?? Date.now(), 
+        status: "Active", 
+        reliabilityScore: tenant?.reliabilityScore ?? "Reliable", 
+        paymentHistory: tenant?.paymentHistory ?? { onTime: 0, late: 0, missed: 0 }, 
+        balance: tenant?.balance ?? 0 
+      });
       setLoading(false);
       onClose();
-    }, 1000);
+    }, 1200);
   }
 
   const allUnits = [...VACANT_UNITS, ...(isEdit ? [{ unit: tenant.unit, property: tenant.property }] : [])];
 
-  function Field({ label, error, children }) {
+  function Field({ label, error, children, optional }) {
     return (
       <div>
         <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
-          {label} {error && <span className="text-red-500 normal-case font-normal">— {error}</span>}
+          {label} {optional && <span className="text-gray-400 font-normal">(Optional)</span>}
+          {error && <span className="text-red-500 normal-case font-normal ml-1">— {error}</span>}
         </label>
         {children}
       </div>
@@ -672,55 +832,336 @@ function TenantFormModal({ tenant, onClose, onSave }) {
 
   const ic = (key) => inputCls(errors, key, "blue");
 
+  // Progress steps
+  const steps = [
+    { number: 1, label: "Personal" },
+    { number: 2, label: "Employment" },
+    { number: 3, label: "Lease" },
+    { number: 4, label: "Additional" },
+  ];
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg border border-gray-200 dark:border-gray-700 flex flex-col max-h-[92vh]">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl border border-gray-200 dark:border-gray-700 flex flex-col max-h-[92vh]">
+        
+        {/* HEADER */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
-          <h3 className="text-base font-semibold text-gray-900 dark:text-white">{isEdit ? "Edit Tenant" : "Add New Tenant"}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-white p-1 rounded"><X size={20} /></button>
-        </div>
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
-          <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Personal Info</p>
-          <Field label="Full Name" error={errors.name}><input className={ic("name")} value={form.name} onChange={e => set("name", e.target.value)} placeholder="e.g. Sipho Dlamini" /></Field>
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="Email" error={errors.email}><input className={ic("email")} value={form.email} onChange={e => set("email", e.target.value)} placeholder="email@example.com" type="email" /></Field>
-            <Field label="Phone" error={errors.phone}><input className={ic("phone")} value={form.phone} onChange={e => set("phone", e.target.value)} placeholder="0821234567" type="tel" /></Field>
+          <div>
+            <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+              {isEdit ? "Edit Tenant" : "Add New Tenant"}
+            </h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              Complete all required information for tenant onboarding
+            </p>
           </div>
-          <div className="border-t border-gray-100 dark:border-gray-700 pt-4">
-            <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-4">Unit & Lease</p>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="Unit" error={errors.unit}>
-              <select className={ic("unit")} value={form.unit} onChange={e => { const chosen = allUnits.find(u => u.unit === e.target.value); set("unit", e.target.value); if (chosen) set("property", chosen.property); }}>
-                <option value="">Select unit</option>
-                {allUnits.map(u => <option key={u.unit} value={u.unit}>{u.unit} — {u.property}</option>)}
-              </select>
-            </Field>
-            <Field label="Property" error={errors.property}>
-              <select className={ic("property")} value={form.property} onChange={e => set("property", e.target.value)}>
-                <option value="">Select property</option>
-                {PROPERTIES.map(p => <option key={p} value={p}>{p}</option>)}
-              </select>
-            </Field>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="Monthly Rent (R)" error={errors.rentAmount}><input className={ic("rentAmount")} value={form.rentAmount} onChange={e => set("rentAmount", e.target.value)} placeholder="e.g. 5800" type="number" min="0" /></Field>
-            <Field label="Frequency" error={errors.frequency}><select className={ic("frequency")} value={form.frequency} onChange={e => set("frequency", e.target.value)}>{FREQUENCIES.map(f => <option key={f} value={f}>{f}</option>)}</select></Field>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="Lease Start" error={errors.leaseStart}><input className={ic("leaseStart")} value={form.leaseStart} onChange={e => set("leaseStart", e.target.value)} type="date" /></Field>
-            <Field label="Lease End" error={errors.leaseEnd}><input className={ic("leaseEnd")} value={form.leaseEnd} onChange={e => set("leaseEnd", e.target.value)} type="date" /></Field>
-          </div>
-          <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800">
-            <Info size={16} className="text-blue-500 flex-shrink-0 mt-0.5" />
-            <p className="text-xs text-blue-700 dark:text-blue-300">The tenant will receive login credentials for the mobile app once their account is created. Credentials are tied to their email and phone number.</p>
-          </div>
-        </div>
-        <div className="px-6 pb-6 flex gap-3 flex-shrink-0 border-t border-gray-200 dark:border-gray-700 pt-4">
-          <button onClick={onClose} disabled={loading} className="flex-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-white text-sm font-medium py-2.5 px-4 rounded-xl transition-colors disabled:opacity-50">Cancel</button>
-          <button onClick={handleSave} disabled={loading} className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-sm font-medium py-2.5 px-4 rounded-xl transition-colors">
-            {loading ? <><Loader2 size={16} className="animate-spin" />Saving...</> : isEdit ? <><Edit size={14} />Save Changes</> : <><Plus size={14} />Add Tenant</>}
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-white p-1 rounded">
+            <X size={20} />
           </button>
+        </div>
+
+        {/* PROGRESS STEPS */}
+        <div className="px-6 pt-4 border-b border-gray-100 dark:border-gray-700">
+          <div className="flex items-center justify-between mb-4">
+            {steps.map((step, idx) => (
+              <div key={step.number} className="flex items-center flex-1">
+                <div className="flex flex-col items-center flex-1">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors
+                    ${currentStep >= step.number 
+                      ? "bg-blue-600 text-white" 
+                      : "bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400"}`}>
+                    {currentStep > step.number ? <CheckCircle size={14} /> : step.number}
+                  </div>
+                  <span className={`text-xs mt-1.5 font-medium
+                    ${currentStep >= step.number 
+                      ? "text-blue-600 dark:text-blue-400" 
+                      : "text-gray-400 dark:text-gray-500"}`}>
+                    {step.label}
+                  </span>
+                </div>
+                {idx < steps.length - 1 && (
+                  <div className={`h-0.5 flex-1 mx-2 transition-colors
+                    ${currentStep > step.number 
+                      ? "bg-blue-600 dark:bg-blue-500" 
+                      : "bg-gray-200 dark:bg-gray-700"}`} 
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* FORM BODY */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+          
+          {/* STEP 1: PERSONAL INFORMATION */}
+          {currentStep === 1 && (
+            <>
+              <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Personal Information</p>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="First Name" error={errors.name}>
+                  <input className={ic("name")} value={form.name} onChange={e => set("name", e.target.value)} placeholder="e.g. Sipho" />
+                </Field>
+                <Field label="Surname" error={errors.surname}>
+                  <input className={ic("surname")} value={form.surname} onChange={e => set("surname", e.target.value)} placeholder="e.g. Dlamini" />
+                </Field>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Date of Birth" error={errors.dateOfBirth}>
+                  <input type="date" className={ic("dateOfBirth")} value={form.dateOfBirth} onChange={e => set("dateOfBirth", e.target.value)} />
+                </Field>
+                <Field label="Gender" error={errors.gender}>
+                  <select className={ic("gender")} value={form.gender} onChange={e => set("gender", e.target.value)}>
+                    <option value="">Select gender</option>
+                    {GENDERS.map(g => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                </Field>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Nationality" error={errors.nationality}>
+                  <select className={ic("nationality")} value={form.nationality} onChange={e => set("nationality", e.target.value)}>
+                    {NATIONALITIES.map(n => <option key={n} value={n}>{n}</option>)}
+                  </select>
+                </Field>
+                <Field label="Marital Status" error={errors.maritalStatus}>
+                  <select className={ic("maritalStatus")} value={form.maritalStatus} onChange={e => set("maritalStatus", e.target.value)}>
+                    {MARITAL_STATUS.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </Field>
+              </div>
+
+              {!usePassport ? (
+                <Field label="South African ID Number" error={errors.idNumber}>
+                  <input className={ic("idNumber")} value={form.idNumber} onChange={e => set("idNumber", e.target.value)} placeholder="e.g. 8001015009087" />
+                </Field>
+              ) : (
+                <Field label="Passport Number" error={errors.passportNumber}>
+                  <input className={ic("passportNumber")} value={form.passportNumber} onChange={e => set("passportNumber", e.target.value)} placeholder="e.g. A12345678" />
+                </Field>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Email Address" error={errors.email}>
+                  <input type="email" className={ic("email")} value={form.email} onChange={e => set("email", e.target.value)} placeholder="email@example.com" />
+                </Field>
+                <Field label="Phone Number" error={errors.phone}>
+                  <input type="tel" className={ic("phone")} value={form.phone} onChange={e => set("phone", e.target.value)} placeholder="0821234567" />
+                </Field>
+              </div>
+
+              <Field label="Alternate Phone" optional>
+                <input className={ic("alternatePhone")} value={form.alternatePhone} onChange={e => set("alternatePhone", e.target.value)} placeholder="Alternative contact number" />
+              </Field>
+
+              <div className="border-t border-gray-100 dark:border-gray-700 pt-4">
+                <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Previous Address</p>
+              </div>
+
+              <Field label="Street Address" optional>
+                <input className={ic("previousAddress")} value={form.previousAddress} onChange={e => set("previousAddress", e.target.value)} placeholder="Previous residential address" />
+              </Field>
+
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="City" optional>
+                  <input className={ic("previousCity")} value={form.previousCity} onChange={e => set("previousCity", e.target.value)} placeholder="e.g. Johannesburg" />
+                </Field>
+                <Field label="Postal Code" optional>
+                  <input className={ic("previousPostalCode")} value={form.previousPostalCode} onChange={e => set("previousPostalCode", e.target.value)} placeholder="e.g. 2001" />
+                </Field>
+              </div>
+            </>
+          )}
+
+          {/* STEP 2: EMPLOYMENT & EMERGENCY CONTACT */}
+          {currentStep === 2 && (
+            <>
+              <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Employment Information</p>
+
+              <Field label="Employment Status" error={errors.employmentStatus}>
+                <select className={ic("employmentStatus")} value={form.employmentStatus} onChange={e => set("employmentStatus", e.target.value)}>
+                  {EMPLOYMENT_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </Field>
+
+              {(form.employmentStatus === "Employed" || form.employmentStatus === "Self-Employed") && (
+                <>
+                  <Field label="Employer / Business Name" error={errors.employerName}>
+                    <input className={ic("employerName")} value={form.employerName} onChange={e => set("employerName", e.target.value)} placeholder="Company or business name" />
+                  </Field>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <Field label="Job Title" optional>
+                      <input className={ic("jobTitle")} value={form.jobTitle} onChange={e => set("jobTitle", e.target.value)} placeholder="e.g. Software Developer" />
+                    </Field>
+                    <Field label="Monthly Income (R)" error={errors.monthlyIncome}>
+                      <input type="number" min="0" className={ic("monthlyIncome")} value={form.monthlyIncome} onChange={e => set("monthlyIncome", e.target.value)} placeholder="e.g. 25000" />
+                    </Field>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <Field label="Employer Contact" optional>
+                      <input className={ic("employerContact")} value={form.employerContact} onChange={e => set("employerContact", e.target.value)} placeholder="HR phone number" />
+                    </Field>
+                    <Field label="Employment Start Date" optional>
+                      <input type="date" className={ic("employmentStartDate")} value={form.employmentStartDate} onChange={e => set("employmentStartDate", e.target.value)} />
+                    </Field>
+                  </div>
+                </>
+              )}
+
+              <div className="border-t border-gray-100 dark:border-gray-700 pt-4">
+                <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Emergency Contact</p>
+              </div>
+
+              <Field label="Full Name" error={errors.emergencyName}>
+                <input className={ic("emergencyName")} value={form.emergencyName} onChange={e => set("emergencyName", e.target.value)} placeholder="Emergency contact full name" />
+              </Field>
+
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Relationship" error={errors.emergencyRelationship}>
+                  <input className={ic("emergencyRelationship")} value={form.emergencyRelationship} onChange={e => set("emergencyRelationship", e.target.value)} placeholder="e.g. Spouse, Parent" />
+                </Field>
+                <Field label="Phone Number" error={errors.emergencyPhone}>
+                  <input type="tel" className={ic("emergencyPhone")} value={form.emergencyPhone} onChange={e => set("emergencyPhone", e.target.value)} placeholder="Contact number" />
+                </Field>
+              </div>
+
+              <Field label="Email Address" optional>
+                <input type="email" className={ic("emergencyEmail")} value={form.emergencyEmail} onChange={e => set("emergencyEmail", e.target.value)} placeholder="Emergency contact email" />
+              </Field>
+            </>
+          )}
+
+          {/* STEP 3: UNIT & LEASE */}
+          {currentStep === 3 && (
+            <>
+              <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Unit Assignment</p>
+
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Unit" error={errors.unit}>
+                  <select className={ic("unit")} value={form.unit} onChange={e => { 
+                    const chosen = allUnits.find(u => u.unit === e.target.value); 
+                    set("unit", e.target.value); 
+                    if (chosen) set("property", chosen.property); 
+                  }}>
+                    <option value="">Select unit</option>
+                    {allUnits.map(u => <option key={u.unit} value={u.unit}>{u.unit} — {u.property}</option>)}
+                  </select>
+                </Field>
+                <Field label="Property" error={errors.property}>
+                  <select className={ic("property")} value={form.property} onChange={e => set("property", e.target.value)}>
+                    <option value="">Select property</option>
+                    {PROPERTIES.map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                </Field>
+              </div>
+
+              <div className="border-t border-gray-100 dark:border-gray-700 pt-4">
+                <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Lease Terms</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Monthly Rent (R)" error={errors.rentAmount}>
+                  <input type="number" min="0" className={ic("rentAmount")} value={form.rentAmount} onChange={e => set("rentAmount", e.target.value)} placeholder="e.g. 5800" />
+                </Field>
+                <Field label="Frequency" error={errors.frequency}>
+                  <select className={ic("frequency")} value={form.frequency} onChange={e => set("frequency", e.target.value)}>
+                    {FREQUENCIES.map(f => <option key={f} value={f}>{f}</option>)}
+                  </select>
+                </Field>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Deposit Amount (R)" optional>
+                  <input type="number" min="0" className={ic("depositAmount")} value={form.depositAmount} onChange={e => set("depositAmount", e.target.value)} placeholder="Usually equal to rent" />
+                </Field>
+                <Field label="Deposit Status">
+                  <div className="flex items-center h-full pt-2">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={form.depositPaid} onChange={e => set("depositPaid", e.target.checked)} className="accent-blue-600 w-4 h-4" />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">Deposit paid</span>
+                    </label>
+                  </div>
+                </Field>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Lease Start Date" error={errors.leaseStart}>
+                  <input type="date" className={ic("leaseStart")} value={form.leaseStart} onChange={e => set("leaseStart", e.target.value)} />
+                </Field>
+                <Field label="Lease End Date" error={errors.leaseEnd}>
+                  <input type="date" className={ic("leaseEnd")} value={form.leaseEnd} onChange={e => set("leaseEnd", e.target.value)} />
+                </Field>
+              </div>
+            </>
+          )}
+
+          {/* STEP 4: ADDITIONAL INFORMATION */}
+          {currentStep === 4 && (
+            <>
+              <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Additional Occupants</p>
+
+              <Field label="Number of Occupants" optional>
+                <select className={ic("occupants")} value={form.occupants} onChange={e => set("occupants", e.target.value)}>
+                  {[1, 2, 3, 4, 5, 6].map(n => <option key={n} value={n}>{n} {n === 1 ? "person" : "people"}</option>)}
+                </select>
+              </Field>
+
+              <Field label="Pets">
+                <div className="space-y-3">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={form.hasPets} onChange={e => set("hasPets", e.target.checked)} className="accent-blue-600 w-4 h-4" />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">Tenant has pets</span>
+                  </label>
+                  {form.hasPets && (
+                    <input className={ic("petDetails")} value={form.petDetails} onChange={e => set("petDetails", e.target.value)} placeholder="Describe pets (type, breed, size)..." />
+                  )}
+                </div>
+              </Field>
+
+              <div className="border-t border-gray-100 dark:border-gray-700 pt-4">
+                <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Additional Notes</p>
+              </div>
+
+              <Field label="Special Notes or Requirements" optional>
+                <textarea rows={3} className={ic("specialNotes") + " resize-none"} value={form.specialNotes} onChange={e => set("specialNotes", e.target.value)} placeholder="Any special arrangements, accessibility needs, or notes..." />
+              </Field>
+
+              {/* Info Box */}
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800">
+                <Info size={16} className="text-blue-500 flex-shrink-0 mt-0.5" />
+                <div className="text-xs text-blue-700 dark:text-blue-300 space-y-1">
+                  <p>The tenant will receive login credentials for the mobile app via email and SMS.</p>
+                  <p>Please ensure all information is accurate before saving.</p>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* FOOTER */}
+        <div className="px-6 pb-6 flex gap-3 flex-shrink-0 border-t border-gray-200 dark:border-gray-700 pt-4">
+          {currentStep > 1 ? (
+            <button onClick={handleBack} disabled={loading} className="flex-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-white text-sm font-medium py-2.5 px-4 rounded-xl transition-colors disabled:opacity-50">
+              Back
+            </button>
+          ) : (
+            <button onClick={onClose} disabled={loading} className="flex-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-white text-sm font-medium py-2.5 px-4 rounded-xl transition-colors disabled:opacity-50">
+              Cancel
+            </button>
+          )}
+          
+          {currentStep < totalSteps ? (
+            <button onClick={handleNext} className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2.5 px-4 rounded-xl transition-colors">
+              Next <ChevronRight size={14} />
+            </button>
+          ) : (
+            <button onClick={handleSave} disabled={loading} className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-sm font-medium py-2.5 px-4 rounded-xl transition-colors">
+              {loading ? <><Loader2 size={16} className="animate-spin" />Saving...</> : isEdit ? <><Edit size={14} />Save Changes</> : <><Plus size={14} />Add Tenant</>}
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -845,7 +1286,6 @@ export default function Tenants() {
         {/* HEADER */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Tenants</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{tenants.length} tenants across all properties</p>
           </div>
           <button onClick={() => setShowAdd(true)} className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
@@ -930,7 +1370,7 @@ export default function Tenants() {
                         <p className="text-xs text-gray-400">{t.property}</p>
                       </td>
                       <td className="px-5 py-4 whitespace-nowrap font-semibold text-gray-900 dark:text-white">
-                        {fmt(t.rentAmount)}<span className="text-xs font-normal text-gray-400 ml-1">/{t.frequency === "Monthly" ? "mo" : "wk"}</span>
+                        {format(t.rentAmount)}<span className="text-xs font-normal text-gray-400 ml-1">/{t.frequency === "Monthly" ? "mo" : "wk"}</span>
                       </td>
                       <td className="px-5 py-4 whitespace-nowrap">
                         <span className={isExpired ? "text-red-500 font-semibold" : isExpiring ? "text-yellow-500 font-semibold" : "text-gray-500 dark:text-gray-400"}>{t.leaseEnd}</span>
@@ -939,7 +1379,7 @@ export default function Tenants() {
                       </td>
                       <td className="px-5 py-4 whitespace-nowrap">
                         {t.balance > 0
-                          ? <span className="font-semibold text-red-500">{fmt(t.balance)}</span>
+                          ? <span className="font-semibold text-red-500">{format(t.balance)}</span>
                           : <span className="text-green-500 font-medium flex items-center gap-1"><CheckCircle size={12} />Clear</span>}
                       </td>
                       <td className="px-5 py-4 whitespace-nowrap"><ScoreBadge score={t.reliabilityScore} /></td>

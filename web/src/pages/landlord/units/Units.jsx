@@ -55,7 +55,7 @@ const STATUS_CONFIG = {
 };
 
 // HELPER FUNCTIONS FOR FORMATTING AND CALCULATIONS 
-function fmt(n) { return `R ${Number(n).toLocaleString("en-ZA")}`; }
+function format(n) { return `R ${Number(n).toLocaleString("en-ZA")}`; }
 function initials(name = "") {
   return name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
 }
@@ -338,7 +338,7 @@ function UnitGridCard({ unit, onEdit, onDelete, onNavigateTenant }) {
         </div>
         <div className="flex items-center justify-between text-sm">
           <span className="text-gray-500 dark:text-gray-400">Rent</span>
-          <span className="font-semibold text-gray-900 dark:text-white">{fmt(unit.rent)}<span className="text-xs font-normal text-gray-400">/mo</span></span>
+          <span className="font-semibold text-gray-900 dark:text-white">{format(unit.rent)}<span className="text-xs font-normal text-gray-400">/mo</span></span>
         </div>
         <div className="flex items-center justify-between text-sm">
           <span className="text-gray-500 dark:text-gray-400">Parking</span>
@@ -449,7 +449,7 @@ export default function Units() {
     { label: "Occupied", value: occupied, sub: `${units.length} total`, icon: Home, color: "text-green-500", bg: "bg-green-100 dark:bg-green-900/20" },
     { label: "Vacant", value: vacant, sub: "Available now", icon: Key, color: "text-blue-500", bg: "bg-blue-100 dark:bg-blue-900/20" },
     { label: "Under Maintenance", value: maintenance, sub: "Temporarily unavailable", icon: Wrench, color: "text-orange-500", bg: "bg-orange-100 dark:bg-orange-900/20" },
-    { label: "Total Rent / mo", value: fmt(totalRent), sub: "From occupied units only", icon: Coins, color: "text-gray-900 dark:text-white", bg: "bg-gray-100 dark:bg-gray-700" },
+    { label: "Total Rent / mo", value: format(totalRent), sub: "From occupied units only", icon: Coins, color: "text-gray-900 dark:text-white", bg: "bg-gray-100 dark:bg-gray-700" },
   ];
 
   return (
@@ -476,7 +476,6 @@ export default function Units() {
         {/* HEADER */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Units</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
               {units.length} units across {PROPERTIES.length} properties
             </p>
@@ -637,7 +636,7 @@ export default function Units() {
                       <td className="px-5 py-4 whitespace-nowrap text-gray-600 dark:text-gray-300">{u.property}</td>
                       <td className="px-5 py-4 whitespace-nowrap">{u.type}</td>
                       <td className="px-5 py-4 whitespace-nowrap">{u.floor}</td>
-                      <td className="px-5 py-4 font-semibold text-gray-900 dark:text-white whitespace-nowrap">{fmt(u.rent)}</td>
+                      <td className="px-5 py-4 font-semibold text-gray-900 dark:text-white whitespace-nowrap">{format(u.rent)}</td>
                       <td className="px-5 py-4 whitespace-nowrap">
                         {u.parking ? <span className="text-green-500 font-medium flex items-center gap-1"><CheckCircle size={12} /> Yes</span> : <span className="text-gray-400">—</span>}
                       </td>

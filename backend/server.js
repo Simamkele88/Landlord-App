@@ -1,9 +1,4 @@
-// ============================================================
-//  RENTAL MANAGEMENT SYSTEM - Backend API
-// ============================================================
-// This is where we connect to the database, define our API routes, and handle all server-side logic.
-// We use Express for routing, PostgreSQL for the database, bcrypt for password hashing, JWT for authentication, and Nodemailer for sending emails.
-// ============================================================
+
 
 const express = require("express");
 const cors = require("cors");

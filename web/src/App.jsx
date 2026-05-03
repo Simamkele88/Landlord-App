@@ -14,6 +14,7 @@ import { PaymentsProvider } from "./contexts/PaymentsContext";
 import PaymentReceipt from "./pages/landlord/payments/PaymentReceipt";
 import LandlordMaintenance from "./pages/landlord/maintenance/MaintenanceDashbord"
 import PropertyDashboard from "./pages/landlord/properties/Properties";
+import ProperyDetailsDashboard from "./pages/landlord/properties/ProperyDetailsDashboard";
 
 
 import "./index.css";
@@ -62,6 +63,41 @@ export default function App() {
     setUser(null);
   }
 
+  const [Properties, setProperties] = useState([
+     {
+    id : 1,
+    name:"Gray Town",
+    units : 10,
+    totalTenant : 20,
+    DateCreated : "2026/04/10",
+    Located : "Johannesburg",
+ },
+ {
+    id : 2,
+    name:"Yoeville",
+    units : 20,
+    totalTenant : 35,
+    DateCreated : "2020/03/10",
+    Located : "Johannesburg",
+ },
+ {
+    id : 3,
+    name:"Aesthetic touch",
+    units : 15,
+    totalTenant : 30,
+    DateCreated : "2020/12/10",
+    Located : "Pretoria",
+ },
+ {
+    id : 4,
+    name:"Last Lands",
+    units : 10,
+    totalTenant : 5,
+    DateCreated : "2021/03/10",
+    Located : "Durban",
+ },
+  ]);
+
   return (
     <AuthContext.Provider value={{ token, user, login, logout }}>
       <PaymentsProvider>
@@ -86,7 +122,9 @@ export default function App() {
                 <Route path="payments/review" element={<PaymentReview />} />
                 <Route path="payments/receipt" element={<PaymentReceipt />} />
                 <Route path="maintenance" element={<LandlordMaintenance />} />
-                <Route path="properties"  element={<PropertyDashboard />} />
+                <Route path="properties"  element={<PropertyDashboard properties ={Properties} 
+                 setProperties={setProperties} />} />
+                <Route path="property/:id" element ={<ProperyDetailsDashboard properties={Properties} />}/>
                 
               </Route>
 

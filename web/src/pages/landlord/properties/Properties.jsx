@@ -23,11 +23,12 @@ function PropertiesDetails(){
        
 }
 
-export default function PropertyDashboard() {
+export default function PropertyDashboard({properties,setProperties}) {
 
     /**Creating hard coded values for properties */
-const [properties, setProperties]  = useState([
+/*const [properties, setProperties]  = useState([
   {
+    id : 1,
     name:"Gray Town",
     units : 10,
     totalTenant : 20,
@@ -35,6 +36,7 @@ const [properties, setProperties]  = useState([
     Located : "Johannesburg",
  },
  {
+    id : 2,
     name:"Yoeville",
     units : 20,
     totalTenant : 35,
@@ -42,6 +44,7 @@ const [properties, setProperties]  = useState([
     Located : "Johannesburg",
  },
  {
+    id : 3,
     name:"Aesthetic touch",
     units : 15,
     totalTenant : 30,
@@ -49,13 +52,14 @@ const [properties, setProperties]  = useState([
     Located : "Pretoria",
  },
  {
+    id : 4,
     name:"Last Lands",
     units : 10,
     totalTenant : 5,
     DateCreated : "2021/03/10",
     Located : "Durban",
  },
-]);
+]); */
   
   //const { user, logout } = useAuth();
   const [showPropertyModal, setShowPropertyModal] = useState(false);
@@ -132,7 +136,10 @@ const [properties, setProperties]  = useState([
 
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {properties.map((pro, index) => (
-                  <tr key={index} className="bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                  <tr key={pro.id}  
+                      onClick ={() => navigate(`/landlord/property/${pro.id}`)}
+                      style ={{cursor : "pointer"}} 
+                    className="bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                     <td className="px-6 py-4 font-medium text-gray-900 dark:text-white whitespace-nowrap">
                       {pro.name}
                     </td>

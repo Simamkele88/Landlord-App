@@ -46,7 +46,7 @@ const UNREAD_NOTIFICATIONS = 3;
 const UNREAD_MESSAGES = 2;
 
 // HELPER FUNCTIONS FOR FORMATTING AND STATUS COLORS
-function fmt(amount) {
+function format(amount) {
   return `R ${Number(amount).toLocaleString("en-ZA")}`;
 }
 
@@ -258,7 +258,7 @@ export default function TenantDashboard({ navigation }) {
           <View style={styles.rentTop}>
             <View>
               <Text style={styles.rentCardLabel}>{CURRENT_PAYMENT.period} Rent</Text>
-              <Text style={styles.rentCardAmount}>{fmt(CURRENT_PAYMENT.amount)}</Text>
+              <Text style={styles.rentCardAmount}>{format(CURRENT_PAYMENT.amount)}</Text>
             </View>
             <View style={[styles.rentStatusPill, { backgroundColor: rentCfg.bg }]}>
               <Text style={[styles.rentStatusText, { color: rentCfg.color }]}>

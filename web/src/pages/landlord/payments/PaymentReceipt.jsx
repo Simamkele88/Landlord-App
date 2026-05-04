@@ -5,7 +5,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import useDocumentTitle from "../../../hooks/useDocumentTitle";
 
 // HELPER FUNCTIONS
-function fmt(amount) {
+function format(amount) {
   return `R ${Number(amount).toLocaleString("en-ZA")}`;
 }
 
@@ -198,13 +198,13 @@ export default function PaymentReceipt() {
           {/* AMOUNT SUMMARY */}
           <div className="rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden">
             <div className="px-4">
-              <Row label="Rent Amount"   value={fmt(payment.amount)} />
-              <Row label="Outstanding"   value={fmt(0)} />
+              <Row label="Rent Amount"   value={format(payment.amount)} />
+              <Row label="Outstanding"   value={format(0)} />
             </div>
             <div className="bg-gray-50 dark:bg-gray-700/50 px-4 py-4 flex items-center justify-between border-t border-gray-100 dark:border-gray-700">
               <span className="font-semibold text-gray-900 dark:text-white">Total Paid</span>
               <span className="text-xl font-bold text-green-600 dark:text-green-400">
-                {fmt(payment.amount)}
+                {format(payment.amount)}
               </span>
             </div>
           </div>

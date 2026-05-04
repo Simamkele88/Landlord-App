@@ -1,7 +1,7 @@
 import { useParams } from "react-router-dom";
 
 // reading id in the detail page
-function ProperyDetailsDashboard({properties}){
+function PropertyDetailsDashboard({properties}){
      const { id } = useParams();
      
      const property = properties.find(p => p.id === Number(id));
@@ -20,4 +20,4 @@ function ProperyDetailsDashboard({properties}){
 
 }
 
-export default ProperyDetailsDashboard;
+export default PropertyDetailsDashboard;

@@ -8,7 +8,7 @@ import { usePayments } from "../../../contexts/PaymentsContext";
 import useDocumentTitle from "../../../hooks/useDocumentTitle";
 
 // HELPER FUNCTIONS
-function fmt(amount) { return `R ${Number(amount).toLocaleString()}`; }
+function format(amount) { return `R ${Number(amount).toLocaleString()}`; }
 function initials(name) { return name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase(); }
 
 function daysLate(due, paid) {
@@ -88,7 +88,7 @@ function ReceiptModal({ payment, onClose }) {
 
           <div className="border-t border-gray-200 dark:border-gray-700 pt-3 flex justify-between items-center">
             <span className="font-semibold text-gray-900 dark:text-white">Amount Paid</span>
-            <span className="text-lg font-bold text-green-600">{fmt(payment.amount)}</span>
+            <span className="text-lg font-bold text-green-600">{format(payment.amount)}</span>
           </div>
 
           <p className="text-xs text-center text-gray-400 pt-1">
@@ -168,7 +168,7 @@ function RejectionModal({ payment, onClose, onConfirmReject }) {
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-900 dark:text-white">{payment.tenant}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">{payment.unit} · {fmt(payment.amount)}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">{payment.unit} · {format(payment.amount)}</p>
               </div>
             </div>
 
@@ -367,7 +367,7 @@ export default function PaymentReview() {
               <div className="divide-y divide-gray-100 dark:divide-gray-700 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden text-sm">
                 {[
                   ["Property", `${payment.unit} · ${payment.property}`],
-                  ["Amount Due", fmt(payment.amount)],
+                  ["Amount Due", format(payment.amount)],
                   ["Due Date", payment.due],
                   ["Date Paid", payment.paid ?? "—"],
                   ["Method", payment.method ?? "—"],

@@ -34,17 +34,18 @@ const TENANT = {
 
 const PAYMENT_HISTORY = [
   { id: "p1", period: "April 2026", amount: 5800, status: "Late", method: null, paidOn: null, receiptNo: null },
-  { id: "p2", period: "March 2026",     amount: 5800, status: "Paid",             method: "Upload",  paidOn: "2026-03-01", receiptNo: "RCP-0002-260301" },
-  { id: "p3", period: "February 2026",  amount: 5800, status: "Paid",             method: "In-App",  paidOn: "2026-02-01", receiptNo: "RCP-0002-260201" },
-  { id: "p4", period: "January 2026",   amount: 5800, status: "Paid",             method: "Upload",  paidOn: "2026-01-03", receiptNo: "RCP-0002-260103" },
-  { id: "p5", period: "December 2025",  amount: 5500, status: "Paid",             method: "In-App",  paidOn: "2025-12-01", receiptNo: "RCP-0002-251201" },
-  { id: "p6", period: "November 2025",  amount: 5500, status: "Late",             method: null,      paidOn: null,         receiptNo: null },
+  { id: "p2", period: "March 2026",     amount: 5800, status: "Paid", method: "Upload",  paidOn: "2026-03-01", receiptNo: "RCP-0002-260301" },
+  { id: "p3", period: "February 2026",  amount: 5800, status: "Paid", method: "In-App",  paidOn: "2026-02-01", receiptNo: "RCP-0002-260201" },
+  { id: "p4", period: "January 2026",   amount: 5800, status: "Paid", method: "Upload",  paidOn: "2026-01-03", receiptNo: "RCP-0002-260103" },
+  { id: "p5", period: "December 2025",  amount: 5500, status: "Paid", method: "In-App",  paidOn: "2025-12-01", receiptNo: "RCP-0002-251201" },
+  { id: "p6", period: "November 2025",  amount: 5500, status: "Late", method: null,      paidOn: null,         receiptNo: null },
 ];
 
 // HELPER FUNCTIONS
-function fmt(amount) {
+function format(amount) {
   return `R ${Number(amount).toLocaleString("en-ZA")}`;
 }
+
 
 function daysUntilDue() {
   const now  = new Date();
@@ -172,7 +173,7 @@ function UploadProofModal({ visible, onClose, onSubmit }) {
                     <Text style={[styles.filePickerText, { color: C.success }]}>
                       proof_of_payment.pdf
                     </Text>
-                    <Text style={styles.filePickerSub}>Tap to change file</Text>
+                    <Text style={styles.filePickerSub}>Selected file is proof_of_payment.pdf</Text>
                   </View>
                 </View>
               ) : (
@@ -276,7 +277,7 @@ function InAppPayModal({ visible, onClose, onSubmit }) {
           {step === "method" && (
             <>
               <Text style={styles.sheetTitle}>Pay Rent</Text>
-              <Text style={styles.sheetSub}>{fmt(TENANT.rentAmount)} due for April 2026</Text>
+              <Text style={styles.sheetSub}>{format(TENANT.rentAmount)} due for April 2026</Text>
 
               <SectionLabel title="Select payment method" />
               {METHODS.map(m => {
@@ -341,13 +342,13 @@ function InAppPayModal({ visible, onClose, onSubmit }) {
                 ))}
                 <View style={[styles.confirmRow, styles.confirmTotal]}>
                   <Text style={styles.confirmTotalLabel}>Total</Text>
-                  <Text style={styles.confirmTotalValue}>{fmt(TENANT.rentAmount)}</Text>
+                  <Text style={styles.confirmTotalValue}>{format(TENANT.rentAmount)}</Text>
                 </View>
               </View>
 
               <View style={styles.infoBox}>
                 <Text style={styles.infoText}>
-                  By confirming, you authorise a payment of {fmt(TENANT.rentAmount)} for April 2026 rent.
+                  By confirming, you authorise a payment of {format(TENANT.rentAmount)} for April 2026 rent.
                 </Text>
               </View>
 
@@ -367,7 +368,7 @@ function InAppPayModal({ visible, onClose, onSubmit }) {
                 >
                   {loading
                     ? <ActivityIndicator color={C.white} size="small" />
-                    : <Text style={styles.btnPrimaryText}>Pay {fmt(TENANT.rentAmount)}</Text>
+                    : <Text style={styles.btnPrimaryText}>Pay {format(TENANT.rentAmount)}</Text>
                   }
                 </TouchableOpacity>
               </View>
@@ -382,7 +383,7 @@ function InAppPayModal({ visible, onClose, onSubmit }) {
               </View>
               <Text style={styles.successTitle}>Payment Submitted!</Text>
               <Text style={styles.successSub}>
-                Your payment of {fmt(TENANT.rentAmount)} has been submitted successfully. The landlord will confirm shortly.
+                Your payment of {format(TENANT.rentAmount)} has been submitted successfully. The landlord will confirm shortly.
               </Text>
               <TouchableOpacity style={[styles.btnPrimary, { width: "100%", marginTop: 24 }]} onPress={handleDone} activeOpacity={0.8}>
                 <Text style={styles.btnPrimaryText}>Done</Text>
@@ -432,7 +433,7 @@ function ReceiptModal({ visible, payment, onClose }) {
             ))}
             <View style={[styles.confirmRow, styles.confirmTotal]}>
               <Text style={styles.confirmTotalLabel}>Amount Paid</Text>
-              <Text style={styles.confirmTotalValue}>{fmt(payment.amount)}</Text>
+              <Text style={styles.confirmTotalValue}>{format(payment.amount)}</Text>
             </View>
           </View>
 
@@ -470,7 +471,7 @@ function HistoryCard({ item, onViewReceipt }) {
         </Text>
       </View>
       <View style={styles.historyRight}>
-        <Text style={styles.historyAmount}>{fmt(item.amount)}</Text>
+        <Text style={styles.historyAmount}>{format(item.amount)}</Text>
         <StatusPill status={item.status} />
         {item.status === "Paid" && item.receiptNo && (
           <TouchableOpacity onPress={() => onViewReceipt(item)} activeOpacity={0.7}>
@@ -554,7 +555,7 @@ export default function TenantPayments() {
           <View style={styles.rentCardTop}>
             <View>
               <Text style={styles.rentLabel}>April 2026 Rent</Text>
-              <Text style={styles.rentAmount}>{fmt(TENANT.rentAmount)}</Text>
+              <Text style={styles.rentAmount}>{format(TENANT.rentAmount)}</Text>
             </View>
             <StatusPill status={currentPeriod?.status ?? "Late"} />
           </View>
@@ -570,7 +571,7 @@ export default function TenantPayments() {
                   <View style={styles.dueBannerContent}>
                     <Ionicons name="time-outline" size={16} color={C.textSecondary} />
                     <Text style={[styles.dueText, { color: C.textSecondary }]}>
-                      Due in {days} day{days !== 1 ? "s" : ""} (1 April 2026)
+                      Due in {days} day{days !== 1 ? "s" : ""} 
                     </Text>
                   </View>
                 ) : days === 0 ? (
@@ -671,7 +672,7 @@ export default function TenantPayments() {
         <SectionLabel title="Lease Info" />
         <View style={styles.leaseCard}>
           {[
-            ["Monthly Rent",  fmt(TENANT.rentAmount)],
+            ["Monthly Rent",  format(TENANT.rentAmount)],
             ["Due Every",     `1st of the month`],
             ["Lease Ends",    TENANT.leaseEnd],
           ].map(([label, val]) => (

@@ -12,9 +12,11 @@ import PaymentReview from "./pages/landlord/payments/PaymentReview";
 import { ToastProvider } from "./contexts/ToastContext";
 import { PaymentsProvider } from "./contexts/PaymentsContext";
 import PaymentReceipt from "./pages/landlord/payments/PaymentReceipt";
-import LandlordMaintenance from "./pages/landlord/maintenance/MaintenanceDashbord"
+import LandlordMaintenance from "./pages/landlord/maintenance/MaintenanceDashbord";
 import PropertyDashboard from "./pages/landlord/properties/Properties";
-import ProperyDetailsDashboard from "./pages/landlord/properties/ProperyDetailsDashboard";
+import PropertyDetailsDashboard from "./pages/landlord/properties/PropertyDetailsDashboard";
+import  Tenants  from "./pages/landlord/Tenants/Tenants";
+import Units   from "./pages/landlord/units/Units";
 
 
 import "./index.css";
@@ -124,8 +126,9 @@ export default function App() {
                 <Route path="maintenance" element={<LandlordMaintenance />} />
                 <Route path="properties"  element={<PropertyDashboard properties ={Properties} 
                  setProperties={setProperties} />} />
-                <Route path="property/:id" element ={<ProperyDetailsDashboard properties={Properties} />}/>
-                
+                <Route path="property/:id" element ={<PropertyDetailsDashboard properties={Properties} />}/> 
+                <Route path="tenants"  element={<Tenants />} /> 
+                <Route path="units"  element={<Units />} /> 
               </Route>
 
             {/* REDIRECT TO LOGIN ROUTE IF THERE IS NO TOKEN, ELSE REDIRECT TO DASHBOARD */}

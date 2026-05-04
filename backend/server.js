@@ -1,9 +1,4 @@
-// ============================================================
-//  RENTAL MANAGEMENT SYSTEM - Backend API
-// ============================================================
-// This is where we connect to the database, define our API routes, and handle all server-side logic.
-// We use Express for routing, PostgreSQL for the database, bcrypt for password hashing, JWT for authentication, and Nodemailer for sending emails.
-// ============================================================
+
 
 const express = require("express");
 const cors = require("cors");
@@ -509,9 +504,9 @@ app.get("/auth/landlord/users", requireAuth, requireLandlord, async (req, res) =
 async function setupDatabase() {
   try {
     // Test connection
-    console.log("✅ Database connected successfully");
+    console.log(" Database connected successfully");
   } catch (error) {
-    console.error("❌ Database setup error:", error);
+    console.error(" Database setup error:", error);
     throw error;
   }
 }
@@ -520,8 +515,7 @@ async function setupDatabase() {
 const PORT = process.env.PORT || 4000;
 setupDatabase().then(() => {
   app.listen(PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
-    console.log(`📍 Landlord login: POST http://localhost:${PORT}/auth/landlord/login`);
-    console.log(`📍 User login: POST http://localhost:${PORT}/auth/login`);
+    console.log(` Server running on http://localhost:${PORT}`);
+    
   });
 });

@@ -1,7 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
 // PAYMENTS CONTEXT - MANAGES PAYMENT DATA AND ACTIONS
-// AUTHOR: SIMAMKELE WEKEZA
-// IF YOU DO NOT UNDERSTAND THIS CODE, PLEASE ASK ME TO EXPLAIN AND DON'T ASSUME OTHERWISE.
 import { createContext, useContext, useState } from 'react';
 
 const PaymentsContext = createContext(null);

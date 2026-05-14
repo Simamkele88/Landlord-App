@@ -1,6 +1,4 @@
 // PAYMENT REVIEW PAGE
-// AUTHOR: SIMAMKELE WEKEZA
-// IF YOU DO NOT UNDERSTAND THIS CODE, PLEASE ASK ME TO EXPLAIN AND DON'T ASSUME OTHERWISE.
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useToast } from '../../../contexts/ToastContext';

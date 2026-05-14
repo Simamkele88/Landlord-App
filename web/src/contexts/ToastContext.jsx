@@ -1,7 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 // TOAST CONTEXT
-// AUTHOR: SIMAMKELE WEKEZA
-// IF YOU DO NOT UNDERSTAND THIS CODE, PLEASE ASK ME TO EXPLAIN AND DON'T ASSUME OTHERWISE.
+
 import { createContext, useContext, useState } from 'react';
 import { createPortal } from 'react-dom';
 

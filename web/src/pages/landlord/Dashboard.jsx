@@ -1,7 +1,6 @@
 /* eslint-disable no-unused-vars */
 // LANDLORD DASHBOARD PAGE
-// AUTHOR: SIMAMKELE WEKEZA
-// IF YOU DO NOT UNDERSTAND THIS CODE, PLEASE ASK ME TO EXPLAIN AND DON'T ASSUME OTHERWISE.
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -29,18 +28,6 @@ import useDocumentTitle from "../../hooks/useDocumentTitle";
 // MOCK DATA 
 const LANDLORD = { name: "Simamkele Wekeza" };
 
-const STATS = {
-  totalExpected: 44800,
-  totalCollected: 32500,
-  pendingApproval: 2,
-  lateOrOverdue: 3,
-  totalUnits: 12,
-  occupiedUnits: 11,
-  vacantUnits: 1,
-  openMaintenance: 4,
-  openComplaints: 2,
-  tenantsAtRisk: 1,
-};
 
 const RECENT_PAYMENTS = [
   { id: 2, tenant: "Lerato Mokoena", unit: "Unit 2B", property: "Hillbrow Heights", amount: 5800, status: "Pending Approval", paidOn: "2026-04-03" },
@@ -130,36 +117,7 @@ function StatusBadge({ status, styleMap }) {
   );
 }
 
-// BIG STAT CARD COMPONENT WITH OPTIONAL ACCENT AND ALERT
-function StatCard({ label, value, sub, icon: Icon, accent, onClick, alert }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`w-full text-left p-5 bg-white dark:bg-gray-800 border rounded-lg shadow-sm
-        transition-all hover:shadow-md hover:-translate-y-0.5
-        ${alert ? "border-red-300 dark:border-red-700" : "border-gray-200 dark:border-gray-700"}
-        ${onClick ? "cursor-pointer" : "cursor-default"}`}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">{label}</p>
-          <p className={`text-2xl font-bold truncate ${accent ?? "text-gray-900 dark:text-white"}`}>{value}</p>
-          {sub && <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{sub}</p>}
-        </div>
-        <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0
-          ${alert ? "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400" : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400"}`}>
-          <Icon size={20} />
-        </div>
-      </div>
-      {alert && (
-        <div className="mt-3 flex items-center gap-1.5 text-xs font-medium text-red-600 dark:text-red-400">
-          <AlertTriangle size={14} className="flex-shrink-0" />
-          {alert}
-        </div>
-      )}
-    </button>
-  );
-}
+
 
 // SECTION CARD WRAPPER WITH OPTIONAL HEADER AND ACTION
 function Card({ title, actionLabel, onAction, children }) {
@@ -221,7 +179,6 @@ export default function Dashboard() {
   useDocumentTitle("Dashboard");
   const navigate = useNavigate();
 
-  const collectionRate = pct(STATS.totalCollected, STATS.totalExpected);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -235,7 +192,7 @@ export default function Dashboard() {
               {LANDLORD.name}
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              April 2026 — Here's what's happening across your properties.
+              April 2026 • Here's what's happening across your properties.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -249,116 +206,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* ALERT STRIP ONLY IF PENDING OR LATE PAYMENTS EXIST */}
-        {(STATS.pendingApproval > 0 || STATS.lateOrOverdue > 0) && (
-          <div className="flex flex-wrap gap-3 mb-6">
-            {STATS.pendingApproval > 0 && (
-              <button
-                onClick={() => navigate("/landlord/payments")}
-                className="flex items-center gap-2.5 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg px-4 py-2.5 hover:bg-yellow-100 dark:hover:bg-yellow-900/30 transition-colors"
-              >
-                <Clock size={16} className="text-yellow-600 dark:text-yellow-400 flex-shrink-0" />
-                <span className="text-sm font-medium text-yellow-800 dark:text-yellow-300">
-                  {STATS.pendingApproval} payment{STATS.pendingApproval !== 1 ? "s" : ""} awaiting your approval
-                </span>
-                <ChevronRight size={14} className="text-yellow-600 dark:text-yellow-400" />
-              </button>
-            )}
-            {STATS.lateOrOverdue > 0 && (
-              <button
-                onClick={() => navigate("/landlord/payments")}
-                className="flex items-center gap-2.5 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg px-4 py-2.5 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
-              >
-                <AlertTriangle size={16} className="text-red-600 dark:text-red-400 flex-shrink-0" />
-                <span className="text-sm font-medium text-red-800 dark:text-red-300">
-                  {STATS.lateOrOverdue} tenant{STATS.lateOrOverdue !== 1 ? "s" : ""} with overdue rent
-                </span>
-                <ChevronRight size={14} className="text-red-600 dark:text-red-400" />
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* STAT CARDS - FINANCIALS*/}
-        <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">
-          Financial — April 2026
-        </p>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-          <StatCard
-            label="Total Expected"
-            value={fmt(STATS.totalExpected)}
-            sub={`${STATS.totalUnits} units billed`}
-            icon={Coins}
-            onClick={() => navigate("/landlord/payments")}
-          />
-          <StatCard
-            label="Collected"
-            value={fmt(STATS.totalCollected)}
-            sub={`${collectionRate}% collection rate`}
-            icon={CheckCircle}
-            accent="text-green-500"
-            onClick={() => navigate("/landlord/payments")}
-          />
-          <StatCard
-            label="Pending Approval"
-            value={STATS.pendingApproval}
-            sub="Proof uploaded, review needed"
-            icon={Clock}
-            accent="text-yellow-500"
-            alert={STATS.pendingApproval > 0 ? "Action required" : null}
-            onClick={() => navigate("/landlord/payments")}
-          />
-          <StatCard
-            label="Late / Overdue"
-            value={STATS.lateOrOverdue}
-            sub="May be eligible for collections"
-            icon={AlertTriangle}
-            accent="text-red-500"
-            alert={STATS.lateOrOverdue > 0 ? "Requires attention" : null}
-            onClick={() => navigate("/landlord/payments")}
-          />
-        </div>
-
-        {/* STAT CARDS - OPERATIONS */}
-        <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3 mt-5">
-          Operations
-        </p>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <StatCard
-            label="Units Occupied"
-            value={`${STATS.occupiedUnits} / ${STATS.totalUnits}`}
-            sub={STATS.vacantUnits > 0 ? `${STATS.vacantUnits} vacant` : "Fully occupied"}
-            icon={Building2}
-            onClick={() => navigate("/landlord/units")}
-          />
-          <StatCard
-            label="Open Maintenance"
-            value={STATS.openMaintenance}
-            sub="Across all properties"
-            icon={Wrench}
-            accent={STATS.openMaintenance > 0 ? "text-yellow-500" : "text-gray-900 dark:text-white"}
-            alert={STATS.openMaintenance > 2 ? "Some urgent" : null}
-            onClick={() => navigate("/landlord/maintenance")}
-          />
-          <StatCard
-            label="Open Complaints"
-            value={STATS.openComplaints}
-            sub="Tenant disputes filed"
-            icon={ClipboardList}
-            accent={STATS.openComplaints > 0 ? "text-orange-500" : "text-gray-900 dark:text-white"}
-            onClick={() => navigate("/landlord/complaints")}
-          />
-          <StatCard
-            label="High Risk Tenants"
-            value={STATS.tenantsAtRisk}
-            sub="Based on payment history"
-            icon={Users}
-            accent={STATS.tenantsAtRisk > 0 ? "text-red-500" : "text-green-500"}
-            alert={STATS.tenantsAtRisk > 0 ? "Review reliability scores" : null}
-            onClick={() => navigate("/landlord/tenants")}
-          />
-        </div>
-
+        
         {/* MAIN CONTENT GRID */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
 

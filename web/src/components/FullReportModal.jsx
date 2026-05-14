@@ -1,7 +1,5 @@
 /* eslint-disable no-unused-vars */
 // FULL REPORT MODAL COMPONENT
-// AUTHOR: SIMAMKELE WEKEZA
-// IF YOU DO NOT UNDERSTAND THIS CODE, PLEASE ASK ME TO EXPLAIN AND DON'T ASSUME OTHERWISE.
 import { useState } from 'react';
 import { exportToCSV, generatePaymentSummary } from '../utils/exportUtils';
 import { exportToPDF } from '../utils/pdfExport';

@@ -1,481 +1,156 @@
-// PAYMENTS SCREEN FOR TENANTS
+// TENANT PAYMENTS LIST SCREEN
 // AUTHOR: SIMAMKELE WEKEZA
-// IF YOU DO NOT UNDERSTAND THIS CODE, PLEASE ASK ME TO EXPLAIN AND DON'T ASSUME OTHERWISE.
-import { useState, useRef } from "react";
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  StyleSheet,
-  Modal,
-  ActivityIndicator,
-  Alert,
-  Platform,
-  KeyboardAvoidingView,
-  FlatList,
-  SafeAreaView,
-  StatusBar,
-} from "react-native";
-import { C, styles } from "./ScreenStyle";
-import { MaterialIcons, FontAwesome5, Ionicons, Feather } from '@expo/vector-icons';
 
-// MOCK TENANT AND PAYMENT DATA
-const TENANT = {
-  name: "Simamkele Wekeza",
-  unit: "Unit 213-B",
-  property: "Hillbrow Heights",
-  rentAmount: 5800,
-  dueDay: 1,          
-  leaseEnd: "2026-12-31",
-  reliabilityScore: "Reliable",
+import { useState } from "react";
+import {
+  View, Text, ScrollView, TouchableOpacity,
+  StyleSheet, SafeAreaView, StatusBar,
+} from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import { MaterialIcons, FontAwesome5, Ionicons, Feather } from "@expo/vector-icons";
+
+const C = {
+  bg: "#0F172A", surface: "#1E293B", surfaceAlt: "#273449",
+  border: "#334155", primary: "#3B82F6",
+  success: "#22C55E", successBg: "#052E16",
+  warning: "#F59E0B", warningBg: "#451A03",
+  danger: "#EF4444", dangerBg: "#450A0A",
+  textPrimary: "#F1F5F9", textSecondary: "#94A3B8", textMuted: "#64748B",
+  white: "#FFFFFF",
 };
 
-const PAYMENT_HISTORY = [
-  { id: "p1", period: "April 2026", amount: 5800, status: "Late", method: null, paidOn: null, receiptNo: null },
-  { id: "p2", period: "March 2026",     amount: 5800, status: "Paid", method: "Upload",  paidOn: "2026-03-01", receiptNo: "RCP-0002-260301" },
-  { id: "p3", period: "February 2026",  amount: 5800, status: "Paid", method: "In-App",  paidOn: "2026-02-01", receiptNo: "RCP-0002-260201" },
-  { id: "p4", period: "January 2026",   amount: 5800, status: "Paid", method: "Upload",  paidOn: "2026-01-03", receiptNo: "RCP-0002-260103" },
-  { id: "p5", period: "December 2025",  amount: 5500, status: "Paid", method: "In-App",  paidOn: "2025-12-01", receiptNo: "RCP-0002-251201" },
-  { id: "p6", period: "November 2025",  amount: 5500, status: "Late", method: null,      paidOn: null,         receiptNo: null },
+const TENANT = {
+  name: "Simamkele Wekeza", unit: "Unit 213-B",
+  property: "Hillbrow Heights", rentAmount: 5800,
+  dueDay: 1, leaseEnd: "2026-12-31", reliabilityScore: "Reliable",
+};
+
+const CURRENT_INVOICE = {
+  id: "inv-004-2026", period: "April 2026", amount: 5800,
+  dueDate: "2026-04-01", status: "unpaid", lateFee: 0, daysOverdue: 25,
+};
+
+const INITIAL_HISTORY = [
+  { id: "p1", period: "April 2026", amount: 5800, status: "Unpaid", method: null, paidOn: null, receiptNo: null, reference: null },
+  { id: "p2", period: "March 2026", amount: 5800, status: "Paid", method: "Bank Transfer", paidOn: "2026-03-01", receiptNo: "RCP-0003-260301", reference: "EFT-20260301-001" },
+  { id: "p3", period: "February 2026", amount: 5800, status: "Paid", method: "In-App EFT", paidOn: "2026-02-01", receiptNo: "RCP-0003-260201", reference: "INAPP-20260201-001" },
+  { id: "p4", period: "January 2026", amount: 5800, status: "Paid", method: "Bank Transfer", paidOn: "2026-01-03", receiptNo: "RCP-0003-260103", reference: "EFT-20260103-001" },
+  { id: "p5", period: "December 2025", amount: 5500, status: "Paid", method: "In-App Card", paidOn: "2025-12-01", receiptNo: "RCP-0003-251201", reference: "CARD-20251201-001" },
+  { id: "p6", period: "November 2025", amount: 5500, status: "Late", method: "Bank Transfer", paidOn: "2025-11-14", receiptNo: "RCP-0003-251114", reference: "EFT-20251114-001" },
+  { id: "p7", period: "October 2025", amount: 5500, status: "Paid", method: "In-App EFT", paidOn: "2025-10-01", receiptNo: "RCP-0003-251001", reference: "INAPP-20251001-001" },
 ];
 
-// HELPER FUNCTIONS
-function format(amount) {
-  return `R ${Number(amount).toLocaleString("en-ZA")}`;
-}
-
-
-function daysUntilDue() {
-  const now  = new Date();
-  const next = new Date(now.getFullYear(), now.getMonth(), TENANT.dueDay);
-  if (next < now) next.setMonth(next.getMonth() + 1);
-  return Math.ceil((next - now) / 86400000);
-}
-
+function fmt(amount) { return `R ${Number(amount).toLocaleString("en-ZA")}`; }
 function statusConfig(status) {
   switch (status) {
-    case "Paid":             return { color: C.success, bg: C.successBg, label: "Paid" };
+    case "Paid": return { color: C.success, bg: C.successBg, label: "Paid" };
     case "Pending Approval": return { color: C.warning, bg: C.warningBg, label: "Pending" };
-    case "Late":             return { color: C.danger,  bg: C.dangerBg,  label: "Late" };
-    default:                 return { color: C.textMuted, bg: C.surface, label: status };
+    case "Late": return { color: C.danger, bg: C.dangerBg, label: "Late" };
+    case "Unpaid": return { color: C.danger, bg: C.dangerBg, label: "Unpaid" };
+    default: return { color: C.textMuted, bg: C.surface, label: status };
   }
 }
-
-function reliabilityColor(score) {
-  if (score === "Reliable")      return C.success;
-  if (score === "Moderate Risk") return C.warning;
-  return C.danger;
-}
-
-// SMALL COMPONENTS
 
 function StatusPill({ status }) {
   const { color, bg, label } = statusConfig(status);
   return (
-    <View style={[styles.pill, { backgroundColor: bg }]}>
-      <Text style={[styles.pillText, { color }]}>{label}</Text>
+    <View style={[S.pill, { backgroundColor: bg }]}>
+      <Text style={[S.pillText, { color }]}>{label}</Text>
     </View>
   );
 }
 
-function SectionLabel({ title }) {
-  return <Text style={styles.sectionLabel}>{title}</Text>;
-}
-
-function Divider() {
-  return <View style={styles.divider} />;
-}
-
-// UPLOAD PROOF MODAL
-function UploadProofModal({ visible, onClose, onSubmit }) {
-  const [reference, setReference] = useState("");
-  const [amount, setAmount]       = useState(String(TENANT.rentAmount));
-  const [fileSelected, setFile]   = useState(false);
-  const [loading, setLoading]     = useState(false);
-
-  const canSubmit = reference.trim() !== "" && amount.trim() !== "" && fileSelected;
-
-  function handleFilePick() {
-    setFile(true);
-  }
-
-  function handleSubmit() {
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      onSubmit();
-    }, 1500);
-  }
-
-  function handleClose() {
-    setReference("");
-    setAmount(String(TENANT.rentAmount));
-    setFile(false);
-    onClose();
-  }
-
+function SectionLabel({ title, subtitle, actionLabel, onAction }) {
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.modalOverlay}
-      >
-        <View style={styles.bottomSheet}>
-
-          {/* HANDLE */}
-          <View style={styles.sheetHandle} />
-
-          <Text style={styles.sheetTitle}>Upload Proof of Payment</Text>
-          <Text style={styles.sheetSub}>
-            Upload your bank confirmation or EFT slip for {TENANT.property}
-          </Text>
-
-          {/* AMOUNT */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Amount Paid (R)</Text>
-            <TextInput
-              style={styles.input}
-              value={amount}
-              onChangeText={setAmount}
-              keyboardType="numeric"
-              placeholderTextColor={C.textMuted}
-              selectionColor={C.primary}
-            />
-          </View>
-
-          {/* REFERENCE */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Payment Reference / EFT Reference</Text>
-            <TextInput
-              style={styles.input}
-              value={reference}
-              onChangeText={setReference}
-              placeholder="e.g. 0047568936"
-              placeholderTextColor={C.textMuted}
-              selectionColor={C.primary}
-            />
-          </View>
-
-          {/* FILE PICKER */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Proof of Payment (PDF or Image)</Text>
-            <TouchableOpacity
-              style={[styles.filePicker, fileSelected && styles.filePickerSelected]}
-              onPress={handleFilePick}
-              activeOpacity={0.7}
-            >
-              {fileSelected ? (
-                <View style={styles.filePickerInner}>
-                  <MaterialIcons name="check-circle" size={24} color={C.success} />
-                  <View>
-                    <Text style={[styles.filePickerText, { color: C.success }]}>
-                      proof_of_payment.pdf
-                    </Text>
-                    <Text style={styles.filePickerSub}>Selected file is proof_of_payment.pdf</Text>
-                  </View>
-                </View>
-              ) : (
-                <View style={styles.filePickerInner}>
-                  <Feather name="upload" size={22} color={C.textSecondary} />
-                  <View>
-                    <Text style={styles.filePickerText}>Tap to select file</Text>
-                    <Text style={styles.filePickerSub}>PDF, JPG or PNG · Max 5MB</Text>
-                  </View>
-                </View>
-              )}
-            </TouchableOpacity>
-          </View>
-
-          {/* INFO */}
-          <View style={styles.infoBox}>
-            <Text style={styles.infoText}>
-              Your proof will be reviewed by the landlord. You'll be notified once approved.
-            </Text>
-          </View>
-
-          {/* ACTIONS */}
-          <View style={styles.modalActions}>
-            <TouchableOpacity style={styles.btnSecondary} onPress={handleClose} activeOpacity={0.8}>
-              <Text style={styles.btnSecondaryText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.btnPrimary, (!canSubmit || loading) && styles.btnDisabled]}
-              onPress={handleSubmit}
-              disabled={!canSubmit || loading}
-              activeOpacity={0.8}
-            >
-              {loading
-                ? <ActivityIndicator color={C.white} size="small" />
-                : <Text style={styles.btnPrimaryText}>Submit Payment</Text>
-              }
-            </TouchableOpacity>
-          </View>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
-  );
-}
-
-// IN-APP PAYMENT MODAL
-function InAppPayModal({ visible, onClose, onSubmit }) {
-  const [step, setStep]     = useState("method");   
-  const [method, setMethod] = useState(null);
-  const [loading, setLoading] = useState(false);
-
-  const METHODS = [
-  { 
-    id: "card", 
-    label: "Credit / Debit Card", 
-    icon: "credit-card",
-    iconLibrary: "FontAwesome5",
-    sub: "Visa, Mastercard" 
-  },
-  { 
-    id: "eft", 
-    label: "Instant EFT", 
-    icon: "bank",
-    iconLibrary: "FontAwesome5",
-    sub: "via Ozow or Peach Payments" 
-  },
-  { 
-    id: "wallet",
-    label: "Mobile Wallet", 
-    icon: "phone",
-    iconLibrary: "FontAwesome5",
-    sub: "SnapScan, Zapper" 
-  },
-];
-
-  function handlePay() {
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      setStep("success");
-    }, 2000);
-  }
-
-  function handleClose() {
-    setStep("method");
-    setMethod(null);
-    onClose();
-  }
-
-  function handleDone() {
-    handleClose();
-    onSubmit();
-  }
-
-  return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
-      <View style={styles.modalOverlay}>
-        <View style={styles.bottomSheet}>
-          <View style={styles.sheetHandle} />
-
-          {/* METHOD SELECTION */}
-          {step === "method" && (
-            <>
-              <Text style={styles.sheetTitle}>Pay Rent</Text>
-              <Text style={styles.sheetSub}>{format(TENANT.rentAmount)} due for April 2026</Text>
-
-              <SectionLabel title="Select payment method" />
-              {METHODS.map(m => {
-                const IconComponent = m.iconLibrary === "FontAwesome5" ? FontAwesome5 : MaterialIcons;
-                
-                return (
-                  <TouchableOpacity
-                    key={m.id}
-                    style={[styles.methodCard, method?.id === m.id && styles.methodCardActive]}
-                    onPress={() => setMethod(m)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={styles.methodIconContainer}>
-                      <IconComponent name={m.icon} size={24} color={method?.id === m.id ? C.primary : C.textSecondary} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.methodLabel}>{m.label}</Text>
-                      <Text style={styles.methodSub}>{m.sub}</Text>
-                    </View>
-                    <View style={[
-                      styles.radioOuter,
-                      method?.id === m.id && styles.radioOuterActive,
-                    ]}>
-                      {method?.id === m.id && <View style={styles.radioInner} />}
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-
-              <View style={styles.modalActions}>
-                <TouchableOpacity style={styles.btnSecondary} onPress={handleClose} activeOpacity={0.8}>
-                  <Text style={styles.btnSecondaryText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.btnPrimary, !method && styles.btnDisabled]}
-                  onPress={() => setStep("confirm")}
-                  disabled={!method}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.btnPrimaryText}>Continue</Text>
-                </TouchableOpacity>
-              </View>
-            </>
-          )}
-
-          {/* CONFIRM */}
-          {step === "confirm" && (
-            <>
-              <Text style={styles.sheetTitle}>Confirm Payment</Text>
-
-              <View style={styles.confirmCard}>
-                {[
-                  ["Tenant",    TENANT.name],
-                  ["Unit",      `${TENANT.unit} · ${TENANT.property}`],
-                  ["Period",    "April 2026"],
-                  ["Method",    method?.label],
-                ].map(([label, val]) => (
-                  <View key={label} style={styles.confirmRow}>
-                    <Text style={styles.confirmLabel}>{label}</Text>
-                    <Text style={styles.confirmValue}>{val}</Text>
-                  </View>
-                ))}
-                <View style={[styles.confirmRow, styles.confirmTotal]}>
-                  <Text style={styles.confirmTotalLabel}>Total</Text>
-                  <Text style={styles.confirmTotalValue}>{format(TENANT.rentAmount)}</Text>
-                </View>
-              </View>
-
-              <View style={styles.infoBox}>
-                <Text style={styles.infoText}>
-                  By confirming, you authorise a payment of {format(TENANT.rentAmount)} for April 2026 rent.
-                </Text>
-              </View>
-
-              <View style={styles.modalActions}>
-                <TouchableOpacity
-                  style={styles.btnSecondary}
-                  onPress={() => setStep("method")}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.btnSecondaryText}>Back</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.btnPrimary, loading && styles.btnDisabled]}
-                  onPress={handlePay}
-                  disabled={loading}
-                  activeOpacity={0.8}
-                >
-                  {loading
-                    ? <ActivityIndicator color={C.white} size="small" />
-                    : <Text style={styles.btnPrimaryText}>Pay {format(TENANT.rentAmount)}</Text>
-                  }
-                </TouchableOpacity>
-              </View>
-            </>
-          )}
-
-          {/* SUCCESS */}
-          {step === "success" && (
-            <View style={styles.successContent}>
-              <View style={styles.successCircle}>
-                <Ionicons name="checkmark" size={40} color={C.white} />
-              </View>
-              <Text style={styles.successTitle}>Payment Submitted!</Text>
-              <Text style={styles.successSub}>
-                Your payment of {format(TENANT.rentAmount)} has been submitted successfully. The landlord will confirm shortly.
-              </Text>
-              <TouchableOpacity style={[styles.btnPrimary, { width: "100%", marginTop: 24 }]} onPress={handleDone} activeOpacity={0.8}>
-                <Text style={styles.btnPrimaryText}>Done</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
+    <View style={S.sectionHeader}>
+      <View style={{ flex: 1 }}>
+        <Text style={S.sectionLabel}>{title}</Text>
+        {subtitle ? <Text style={S.sectionSub}>{subtitle}</Text> : null}
       </View>
-    </Modal>
+      {actionLabel ? (
+        <TouchableOpacity onPress={onAction} activeOpacity={0.7}>
+          <Text style={S.sectionAction}>{actionLabel}</Text>
+        </TouchableOpacity>
+      ) : null}
+    </View>
   );
 }
 
-// RECEIPT MODAL
-function ReceiptModal({ visible, payment, onClose }) {
-  if (!payment) return null;
-  const approvedOn = payment.paidOn
-    ? new Date(payment.paidOn).toLocaleDateString("en-ZA", { day: "2-digit", month: "long", year: "numeric" })
-    : "—";
+// INVOICE CARD
+function InvoiceCard({ invoice, status, onViewInvoice }) {
+  const isOverdue = status === "overdue";
+  const isPending = status === "pending_approval";
+  const isPaid = status === "paid";
+  const isUnpaid = status === "unpaid";
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.modalOverlay}>
-        <View style={styles.bottomSheet}>
-          <View style={styles.sheetHandle} />
-
-          {/* GREEN HEADER */}
-          <View style={styles.receiptHeader}>
-            <View style={styles.receiptCheckCircle}>
-            <Ionicons name="checkmark" size={28} color={C.white} />
-          </View>
-            <Text style={styles.receiptTitle}>Payment Receipt</Text>
-            <Text style={[styles.receiptNo, { marginTop: 4 }]}>{payment.receiptNo}</Text>
-          </View>
-
-          <View style={styles.confirmCard}>
-            {[
-              ["Tenant",    TENANT.name],
-              ["Unit",      `${TENANT.unit} · ${TENANT.property}`],
-              ["Period",    payment.period],
-              ["Method",    payment.method],
-              ["Date Paid", approvedOn],
-            ].map(([label, val]) => (
-              <View key={label} style={styles.confirmRow}>
-                <Text style={styles.confirmLabel}>{label}</Text>
-                <Text style={styles.confirmValue}>{val}</Text>
-              </View>
-            ))}
-            <View style={[styles.confirmRow, styles.confirmTotal]}>
-              <Text style={styles.confirmTotalLabel}>Amount Paid</Text>
-              <Text style={styles.confirmTotalValue}>{format(payment.amount)}</Text>
-            </View>
-          </View>
-
-          <Text style={styles.receiptFootnote}>
-            Approved by Landlord · Keep this for your records
-          </Text>
-
-          <View style={styles.modalActions}>
-            <TouchableOpacity
-              style={styles.btnSecondary}
-              onPress={() => Alert.alert("Download", "In production this downloads a PDF receipt.")}
-              activeOpacity={0.8}
-            >
-              <Feather name="download" size={18} color={C.textPrimary} />
-              <Text style={styles.btnSecondaryText}>Download</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.btnPrimary} onPress={onClose} activeOpacity={0.8}>
-              <Text style={styles.btnPrimaryText}>Close</Text>
-            </TouchableOpacity>
-          </View>
+    <View style={[S.invoiceCard, isOverdue && { borderColor: C.danger + "60" }]}>
+      <View style={S.invoiceTop}>
+        <View style={S.invoiceIconWrap}>
+          <Ionicons name="document-text" size={22} color={C.primary} />
         </View>
-      </View>
-    </Modal>
-  );
-}
-
-// HISTORY ITEM CARD
-function HistoryCard({ item, onViewReceipt }) {
-  return (
-    <View style={styles.historyCard}>
-      <View style={styles.historyLeft}>
-        <Text style={styles.historyPeriod}>{item.period}</Text>
-        <Text style={styles.historyMeta}>
-          {item.paidOn ?? "Not paid"}{item.method ? ` · ${item.method}` : ""}
+        <View style={{ flex: 1 }}>
+          <Text style={S.invoicePeriod}>{invoice.period} Invoice</Text>
+          <Text style={S.invoiceDue}>Due {invoice.dueDate}</Text>
+        </View>
+        <Text style={[S.invoiceAmount, isOverdue && { color: C.danger }]}>
+          {fmt(invoice.amount + (isOverdue ? invoice.lateFee : 0))}
         </Text>
       </View>
-      <View style={styles.historyRight}>
-        <Text style={styles.historyAmount}>{format(item.amount)}</Text>
+      <View style={S.invoiceDivider} />
+      {isUnpaid && (
+        <View style={[S.invoiceBanner, { backgroundColor: C.surfaceAlt }]}>
+          <Ionicons name="time-outline" size={16} color={C.textSecondary} />
+          <Text style={[S.invoiceBannerText, { color: C.textSecondary }]}>Rent is due — please make payment to avoid late fees.</Text>
+        </View>
+      )}
+      {isOverdue && (
+        <View style={[S.invoiceBanner, { backgroundColor: C.dangerBg }]}>
+          <MaterialIcons name="error" size={16} color={C.danger} />
+          <Text style={[S.invoiceBannerText, { color: C.danger }]}>{invoice.daysOverdue} days overdue</Text>
+        </View>
+      )}
+      {isPending && (
+        <View style={[S.invoiceBanner, { backgroundColor: C.warningBg }]}>
+          <MaterialIcons name="pending-actions" size={16} color={C.warning} />
+          <Text style={[S.invoiceBannerText, { color: C.warning }]}>Awaiting landlord approval</Text>
+        </View>
+      )}
+      {isPaid && (
+        <View style={[S.invoiceBanner, { backgroundColor: C.successBg }]}>
+          <Ionicons name="checkmark-circle" size={16} color={C.success} />
+          <Text style={[S.invoiceBannerText, { color: C.success }]}>Payment confirmed</Text>
+        </View>
+      )}
+      <View style={S.invoiceDivider} />
+      <TouchableOpacity style={S.invoiceViewRow} onPress={onViewInvoice} activeOpacity={0.7}>
+        <Feather name="file-text" size={15} color={C.primary} />
+        <Text style={S.invoiceViewText}>View Invoice</Text>
+        <Feather name="chevron-right" size={15} color={C.primary} />
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+// HISTORY ROW
+function HistoryRow({ item, onViewReceipt }) {
+  const { color } = statusConfig(item.status);
+  return (
+    <View style={S.historyRow}>
+      <View style={[S.historyDot, { backgroundColor: color }]} />
+      <View style={{ flex: 1 }}>
+        <Text style={S.historyPeriod}>{item.period}</Text>
+        <Text style={S.historyMeta}>
+          {item.paidOn ? `Paid ${item.paidOn}` : "Not yet paid"}
+          {item.method ? ` · ${item.method}` : ""}
+        </Text>
+      </View>
+      <View style={{ alignItems: "flex-end" }}>
+        <Text style={S.historyAmount}>{fmt(item.amount)}</Text>
         <StatusPill status={item.status} />
         {item.status === "Paid" && item.receiptNo && (
           <TouchableOpacity onPress={() => onViewReceipt(item)} activeOpacity={0.7}>
-            <Text style={styles.receiptLink}>Receipt</Text>
+            <Text style={S.receiptLink}>View Receipt</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -485,209 +160,187 @@ function HistoryCard({ item, onViewReceipt }) {
 
 // MAIN SCREEN
 export default function TenantPayments() {
-  const [showUpload, setShowUpload]     = useState(false);
-  const [showInApp, setShowInApp]       = useState(false);
-  const [showReceipt, setShowReceipt]   = useState(false);
-  const [receiptPayment, setReceiptPayment] = useState(null);
+  const navigation = useNavigation();
+  const [history] = useState(INITIAL_HISTORY);
+  const [invoiceStatus] = useState(CURRENT_INVOICE.status);
 
-  const [history, setHistory] = useState(PAYMENT_HISTORY);
+  const isPending = invoiceStatus === "pending_approval";
+  const needsPay = invoiceStatus === "unpaid" || invoiceStatus === "overdue";
 
-  const days      = daysUntilDue();
-  const currentPeriod = history[0];  
-  const isPending = currentPeriod?.status === "Pending Approval";
-  const isPaid    = currentPeriod?.status === "Paid";
-  const isLate    = days < 0;
-
-  function onPaymentSubmitted() {
-    setHistory(prev =>
-      prev.map((p, i) =>
-        i === 0 ? { ...p, status: "Pending Approval", paidOn: new Date().toISOString().slice(0, 10) } : p
-      )
-    );
-  }
-
-  function openReceipt(payment) {
-    setReceiptPayment(payment);
-    setShowReceipt(true);
+  function openReceipt(item) {
+    navigation.getParent()?.navigate("PaymentReceipt", { payment: item });
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={S.safe}>
       <StatusBar barStyle="light-content" backgroundColor={C.bg} />
 
-      {/* MODALS */}
-      <UploadProofModal
-        visible={showUpload}
-        onClose={() => setShowUpload(false)}
-        onSubmit={() => { setShowUpload(false); onPaymentSubmitted(); }}
-      />
-      <InAppPayModal
-        visible={showInApp}
-        onClose={() => setShowInApp(false)}
-        onSubmit={() => { setShowInApp(false); onPaymentSubmitted(); }}
-      />
-      <ReceiptModal
-        visible={showReceipt}
-        payment={receiptPayment}
-        onClose={() => setShowReceipt(false)}
-      />
-
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-
+      <ScrollView style={S.scroll} contentContainerStyle={S.scrollPad} showsVerticalScrollIndicator={false}>
         {/* HEADER */}
-        <View style={styles.pageHeader}>
+        <View style={S.pageHeader}>
           <View>
-            <Text style={styles.pageSub}>{TENANT.unit} · {TENANT.property}</Text>
+            <Text style={S.pageTitle}>Payments</Text>
+            <Text style={S.pageSub}>{TENANT.unit} · {TENANT.property}</Text>
           </View>
-          <View style={[styles.scorePill, { borderColor: reliabilityColor(TENANT.reliabilityScore) }]}>
-            <Text style={[styles.scoreText, { color: reliabilityColor(TENANT.reliabilityScore) }]}>
-              {TENANT.reliabilityScore}
-            </Text>
+          <View style={[S.scorePill, { borderColor: C.success }]}>
+            <Text style={[S.scoreText, { color: C.success }]}>{TENANT.reliabilityScore}</Text>
           </View>
         </View>
 
-        {/* CURRENT RENT CARD */}
-        <View style={styles.rentCard}>
-          <View style={styles.rentCardTop}>
-            <View>
-              <Text style={styles.rentLabel}>April 2026 Rent</Text>
-              <Text style={styles.rentAmount}>{format(TENANT.rentAmount)}</Text>
-            </View>
-            <StatusPill status={currentPeriod?.status ?? "Late"} />
-          </View>
+        {/* INVOICE CARD */}
+        <InvoiceCard
+          invoice={CURRENT_INVOICE}
+          status={invoiceStatus}
+          onViewInvoice={() => navigation.getParent()?.navigate("PaymentInvoice", { invoice: CURRENT_INVOICE })}
+        />
 
-          {/* DUE BANNER */}
-          {!isPaid && (
-            <View style={[
-              styles.dueBanner,
-              { backgroundColor: days <= 3 ? C.dangerBg : C.surfaceAlt }
-            ]}>
-              <Text style={[styles.dueText, { color: days <= 3 ? C.danger : C.textSecondary }]}>
-                {days > 0 ? (
-                  <View style={styles.dueBannerContent}>
-                    <Ionicons name="time-outline" size={16} color={C.textSecondary} />
-                    <Text style={[styles.dueText, { color: C.textSecondary }]}>
-                      Due in {days} day{days !== 1 ? "s" : ""} 
-                    </Text>
-                  </View>
-                ) : days === 0 ? (
-                  <View style={styles.dueBannerContent}>
-                    <MaterialIcons name="warning-amber" size={16} color={C.warning} />
-                    <Text style={[styles.dueText, { color: C.warning }]}>
-                      Due today!
-                    </Text>
-                  </View>
-                ) : (
-                  <View style={styles.dueBannerContent}>
-                    <MaterialIcons name="error" size={16} color={C.danger} />
-                    <Text style={[styles.dueText, { color: C.danger }]}>
-                      {Math.abs(days)} day{Math.abs(days) !== 1 ? "s" : ""} overdue
-                    </Text>
-                  </View>
-                )}
-              </Text>
-            </View>
-          )}
-
-          {/* PENDING BANNER */}
-          {isPending && (
-            <View style={styles.pendingBanner}>
-              <MaterialIcons name="pending-actions" size={16} color={C.warning} />
-              <Text style={styles.pendingText}>
-                Proof submitted — awaiting landlord approval
-              </Text>
-            </View>
-          )}
-
-          {/* PAID BANNER */}
-          {isPaid && (
-            <View style={styles.paidBanner}>
-              <Ionicons name="checkmark-circle" size={16} color={C.success} />
-              <Text style={styles.paidText}>
-                Rent confirmed paid for this month
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {/* PAY ACTIONS */}
-        {!isPaid && !isPending && (
+        {/* PAYMENT OPTIONS */}
+        {needsPay && (
           <>
-            <SectionLabel title="Pay Now" />
-            <View style={styles.actionRow}>
+            <SectionLabel title="Make Payment" subtitle="Choose how you'd like to pay this month" />
+            <View style={S.payOptions}>
               <TouchableOpacity
-                style={[styles.actionCard, styles.actionCardPrimary]}
-                onPress={() => setShowInApp(true)}
+                style={S.payCard}
+                onPress={() => navigation.getParent()?.navigate("PaymentMethod", { invoice: CURRENT_INVOICE, tenant: TENANT })}
                 activeOpacity={0.8}
               >
-                <View style={styles.actionIconContainer}>
-                  <FontAwesome5 name="credit-card" size={24} color={C.primary} />
+                <View style={S.payCardIcon}>
+                  <FontAwesome5 name="credit-card" size={26} color={C.primary} />
                 </View>
-                <Text style={styles.actionTitle}>Pay In-App</Text>
-                <Text style={styles.actionSub}>Card, EFT, Wallet</Text>
+                <Text style={S.payCardTitle}>Pay In-App</Text>
+                <Text style={S.payCardSub}>Card, EFT, or mobile wallet</Text>
               </TouchableOpacity>
-
               <TouchableOpacity
-                style={[styles.actionCard, styles.actionCardSecondary]}
-                onPress={() => setShowUpload(true)}
+                style={[S.payCard, { borderColor: C.border }]}
+                onPress={() => navigation.getParent()?.navigate("PaymentUpload", { invoice: CURRENT_INVOICE })}
                 activeOpacity={0.8}
               >
-                <View style={styles.actionIconContainer}>
-                  <Feather name="upload" size={24} color={C.textSecondary} />
+                <View style={[S.payCardIcon, { backgroundColor: C.surfaceAlt }]}>
+                  <Feather name="upload" size={26} color={C.textSecondary} />
                 </View>
-                <Text style={styles.actionTitle}>Upload Proof</Text>
-                <Text style={styles.actionSub}>EFT slip or bank confirmation</Text>
+                <Text style={S.payCardTitle}>Upload Proof</Text>
+                <Text style={S.payCardSub}>EFT slip or bank confirmation</Text>
               </TouchableOpacity>
             </View>
           </>
         )}
 
-        {/* UPLOAD PROOF OF PAYMENT IF STILL PENDING */}
+        {/* RESUBMIT */}
         {isPending && (
           <>
             <SectionLabel title="Actions" />
             <TouchableOpacity
-              style={styles.resubmitBtn}
-              onPress={() => setShowUpload(true)}
+              style={S.resubmit}
+              onPress={() => navigation.getParent()?.navigate("PaymentUpload", { invoice: CURRENT_INVOICE })}
               activeOpacity={0.8}
             >
-              <Feather name="upload" size={16} color={C.warning} />
-              <Text style={styles.resubmitText}>Resubmit Proof of Payment</Text>
+              <Feather name="refresh-cw" size={18} color={C.warning} />
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={S.resubmitTitle}>Resubmit Proof of Payment</Text>
+                <Text style={S.resubmitSub}>Update your submission if you made changes</Text>
+              </View>
+              <Feather name="chevron-right" size={18} color={C.warning} />
             </TouchableOpacity>
           </>
         )}
 
         {/* PAYMENT HISTORY */}
-        <SectionLabel title="Payment History" />
-
-        {history.map(item => (
-          <HistoryCard key={item.id} item={item} onViewReceipt={openReceipt} />
-        ))}
-
-        {/*LEASE INFORMATION */}
-        <SectionLabel title="Lease Info" />
-        <View style={styles.leaseCard}>
-          {[
-            ["Monthly Rent",  format(TENANT.rentAmount)],
-            ["Due Every",     `1st of the month`],
-            ["Lease Ends",    TENANT.leaseEnd],
-          ].map(([label, val]) => (
-            <View key={label} style={styles.leaseRow}>
-              <Text style={styles.leaseLabel}>{label}</Text>
-              <Text style={styles.leaseValue}>{val}</Text>
+        <SectionLabel title="Payment History" subtitle="Your rent payment record" />
+        <View style={S.historyCard}>
+          {history.map((item, idx) => (
+            <View key={item.id}>
+              <HistoryRow item={item} onViewReceipt={openReceipt} />
+              {idx < history.length - 1 && <View style={S.historyDivider} />}
             </View>
           ))}
         </View>
 
+        {/* LEASE SUMMARY */}
+        <SectionLabel title="Lease Summary" />
+        <View style={S.leaseCard}>
+          {[
+            ["Monthly Rent", fmt(TENANT.rentAmount)],
+            ["Payment Due", "1st of each month"],
+            ["Lease Ends", TENANT.leaseEnd],
+          ].map(([label, val], idx, arr) => (
+            <View key={label} style={[S.leaseRow, idx < arr.length - 1 && { borderBottomWidth: 1, borderBottomColor: C.border }]}>
+              <Text style={S.leaseLabel}>{label}</Text>
+              <Text style={S.leaseValue}>{val}</Text>
+            </View>
+          ))}
+        </View>
         <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
+// STYLES
+const S = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: C.bg },
+  scroll: { flex: 1 },
+  scrollPad: { padding: 20 },
+  pageHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 },
+  pageTitle: { fontSize: 24, fontWeight: "800", color: C.textPrimary, marginBottom: 4 },
+  pageSub: { fontSize: 13, color: C.textSecondary, marginTop: 2 },
+  scorePill: { borderWidth: 1.5, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5 },
+  scoreText: { fontSize: 12, fontWeight: "600" },
 
+  // INVOICE CARD
+  invoiceCard: { backgroundColor: C.surface, borderRadius: 16, borderWidth: 1, borderColor: C.border, overflow: "hidden", marginBottom: 24 },
+  invoiceTop: { flexDirection: "row", alignItems: "center", gap: 12, padding: 20 },
+  invoiceIconWrap: { width: 42, height: 42, borderRadius: 12, backgroundColor: C.primary + "15", alignItems: "center", justifyContent: "center" },
+  invoicePeriod: { fontSize: 15, fontWeight: "700", color: C.textPrimary },
+  invoiceDue: { fontSize: 12, color: C.textSecondary, marginTop: 2 },
+  invoiceAmount: { fontSize: 22, fontWeight: "800", color: C.textPrimary, marginLeft: "auto" },
+  invoiceDivider: { height: 1, backgroundColor: C.border },
+  invoiceBanner: { flexDirection: "row", alignItems: "center", gap: 10, padding: 14, paddingHorizontal: 16 },
+  invoiceBannerText: { fontSize: 13, fontWeight: "600", flex: 1 },
+  invoiceViewRow: { flexDirection: "row", alignItems: "center", gap: 8, padding: 14, paddingHorizontal: 16 },
+  invoiceViewText: { flex: 1, fontSize: 13, fontWeight: "600", color: C.primary },
 
+  // SECTION
+  sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 12, marginTop: 4 },
+  sectionLabel: { fontSize: 11, fontWeight: "700", color: C.textMuted, textTransform: "uppercase", letterSpacing: 1 },
+  sectionSub: { fontSize: 12, color: C.textSecondary, marginTop: 2 },
+  sectionAction: { fontSize: 13, color: C.primary, fontWeight: "600" },
+
+  // PAYMENT OPTIONS
+  payOptions: { flexDirection: "row", gap: 12, marginBottom: 28 },
+  payCard: {
+    flex: 1, backgroundColor: C.surface, borderRadius: 16,
+    borderWidth: 1.5, borderColor: C.primary + "40", padding: 18, position: "relative",
+  },
+  payCardIcon: { width: 52, height: 52, borderRadius: 14, backgroundColor: C.primary + "15", alignItems: "center", justifyContent: "center", marginBottom: 12 },
+  payCardTitle: { fontSize: 14, fontWeight: "700", color: C.textPrimary, marginBottom: 4 },
+  payCardSub: { fontSize: 11, color: C.textSecondary, lineHeight: 16 },
+
+  // RESUBMIT
+  resubmit: {
+    flexDirection: "row", alignItems: "center", gap: 12,
+    backgroundColor: C.warningBg, borderRadius: 14, borderWidth: 1,
+    borderColor: C.warning + "30", padding: 16, marginBottom: 28,
+  },
+  resubmitTitle: { fontSize: 14, fontWeight: "600", color: C.warning },
+  resubmitSub: { fontSize: 11, color: C.warning, opacity: 0.75, marginTop: 2 },
+
+  // HISTORY
+  historyCard: { backgroundColor: C.surface, borderRadius: 14, borderWidth: 1, borderColor: C.border, overflow: "hidden", marginBottom: 28 },
+  historyRow: { flexDirection: "row", alignItems: "center", gap: 12, padding: 16 },
+  historyDivider: { height: 1, backgroundColor: C.border, marginHorizontal: 16 },
+  historyDot: { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
+  historyPeriod: { fontSize: 14, fontWeight: "600", color: C.textPrimary },
+  historyMeta: { fontSize: 11, color: C.textSecondary, marginTop: 2 },
+  historyAmount: { fontSize: 14, fontWeight: "700", color: C.textPrimary },
+  receiptLink: { fontSize: 12, fontWeight: "600", color: C.primary },
+
+  // PILL
+  pill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, alignSelf: "flex-start" },
+  pillText: { fontSize: 10, fontWeight: "700", textTransform: "uppercase" },
+
+  // LEASE
+  leaseCard: { backgroundColor: C.surface, borderRadius: 14, borderWidth: 1, borderColor: C.border, overflow: "hidden", marginBottom: 16 },
+  leaseRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingVertical: 14 },
+  leaseLabel: { fontSize: 13, color: C.textSecondary },
+  leaseValue: { fontSize: 13, fontWeight: "600", color: C.textPrimary },
+});

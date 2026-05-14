@@ -1,6 +1,5 @@
 import { StyleSheet, Platform } from "react-native";
 
-// THEME COLORS
 export const C = {
   bg:           "#0F172A",
   surface:      "#1E293B",
@@ -143,7 +142,6 @@ export const drawerStyles = StyleSheet.create({
     backgroundColor: C.bg,
   },
 
-  // Profile
   profileSection: {
     backgroundColor: C.surface,
     alignItems: "center",
@@ -198,7 +196,6 @@ export const drawerStyles = StyleSheet.create({
     fontWeight: "700",
   },
 
-  // Nav
   navScroll: {
     flex: 1,
     paddingHorizontal: 12,
@@ -253,7 +250,6 @@ export const drawerStyles = StyleSheet.create({
     marginVertical: 12,
   },
 
-  // Logout
   logoutSection: {
     borderTopWidth: 1,
     borderTopColor: C.border,

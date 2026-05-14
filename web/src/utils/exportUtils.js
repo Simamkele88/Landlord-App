@@ -1,7 +1,6 @@
 // src/utils/exportUtils.js
 // CSV EXPORT FUNCTION FOR PAYMENT REPORTS
-// AUTHOR: SIMAMKELE WEKEZA
-// IF YOU HAVE ANY QUESTIONS REGARDING ANYTHING ASK ME.
+
 export function exportToCSV(data, filename = 'report.csv') {
   // CONVERT DATA INTO CSV FORMAT
   const headers = [

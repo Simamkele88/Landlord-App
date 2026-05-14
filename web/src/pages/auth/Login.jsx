@@ -1,22 +1,21 @@
-// This is the login page for both landlords and caretakers. It tries to log in as landlord first,
-//  then caretaker if landlord login fails. It also handles "remember me" functionality and redirects based on user role after successful login.
+// LOGIN PAGE
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
 import { useAuth } from "../../App";
 import useDocumentTitle from "../../hooks/useDocumentTitle";
 
-// Server API base URL 
+// SERVER URL 
 const API =  "http://localhost:4000";
 
-// Login component
+// LOGIN COMPONENT
 export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
 
   useDocumentTitle("Login");
 
-  // Form state for email, password, and remember me checkbox and all other states for error handling, loading state, and password visibility toggle
+
   const [form, setForm] = useState({
     email: "",
     password: "",
@@ -52,7 +51,7 @@ export default function Login() {
       let response = null;
       let determinedRole = null;
 
-      // Try landlord login first
+    
       try {
         response = await axios.post(`${API}/auth/landlord/login`, credentials);
         determinedRole = "landlord";
@@ -61,7 +60,7 @@ export default function Login() {
           landlordErr.response?.status === 401 ||
           landlordErr.response?.status === 404
         ) {
-          // Try caretaker login
+      
           try {
             response = await axios.post(`${API}/auth/login`, credentials);
             determinedRole = response.data.user?.role ?? "caretaker";

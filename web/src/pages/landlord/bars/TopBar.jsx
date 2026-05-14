@@ -1,3 +1,4 @@
+// TOP BAR COMPONENT FOR LANDLORD AREA, RENDERED ON ALL LANDLORD PAGES, SHOWS PAGE TITLE, SEARCH, NOTIFICATIONS, MESSAGES SHORTCUT, AND PROFILE MENU
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from "../../../App";
@@ -225,10 +226,10 @@ export default function LandlordTopBar() {
             aria-label="Profile menu"
           >
             <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-              {initials(user?.full_name)}
+              {initials(user?.first_name + " " + user?.last_name)}
             </div>
             <div className="hidden sm:block text-left">
-              <p className="text-sm font-medium text-white leading-tight">{user?.full_name}</p>
+              <p className="text-sm font-medium text-white leading-tight">{user?.first_name} {user?.last_name}</p>
               <p className="text-xs text-gray-400 leading-tight">Landlord</p>
             </div>
             <svg className="w-4 h-4 text-gray-400 group-hover:text-white hidden sm:block transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -240,7 +241,7 @@ export default function LandlordTopBar() {
             <div className="absolute right-0 mt-2 w-56 bg-gray-800 border border-gray-700 rounded-xl shadow-2xl overflow-hidden">
               {/* IDENTITY */}
               <div className="px-4 py-3 border-b border-gray-700">
-                <p className="text-sm font-semibold text-white">{user?.full_name}</p>
+                <p className="text-sm font-semibold text-white">{user?.first_name} {user?.last_name}</p>
                 <p className="text-xs text-gray-400 truncate">{user?.email}</p>
               </div>
 

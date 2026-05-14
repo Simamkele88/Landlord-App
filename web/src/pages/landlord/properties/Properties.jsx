@@ -1,3 +1,5 @@
+/* eslint-disable no-unused-vars */
+// PROPERTIES DASHBOARD FOR LANDLORDS, ALLOWS LANDLORDS TO VIEW AND MANAGE THEIR PROPERTIES
 import useDocumentTitle from "../../../hooks/useDocumentTitle";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useToast } from '../../../contexts/ToastContext';

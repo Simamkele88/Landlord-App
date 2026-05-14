@@ -1,6 +1,4 @@
-// THIS IS A LOGIN SCREEN FOR TENANTS
-// AUTHOR: SIMAMKELE WEKEZA
-// IF YOU DO NOT UNDERSTAND THIS CODE, PLEASE ASK ME TO EXPLAIN AND DON'T ASSUME OTHERWISE.
+// THIS IS A LOGIN SCREEN FOR TENANTS - CONNECTS TO BACKEND API
 import { useState } from "react";
 import { Image } from "react-native";
 import {
@@ -9,15 +7,19 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   StatusBar,
   KeyboardAvoidingView,
   ScrollView,
   Platform,
   ActivityIndicator,
   Alert,
+  SafeAreaView
 } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import axios from "axios";
+import api from "../../utils/api";
+
 
 // THEME COLORS
 const C = {
@@ -37,27 +39,9 @@ const C = {
   warning:      "#F59E0B",
 };
 
-// MOCK TENANTS
-const MOCK_TENANTS = [
-{id:"1",email:"nsindisosimamkele88@gmail.com",phone:"0679007079",password:"Wekeza2004@",fullName:"Sipho Dlamini",unit:"Unit 4A",property:"Hillbrow Heights",leaseStart:"2026-01-01",leaseEnd:"2026-12-31",rentAmount:6500},
-{id:"2",email:"lerato.mokoena@example.com",phone:"0839876543",password:"Tenant@2024",fullName:"Lerato Mokoena",unit:"Unit 2B",property:"Hillbrow Heights",leaseStart:"2026-02-01",leaseEnd:"2027-01-31",rentAmount:5800},
-{id:"3",email:"tenant@test.com",phone:"0712345678",password:"password123",fullName:"Test Tenant",unit:"Unit 1A",property:"Berea Flats",leaseStart:"2026-01-01",leaseEnd:"2026-12-31",rentAmount:7200}
-];
-
-// GENERATE A MOCK JWT TOKEN 
-function generateMockToken(userId) {
-  const header = btoa(JSON.stringify({ alg: "none", typ: "JWT" }));
-  const payload = btoa(JSON.stringify({ 
-    userId, 
-    role: "tenant",
-    iat: Date.now(),
-    exp: Date.now() + 7 * 24 * 60 * 60 * 1000 // 7 days
-  }));
-  return `${header}.${payload}.mock-signature`;
-}
-
-// MAIN SCREEN 
+// MAIN SCREEN
 export default function Login({ onLogin }) {
+  const navigation = useNavigation();
   const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
@@ -66,71 +50,69 @@ export default function Login({ onLogin }) {
 
   // VALIDATE THE INPUTS BEFORE SUBMITTING
   function validate() {
-    if (!email.trim())    return "Please enter your email or phone number.";
+    if (!email.trim())    return "Please enter your email.";
     if (!password.trim()) return "Please enter your password.";
     return null;
   }
 
-  // HANDLES THE LOGIN LOGIC
-  async function handleLogin() {
-    const validationError = validate();
-    if (validationError) {
-      setError(validationError);
+  // LOGIN HANDLER
+async function handleLogin() {
+  const validationError = validate();
+  if (validationError) {
+    setError(validationError);
+    return;
+  }
+
+  setError("");
+  setLoading(true);
+
+  try {
+
+    const data = await api.post("/auth/login", {
+      email: email.trim().toLowerCase(),
+      password: password,
+    });
+
+    const { token, user } = data;
+
+   
+    await AsyncStorage.setItem("token", token);
+    await AsyncStorage.setItem("user", JSON.stringify(user));
+
+    
+    if (user.must_change_password) {
+      navigation.navigate("ChangePassword", { token });
       return;
     }
 
-    setError("");
-    setLoading(true);
-    // SIMULATED NETWORK REQUEST
-    setTimeout(async () => {
-      try {
-        // FIND TENANT BY EMAIL OR PHONE
-        const tenant = MOCK_TENANTS.find(t => 
-          t.email.toLowerCase() === email.trim().toLowerCase() ||
-          t.phone === email.trim()
-        );
+    if (user.role === "tenant" && !user.profile_completed) {
+      navigation.navigate("CompleteProfile");
+      return;
+    }
 
-        // CHECK IF TENANT EXISTS
-        if (!tenant) {
-          setError("No account found with this email or phone number.");
-          setLoading(false);
-          return;
-        }
+    onLogin(token, user);
 
-        // CHECK PASSWORD
-        if (tenant.password !== password) {
-          setError("Incorrect password. Please try again.");
-          setLoading(false);
-          return;
-        }
-
-        // CREATE USER OBJECT WITHOUT PASSWORD
-        const { password: _, ...userWithoutPassword } = tenant;
-        
-        const user = {
-          ...userWithoutPassword,
-          role: "tenant",
-        };
-
-        // GENERATE A MOCK TOKEN
-        const token = generateMockToken(tenant.id);
-
-        // PERSIST TOKEN AND USER DATA LOCALLY
-        await AsyncStorage.setItem("token", token);
-        await AsyncStorage.setItem("user", JSON.stringify(user));
-
-        // SWITCH TO MAIN APP
-        onLogin(token, user);
-
-      } catch (err) {
-        setError("Login failed. Please try again.");
-      } finally {
-        setLoading(false);
-      }
-    }, 800); 
+  } catch (err) {
+    console.error("Login error:", err);
+    
+    if (err.status === 401) {
+      setError("Invalid email or password. Please try again.");
+    } else if (err.status === 403) {
+      setError("Your account has been deactivated. Please contact your landlord.");
+    } else if (err.data?.error) {
+      setError(err.data.error);
+    } else {
+      setError("Unable to connect to server. Please check your internet connection.");
+    }
+  } finally {
+    setLoading(false);
   }
-
-
+}
+  
+  // FORGOT PASSWORD HANDLER
+  function handleForgotPassword() {
+    navigation.navigate("ForgotPassword");
+  }
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -146,7 +128,7 @@ export default function Login({ onLogin }) {
           showsVerticalScrollIndicator={false}
         >
 
-          {/* LOGO AND BRANDING*/}
+          {/* LOGO AND BRANDING */}
           <View style={styles.brandSection}>
             <View style={styles.logoCircle}>
               <Image 
@@ -156,30 +138,30 @@ export default function Login({ onLogin }) {
               />
             </View>
             <Text style={styles.appName}>Chihwa Rentals</Text>
-            <Text style={styles.appTagline}>Tenant Portal</Text>
           </View>
 
-          {/* ── Card ── */}
+          {/* LOGIN CARD */}
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Welcome back</Text>
+            <View style={styles.cardTitleWrap}>
+              <Text style={styles.cardTitle}>Welcome back</Text>
+            </View>
 
-            {/* ── Error banner ── */}
+            {/* ERROR BANNER */}
             {error !== "" && (
               <View style={styles.errorBanner}>
-                <Text style={styles.errorIcon}>⚠️</Text>
                 <Text style={styles.errorText}>{error}</Text>
               </View>
             )}
 
-            {/* ── Email / Phone ── */}
+            {/* EMAIL / PHONE */}
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Email or Phone Number</Text>
+              <Text style={styles.inputLabel}>Email </Text>
               <View style={[styles.inputWrap, error && email === "" && styles.inputError]}>
                 <TextInput
                   style={styles.input}
                   value={email}
                   onChangeText={(v) => { setEmail(v); setError(""); }}
-                  placeholder="you@example.com or 0821234567"
+                  placeholder="you@example.com"
                   placeholderTextColor={C.textMuted}
                   keyboardType="email-address"
                   autoCapitalize="none"
@@ -190,11 +172,11 @@ export default function Login({ onLogin }) {
               </View>
             </View>
 
-            {/* ── Password ── */}
+            {/* PASSWORD */}
             <View style={styles.inputGroup}>
               <View style={styles.labelRow}>
                 <Text style={styles.inputLabel}>Password</Text>
-                <TouchableOpacity  activeOpacity={0.7}>
+                <TouchableOpacity onPress={handleForgotPassword} activeOpacity={0.7}>
                   <Text style={styles.forgotText}>Forgot password?</Text>
                 </TouchableOpacity>
               </View>
@@ -218,7 +200,7 @@ export default function Login({ onLogin }) {
               </View>
             </View>
 
-            {/* ── Login button ── */}
+            {/* LOGIN BUTTON */}
             <TouchableOpacity
               style={[styles.loginBtn, loading && styles.loginBtnDisabled]}
               onPress={handleLogin}
@@ -232,10 +214,6 @@ export default function Login({ onLogin }) {
               )}
             </TouchableOpacity>
           </View>
-
-          {/* ── Footer ── */}
-          <Text style={styles.footer}>Chihwa Rentals · Tenant App</Text>
-
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -282,7 +260,6 @@ const styles = StyleSheet.create({
     resizeMode: "contain",
   },
   
-  // Fallback emoji style
   logoIcon: {
     fontSize: 45,
   },
@@ -298,7 +275,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
-  // ── Card
   card: {
     backgroundColor: C.surface,
     borderRadius: 20,
@@ -306,13 +282,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: C.border,
   },
+  cardTitleWrap: {
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
   cardTitle: {
+   
     fontSize: 22,
     fontWeight: "700",
     color: C.textPrimary,
     marginBottom: 6,
-    justifyContent: "center",
-    display: "flex",
   },
   cardSub: {
     fontSize: 13,
@@ -321,7 +302,6 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
 
-  // ── Error
   errorBanner: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -345,7 +325,6 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
 
-  // ── Inputs
   inputGroup: {
     marginBottom: 18,
   },
@@ -397,7 +376,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
-  // ── Login button
   loginBtn: {
     backgroundColor: C.primary,
     borderRadius: 14,
@@ -422,24 +400,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
 
-  // ── Demo button
-  demoBtn: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: C.warning,
-    borderRadius: 14,
-    paddingVertical: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 18,
-  },
-  demoBtnText: {
-    color: C.warning,
-    fontSize: 14,
-    fontWeight: "600",
-  },
-
-  // ── Info box
   infoBox: {
     backgroundColor: "#1e3a5f",
     borderRadius: 10,
@@ -452,22 +412,6 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 
-  // ── Mock mode badge
-  mockBadge: {
-    backgroundColor: C.warning + "20",
-    borderWidth: 1,
-    borderColor: C.warning,
-    borderRadius: 8,
-    padding: 8,
-    alignItems: "center",
-  },
-  mockBadgeText: {
-    fontSize: 11,
-    color: C.warning,
-    fontWeight: "600",
-  },
-
-  // ── Footer
   footer: {
     textAlign: "center",
     color: C.textMuted,

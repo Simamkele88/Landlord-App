@@ -1,7 +1,4 @@
-
 // PAYMENTS PAGE
-// AUTHOR: SIMAMKELE WEKEZA
-// IF YOU DO NOT UNDERSTAND THIS CODE, PLEASE ASK ME TO EXPLAIN AND DON'T ASSUME OTHERWISE.
 import { useState } from "react";
 import useDocumentTitle from "../../../hooks/useDocumentTitle";
 import { useNavigate } from "react-router-dom";
@@ -47,23 +44,93 @@ function Spinner() {
   );
 }
 
-// STAT CARD COMPONENT
-function StatCard({ label, value, sub, color }) {
-  return (
-    <div className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm dark:border-gray-700 sm:p-6 dark:bg-gray-800">
-      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{label}</p>
-      <p className={`mt-1 text-2xl font-bold ${color ?? "text-gray-900 dark:text-white"}`}>{value}</p>
-      {sub && <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{sub}</p>}
-    </div>
-  );
-}
-
 // STATUS BADGE COMPONENT
 function StatusBadge({ status }) {
   return (
     <span className={`text-xs font-medium px-2.5 py-0.5 rounded-md ${STATUS_STYLES[status] ?? ""}`}>
       {status}
     </span>
+  );
+}
+
+// INLINE SUMMARY BAR — REPLACES STAT CARDS FOR A CLEANER LESS REPETITIVE LOOK
+// SHOWS KEY PAYMENT METRICS IN A SINGLE HORIZONTAL STRIP DIVIDED BY SEPARATORS
+function SummaryBar({ totalExpected, totalCollected, pendingCount, lateCount, totalPayments }) {
+  const collectionRate = totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0;
+
+  const items = [
+    {
+      label: "Expected",
+      value: format(totalExpected),
+      sub: `${totalPayments} tenants`,
+      valueColor: "text-gray-900 dark:text-white",
+    },
+    {
+      label: "Collected",
+      value: format(totalCollected),
+      sub: `${collectionRate}% collection rate`,
+      valueColor: "text-green-600 dark:text-green-400",
+    },
+    {
+      label: "Pending Approval",
+      value: pendingCount,
+      sub: pendingCount === 1 ? "needs review" : "need review",
+      valueColor: pendingCount > 0 ? "text-yellow-600 dark:text-yellow-400" : "text-gray-900 dark:text-white",
+      // SHOW A PULSING DOT WHEN THERE ARE PENDING PAYMENTS THAT NEED ATTENTION
+      alert: pendingCount > 0,
+    },
+    {
+      label: "Late / Collections",
+      value: lateCount,
+      sub: lateCount === 1 ? "requires attention" : "require attention",
+      valueColor: lateCount > 0 ? "text-red-600 dark:text-red-400" : "text-gray-900 dark:text-white",
+      alert: lateCount > 0,
+    },
+  ];
+
+  return (
+    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 divide-y lg:divide-y-0 divide-x-0 lg:divide-x divide-gray-100 dark:divide-gray-700">
+        {items.map((item, i) => (
+          <div key={item.label} className="flex items-center justify-between px-5 py-4 gap-3">
+            <div className="min-w-0">
+              {/* LABEL */}
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
+                {item.label}
+              </p>
+              {/* VALUE */}
+              <p className={`text-xl font-bold truncate ${item.valueColor}`}>
+                {item.value}
+              </p>
+              {/* SUB TEXT */}
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{item.sub}</p>
+            </div>
+            {/* ALERT INDICATOR — ONLY SHOWS WHEN VALUE NEEDS ATTENTION */}
+            {item.alert && (
+              <span className="flex-shrink-0 w-2.5 h-2.5 rounded-full bg-current opacity-70 animate-pulse mt-1"
+                style={{ color: i === 2 ? "#ca8a04" : "#dc2626" }}
+              />
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* COLLECTION PROGRESS BAR — VISUAL REPRESENTATION OF HOW MUCH HAS BEEN COLLECTED */}
+      <div className="px-5 pb-4 pt-1 border-t border-gray-100 dark:border-gray-700">
+        <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mb-1.5">
+          <span>Collection progress — April 2026</span>
+          <span className={`font-semibold ${collectionRate >= 80 ? "text-green-600 dark:text-green-400" : collectionRate >= 50 ? "text-yellow-600 dark:text-yellow-400" : "text-red-600 dark:text-red-400"}`}>
+            {collectionRate}%
+          </span>
+        </div>
+        <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-1.5">
+          <div
+            className={`h-1.5 rounded-full transition-all duration-500 ${collectionRate >= 80 ? "bg-green-500" : collectionRate >= 50 ? "bg-yellow-400" : "bg-red-500"}`}
+            style={{ width: `${Math.min(collectionRate, 100)}%` }}
+          />
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -226,13 +293,14 @@ export default function PaymentsPage() {
           </button>
         </div>
 
-        {/* STAT CARDS */}
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 mb-6">
-          <StatCard label="Total Expected (Apr)" value={format(totalExpected)} sub={`${payments.length} tenants`} />
-          <StatCard label="Collected" value={format(totalCollected)} sub={`${payments.filter(p => p.status === "Paid").length} payments verified`} color="text-green-500" />
-          <StatCard label="Pending Approval" value={pendingCount} sub="Proof uploaded, awaiting review" color="text-yellow-500" />
-          <StatCard label="Late / Collections" value={lateCount} sub="Require attention" color="text-red-500" />
-        </div>
+        {/* SUMMARY BAR — REPLACES THE OLD STAT CARDS GRID */}
+        <SummaryBar
+          totalExpected={totalExpected}
+          totalCollected={totalCollected}
+          pendingCount={pendingCount}
+          lateCount={lateCount}
+          totalPayments={payments.length}
+        />
 
         {/* TABLE CARD */}
         <div className="bg-white border border-gray-200 rounded-lg shadow-sm dark:border-gray-700 dark:bg-gray-800">
@@ -362,7 +430,7 @@ export default function PaymentsPage() {
                             onClick={() => navigate('/landlord/payments/receipt', { state: { payment: p } })}
                             className="text-xs font-medium text-gray-500 dark:text-gray-400 hover:underline"
                           >
-                            Receipt
+                            View Receipt
                           </button>
                         )}
                         {p.status === "Collections" && (

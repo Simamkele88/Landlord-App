@@ -2,7 +2,6 @@
 // LANDLORD UNITS PAGE, SHOWS A LIST OF ALL UNITS WITH THEIR DETAILS, STATUS, AND TENANT INFORMATION
 // AUTHOR: SIMAMKELE WEKEZA
 // IF YOU HAVE ANY QUESTIONS ABOUT THIS CODE, ASK ME.
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -26,7 +25,6 @@ import {
 import useDocumentTitle from "../../../hooks/useDocumentTitle";
 
 // MOCK DATA 
-
 const INITIAL_UNITS = [
   { id: 1,  unit: "Unit 1A", property: "Berea Flats",      type: "1 Bedroom",  rent: 7500, status: "Occupied", tenant: "Zanele Moyo",    tenantId: 8, floor: 1, parking: false, notes: "" },
   { id: 2,  unit: "Unit 1C", property: "Berea Flats",      type: "2 Bedroom",  rent: 7200, status: "Occupied", tenant: "Ahmed Patel",    tenantId: 3, floor: 1, parking: true,  notes: "" },
@@ -59,8 +57,6 @@ function format(n) { return `R ${Number(n).toLocaleString("en-ZA")}`; }
 function initials(name = "") {
   return name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
 }
-
-// SUBCOMPONENTS 
 
 // STATUS BADGE COMPONENT 
 function StatusBadge({ status }) {
@@ -245,7 +241,7 @@ function UnitFormModal({ unit, onClose, onSave }) {
               </>
             ) : (
               <>
-                <Plus size={14} />
+            
                 Add Unit
               </>
             )}
@@ -425,10 +421,6 @@ export default function Units() {
     return matchStatus && matchProperty && matchSearch;
   });
 
-  const occupied    = units.filter(u => u.status === "Occupied").length;
-  const vacant      = units.filter(u => u.status === "Vacant").length;
-  const maintenance = units.filter(u => u.status === "Maintenance").length;
-  const totalRent   = units.filter(u => u.status === "Occupied").reduce((s, u) => s + u.rent, 0);
 
   // HANDLERS FOR ADDING/EDITING/DELETING UNITS
   function handleSave(data) {
@@ -443,14 +435,6 @@ export default function Units() {
   }
 
   const properties = ["All", ...PROPERTIES];
-
-  // STATS CARD CONFIG
-  const statCards = [
-    { label: "Occupied", value: occupied, sub: `${units.length} total`, icon: Home, color: "text-green-500", bg: "bg-green-100 dark:bg-green-900/20" },
-    { label: "Vacant", value: vacant, sub: "Available now", icon: Key, color: "text-blue-500", bg: "bg-blue-100 dark:bg-blue-900/20" },
-    { label: "Under Maintenance", value: maintenance, sub: "Temporarily unavailable", icon: Wrench, color: "text-orange-500", bg: "bg-orange-100 dark:bg-orange-900/20" },
-    { label: "Total Rent / mo", value: format(totalRent), sub: "From occupied units only", icon: Coins, color: "text-gray-900 dark:text-white", bg: "bg-gray-100 dark:bg-gray-700" },
-  ];
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -476,6 +460,10 @@ export default function Units() {
         {/* HEADER */}
         <div className="flex items-center justify-between mb-6">
           <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <Home size={24} />
+              Units
+            </h1> 
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
               {units.length} units across {PROPERTIES.length} properties
             </p>
@@ -503,33 +491,13 @@ export default function Units() {
               onClick={() => setShowAdd(true)}
               className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
             >
-              <Plus size={16} />
+              
               Add Unit
             </button>
           </div>
         </div>
 
-        {/* STATS CARDS */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          {statCards.map(c => {
-            const Icon = c.icon;
-            return (
-              <div key={c.label} className="p-4 sm:p-5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
-                <div className="flex items-start gap-3">
-                  <div className={`w-9 h-9 rounded-lg ${c.bg} flex items-center justify-center flex-shrink-0`}>
-                    <Icon size={18} className={c.color} />
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">{c.label}</p>
-                    <p className={`text-2xl font-bold mt-0.5 ${c.color}`}>{c.value}</p>
-                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{c.sub}</p>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
+        
         {/* TOOLBAR */}
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm mb-5">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4">

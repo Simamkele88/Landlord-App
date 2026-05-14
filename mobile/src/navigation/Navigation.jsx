@@ -1,348 +1,450 @@
 // THIS FILE CONTAINS THE MAIN NAVIGATION STRUCTURE FOR THE APP
-// AUTHOR: SIMAMKELE WEKEZA
-// IF YOU DO NOT UNDERSTAND THIS CODE, PLEASE ASK ME TO EXPLAIN AND DON'T ASSUME OTHERWISE.
-
-import { useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  SafeAreaView,
-  ScrollView,
-  Alert,
-  Platform,
-  StatusBar,
+  View, Text, TouchableOpacity, StyleSheet, Modal,
+  Alert, ScrollView,SafeAreaView
 } from "react-native";
-import { NavigationContainer } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useNavigation } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { createDrawerNavigator, DrawerContentScrollView } from "@react-navigation/drawer";
-import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
-import TenantPayments from "../screens/Payments";
+import { MaterialIcons, Ionicons } from "@expo/vector-icons";
 import TenantDashboard from "../screens/Dashboard";
-import { C, tabStyles, headerStyles, drawerStyles } from "./NavStyles";
+import TenantPayments from "../screens/Payments";
+import TenantMaintenance from "../screens/Maintenance";
+import api from "../utils/api";
 
 // PLACEHOLDER SCREENS
-function PlaceholderScreen({ route }) {
+function PaymentsScreen() {
   return (
-    <View style={{ flex: 1, backgroundColor: "#0F172A", alignItems: "center", justifyContent: "center" }}>
-      <Text style={{ color: "#94A3B8", fontSize: 16 }}>{route.name} screen</Text>
+    <View style={styles.screen}>
+      <Text style={styles.placeholderTitle}>Payments</Text>
+      <Text style={styles.placeholderSub}>Payment features coming soon</Text>
     </View>
   );
 }
 
-// Use consistent naming 
-const TenantMaintenance = PlaceholderScreen;
-const TenantComplaints = PlaceholderScreen;
-const TenantMessages = PlaceholderScreen;
-const TenantNotifications = PlaceholderScreen; 
+function NotificationsScreen() {
+  return (
+    <View style={styles.screen}>
+      <Text style={styles.placeholderTitle}>Alerts</Text>
+      <Text style={styles.placeholderSub}>No new notifications</Text>
+    </View>
+  );
+}
 
-// MOCK TENANT DATA 
-const TENANT = {
-  name: "Simamkele Wekeza",
-  unit: "Unit 213-B",
-  property: "Hillbrow Heights",
-  reliabilityScore: "Reliable",
-};
+function MaintenanceScreen() {
+  return (
+    <View style={styles.screen}>
+      <Text style={styles.placeholderTitle}>Maintenance</Text>
+      <Text style={styles.placeholderSub}>No open requests</Text>
+    </View>
+  );
+}
+
+function MessagesScreen() {
+  return (
+    <View style={styles.screen}>
+      <Text style={styles.placeholderTitle}>Messages</Text>
+      <Text style={styles.placeholderSub}>No new messages</Text>
+    </View>
+  );
+}
+
+
+function ComplaintsScreen() {
+  return (
+    <View style={styles.screen}>
+      <Text style={styles.placeholderTitle}>Complaints</Text>
+      <Text style={styles.placeholderSub}>No complaints filed</Text>
+    </View>
+  );
+}
 
 function initials(name = "") {
-  return name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
-}
+    return (name || "").split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
+  }
 
-// TAB ICONS CONFIG 
-const TAB_ICONS = {
-  Home: { active: "home", inactive: "home-outline", library: "Ionicons" },
-  Payments: { active: "receipt", inactive: "receipt", library: "MaterialIcons" },
-  Notifications: { active: "notifications", inactive: "notifications-outline", library: "Ionicons" }, 
-  Maintenance: { active: "build", inactive: "build", library: "MaterialIcons" },
-  Messages: { active: "chatbubbles", inactive: "chatbubbles-outline", library: "Ionicons" }
-};
+// DRAWER MODAL 
+function DrawerModal({ visible, onClose, onLogout, tabNavigation }) {
+  const [tenant, setTenant] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-// CUSTOM TAB BAR 
-function CustomTabBar({ state, descriptors, navigation }) {
-  const BADGES = {
-    Notifications: 3, 
-    Messages: 2,
-    Maintenance: 1,
-  };
+  useEffect(() => {
+    fetchTenantData();
+  }, []);
 
-  const visibleRoutes = state.routes.slice(0, 5);
+  async function fetchTenantData() {
+    try {
+      const storedUser = await AsyncStorage.getItem("user");
+      if (storedUser) {
+        const user = JSON.parse(storedUser);
+        setTenant({
+          first_name: user.first_name,
+          last_name: user.last_name,
+          unit_number: user.unit_number,
+        });
+      }else{
+        navigation.navigate("Login");
+      }
+
+      
+      const tenantData = await api.getTenantProfile();
+      setTenant(tenantData);
+      setLoading(false);
+    } catch (error) {
+      console.error("Failed to fetch tenant:", error);
+      setLoading(false);
+    }
+  }
+
+
+  const menuItems = [
+    { label: "Home", icon: "home", screen: "Home" },
+    { label: "Payments", icon: "payment", screen: "Payments" },
+    { label: "Alerts", icon: "notifications", screen: "Alerts", badge: 3 },
+    { label: "Maintenance", icon: "build", screen: "Maintenance", badge: 1 },
+    { label: "Complaints", icon: "flag", screen: "Complaints" },
+    { label: "Messages", icon: "chat", screen: "Messages", badge: 2 },
+  ];
+
+  function handleLogout() {
+    onClose();
+    if (onLogout) {
+      onLogout();
+    }
+  }
+
+  function handleNavigate(screen) {
+    onClose();
+    if (tabNavigation) {
+      tabNavigation.navigate(screen);
+    }
+  }
 
   return (
-    <View style={tabStyles.container}>
-      {visibleRoutes.map((route, index) => {
-        const isFocused = state.index === index;
-        const badge = BADGES[route.name] ?? 0;
-        const iconConfig = TAB_ICONS[route.name] ?? { 
-          active: "help", 
-          inactive: "help-outline", 
-          library: "MaterialIcons" 
-        };
-
-        function onPress() {
-          const event = navigation.emit({ 
-            type: "tabPress", 
-            target: route.key, 
-            canPreventDefault: true 
-          });
-          if (!isFocused && !event.defaultPrevented) {
-            navigation.navigate(route.name);
-          }
-        }
-
-        const renderIcon = () => {
-          const iconName = isFocused ? iconConfig.active : iconConfig.inactive;
-          const iconColor = isFocused ? C.primary : C.textMuted;
-          const iconSize = 22;
-
-          switch (iconConfig.library) {
-            case "Ionicons":
-              return <Ionicons name={iconName} size={iconSize} color={iconColor} />;
-            case "FontAwesome5":
-              return <FontAwesome5 name={iconName} size={iconSize} color={iconColor} />;
-            case "MaterialIcons":
-            default:
-              return <MaterialIcons name={iconName} size={iconSize} color={iconColor} />;
-          }
-        };
-
-        return (
-          <TouchableOpacity
-            key={route.key}
-            style={tabStyles.tab}
-            onPress={onPress}
-            activeOpacity={0.75}
-          >
-            <View style={tabStyles.iconWrap}>
-              {renderIcon()}
-              {badge > 0 && (
-                <View style={tabStyles.badge}>
-                  <Text style={tabStyles.badgeText}>{badge}</Text>
-                </View>
-              )}
+    <Modal visible={visible} animationType="none" transparent onRequestClose={onClose}>
+      <View style={drawerStyles.overlay}>
+        <TouchableOpacity style={drawerStyles.overlayBg} onPress={onClose} activeOpacity={1} />
+        <View style={drawerStyles.drawer}>
+          <SafeAreaView style={drawerStyles.safe}>
+            <View style={drawerStyles.profile}>
+              <View style={drawerStyles.profileAvatar}>
+                <Text style={drawerStyles.profileAvatarText}>
+                  {tenant ? initials(`${tenant.first_name} ${tenant.last_name}`) : "SW"}
+                </Text>
+              </View>
+              <Text style={drawerStyles.profileName}>
+                {tenant ? `${tenant.first_name} ${tenant.last_name}` : "Loading..."}
+              </Text>
+              <Text style={drawerStyles.profileUnit}>
+                {tenant?.unit_number 
+                  ? `Unit ${tenant.unit_number} · ${tenant.property_name || ''}` 
+                  : "Tenant"}
+              </Text>
             </View>
-            <Text style={[tabStyles.label, isFocused && tabStyles.labelActive]}>
-              {route.name === "Notifications" ? "Alerts" : route.name}
-            </Text>
-            {isFocused && <View style={tabStyles.activeDot} />}
-          </TouchableOpacity>
-        );
-      })}
-    </View>
+
+            {/* MENU */}
+            <ScrollView style={drawerStyles.menu} showsVerticalScrollIndicator={false}>
+              <Text style={drawerStyles.menuTitle}>NAVIGATION</Text>
+              {menuItems.map((item) => (
+                <TouchableOpacity
+                  key={item.label}
+                  style={drawerStyles.menuItem}
+                  onPress={() => handleNavigate(item.screen)}
+                >
+                  <MaterialIcons name={item.icon} size={22} color="#94A3B8" style={drawerStyles.menuIcon} />
+                  <Text style={drawerStyles.menuLabel}>{item.label}</Text>
+                  {item.badge && (
+                    <View style={drawerStyles.badge}>
+                      <Text style={drawerStyles.badgeText}>{item.badge}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ))}
+
+              <View style={drawerStyles.divider} />
+              <Text style={drawerStyles.menuTitle}>ACCOUNT</Text>
+
+              <TouchableOpacity
+                style={drawerStyles.menuItem}
+                onPress={() => { onClose(); Alert.alert("Profile & Lease", "Coming soon"); }}
+              >
+                <MaterialIcons name="person-outline" size={22} color="#94A3B8" style={drawerStyles.menuIcon} />
+                <Text style={drawerStyles.menuLabel}>Profile & Lease</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={drawerStyles.menuItem}
+                onPress={() => { onClose(); Alert.alert("Settings", "Coming soon"); }}
+              >
+                <MaterialIcons name="settings" size={22} color="#94A3B8" style={drawerStyles.menuIcon} />
+                <Text style={drawerStyles.menuLabel}>Settings</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={drawerStyles.menuItem}
+                onPress={() => { onClose(); Alert.alert("Help & Support", "Coming soon"); }}
+              >
+                <MaterialIcons name="help-outline" size={22} color="#94A3B8" style={drawerStyles.menuIcon} />
+                <Text style={drawerStyles.menuLabel}>Help & Support</Text>
+              </TouchableOpacity>
+            </ScrollView>
+
+            {/* LOGOUT BUTTON */}
+            <TouchableOpacity style={drawerStyles.logout} onPress={handleLogout}>
+              <MaterialIcons name="logout" size={20} color="#EF4444" style={drawerStyles.menuIcon} />
+              <Text style={drawerStyles.logoutText}>Log Out</Text>
+            </TouchableOpacity>
+          </SafeAreaView>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
-// CUSTOM HEADER
-function CustomHeader({ navigation, title }) {
+// CUSTOM HEADER 
+function CustomHeader({ onOpenDrawer, title }) {
+  const [tenant, setTenant] = useState(null);
+
+  useEffect(() => {
+    fetchTenantData();
+  }, []);
+
+  async function fetchTenantData() {
+    try {
+      const storedUser = await AsyncStorage.getItem("user");
+      if (storedUser) {
+        const user = JSON.parse(storedUser);
+        setTenant({
+          first_name: user.first_name,
+          last_name: user.last_name,
+        });
+      }
+
+      const tenantData = await api.getTenantProfile();
+      setTenant(tenantData);
+    } catch (error) {
+      console.error("Failed to fetch tenant:", error);
+    }
+  }
+
   return (
-    <SafeAreaView style={headerStyles.safe}>
+    <View style={headerStyles.safe}>
       <View style={headerStyles.container}>
-        <TouchableOpacity
-          style={headerStyles.iconBtn}
-          onPress={() => navigation.openDrawer()}
-          activeOpacity={0.8}
-        >
+        <TouchableOpacity onPress={onOpenDrawer} activeOpacity={0.8}>
           <View style={headerStyles.hamburger}>
             <View style={headerStyles.hamburgerLine} />
             <View style={[headerStyles.hamburgerLine, { width: 16 }]} />
             <View style={headerStyles.hamburgerLine} />
           </View>
         </TouchableOpacity>
-
         <Text style={headerStyles.title}>{title}</Text>
-
-        <TouchableOpacity
-          style={headerStyles.avatarBtn}
-          onPress={() => navigation.openDrawer()}
-          activeOpacity={0.8}
-        >
+        <TouchableOpacity onPress={onOpenDrawer} activeOpacity={0.8}>
           <View style={headerStyles.avatar}>
-            <Text style={headerStyles.avatarText}>{initials(TENANT.name)}</Text>
+            <Text style={headerStyles.avatarText}>
+              {tenant ? initials(`${tenant.first_name} ${tenant.last_name}`) : "SW"}
+            </Text>
           </View>
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
-  );
-}
-
-// DRAWER CONTENT 
-function DrawerContent({ navigation }) {
-
-  const DRAWER_ITEMS = [
-    { label: "Home", icon: "home-outline", iconActive: "home", library: "Ionicons", screen: "Home" },
-    { label: "Payments", icon: "receipt", iconActive: "receipt", library: "MaterialIcons", screen: "Payments" },
-    { label: "Notifications", icon: "notifications-outline", iconActive: "notifications", library: "Ionicons", screen: "Notifications", badge: 3 },
-    { label: "Maintenance", icon: "build", iconActive: "build", library: "MaterialIcons", screen: "Maintenance", badge: 1 },
-    { label: "Messages", icon: "chatbubble-outline", iconActive: "chatbubble", library: "Ionicons", screen: "Messages", badge: 2 },
-    { label: "Complaints", icon: "flag-outline", iconActive: "flag", library: "Ionicons", screen: "Complaints" },
-  ];
-
-  const BOTTOM_ITEMS = [
-    { label: "Profile & Lease", icon: "person-outline", iconActive: "person", library: "Ionicons" },
-    { label: "Settings", icon: "settings-outline", iconActive: "settings", library: "Ionicons" },
-    { label: "Help & Support", icon: "help-circle-outline", iconActive: "help-circle", library: "Ionicons" }
-  ];
-
-  function handleLogout() {
-    Alert.alert(
-      "Log Out",
-      "Are you sure you want to log out?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Log Out",
-          style: "destructive",
-          onPress: () => {
-            Alert.alert("Logged out", "Token cleared — navigate to Login screen");
-          },
-        },
-      ]
-    );
-  }
-
-  const navigateToScreen = (screenName) => {
-    navigation.closeDrawer();
-    navigation.navigate("Tabs", {
-      screen: screenName,
-    });
-  };
-
-  const renderDrawerIcon = (iconName, library, isActive = false) => {
-    const iconColor = isActive ? C.primary : C.textSecondary;
-    const iconSize = 22;
-
-    switch (library) {
-      case "Ionicons":
-        return <Ionicons name={iconName} size={iconSize} color={iconColor} />;
-      case "FontAwesome5":
-        return <FontAwesome5 name={iconName} size={iconSize - 2} color={iconColor} />;
-      case "MaterialIcons":
-      default:
-        return <MaterialIcons name={iconName} size={iconSize} color={iconColor} />;
-    }
-  };
-
-  return (
-    <View style={drawerStyles.root}>
-      <StatusBar barStyle="light-content" />
-
-      <SafeAreaView style={drawerStyles.profileSection}>
-        <View style={drawerStyles.profileAvatar}>
-          <Text style={drawerStyles.profileAvatarText}>{initials(TENANT.name)}</Text>
-        </View>
-        <Text style={drawerStyles.profileName}>{TENANT.name}</Text>
-        <Text style={drawerStyles.profileUnit}>{TENANT.unit} · {TENANT.property}</Text>    
-      </SafeAreaView>
-
-      <ScrollView style={drawerStyles.navScroll} showsVerticalScrollIndicator={false}>
-        <Text style={drawerStyles.navGroupLabel}>Navigation</Text>
-
-        {DRAWER_ITEMS.map((item) => (
-          <TouchableOpacity
-            key={item.label}
-            style={drawerStyles.navItem}
-            onPress={() => navigateToScreen(item.screen)}
-            activeOpacity={0.75}
-          >
-            <View style={drawerStyles.navIconContainer}>
-              {renderDrawerIcon(item.icon, item.library)}
-            </View>
-            <Text style={drawerStyles.navLabel}>{item.label}</Text>
-            {item.badge > 0 && (
-              <View style={drawerStyles.navBadge}>
-                <Text style={drawerStyles.navBadgeText}>{item.badge}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        ))}
-
-        <View style={drawerStyles.divider} />
-        <Text style={drawerStyles.navGroupLabel}>Account</Text>
-
-        {BOTTOM_ITEMS.map((item) => (
-          <TouchableOpacity
-            key={item.label}
-            style={drawerStyles.navItem}
-            onPress={() => {
-              navigation.closeDrawer();
-              Alert.alert(item.label, "This screen is coming soon.");
-            }}
-            activeOpacity={0.75}
-          >
-            <View style={drawerStyles.navIconContainer}>
-              {renderDrawerIcon(item.icon, item.library)}
-            </View>
-            <Text style={drawerStyles.navLabel}>{item.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      <SafeAreaView style={drawerStyles.logoutSection}>
-        <TouchableOpacity style={drawerStyles.logoutBtn} onPress={handleLogout} activeOpacity={0.8}>
-          <MaterialIcons name="logout" size={20} color={C.danger} />
-          <Text style={drawerStyles.logoutText}>Log Out</Text>
-        </TouchableOpacity>
-        <Text style={drawerStyles.version}>Chihwa Rentals @ {new Date().getFullYear()}</Text>
-      </SafeAreaView>
     </View>
   );
 }
 
-// TAB NAVIGATOR 
+
+// TAB NAVIGATOR SETUP
 const Tab = createBottomTabNavigator();
 
-function TenantTabs({ navigation }) {
-  const SCREENS = [
-    { name: "Home", component: TenantDashboard, title: "Dashboard" },
-    { name: "Payments", component: TenantPayments, title: "Payments" },
-    { name: "Notifications", component: TenantNotifications, title: "Notifications" }, 
-    { name: "Maintenance", component: TenantMaintenance, title: "Maintenance" },
-    { name: "Messages", component: TenantMessages, title: "Messages" },
-  ];
+function TenantNavigation({ onLogout }) {
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const tabNavRef = useRef(null);
+
+  function handleNavigate(screen) {
+    const screenMap = {
+      "Home": "Home",
+      "Payments": "Payments",
+      "Alerts": "Alerts",
+      "Maintenance": "Maintenance",
+      "Complaints": "Complaints",
+      "Messages": "Messages",
+    };
+
+  }
 
   return (
-    <Tab.Navigator
-      initialRouteName="Home"
-      tabBar={props => <CustomTabBar {...props} />}
-      screenOptions={{
-        header: ({ navigation, route }) => (
-          <CustomHeader 
-            navigation={navigation} 
-            title={route.name === "Home" ? "Chihwa Rentals" : route.name} 
-          />
-        ),
-      }}
-    >
-      {SCREENS.map(s => (
-        <Tab.Screen key={s.name} name={s.name} component={s.component} />
-      ))}
-    </Tab.Navigator>
+    <>
+      <Tab.Navigator
+        screenOptions={({ route, navigation }) => {
+          
+          if (!tabNavRef.current) {
+            tabNavRef.current = navigation;
+          }
+          
+          return {
+            header: () => (
+              <CustomHeader
+                onOpenDrawer={() => setDrawerOpen(true)}
+                title={route.name === "Home" ? "Chihwa Rentals" : route.name}
+              />
+            ),
+            tabBarIcon: ({ color, size }) => {
+              if (route.name === "Home") return <Ionicons name="home" size={size} color={color} />;
+              if (route.name === "Payments") return <MaterialIcons name="payment" size={size} color={color} />;
+              if (route.name === "Alerts") return <Ionicons name="notifications" size={size} color={color} />;
+              if (route.name === "Maintenance") return <MaterialIcons name="build" size={size} color={color} />;
+              if (route.name === "Complaints") return <MaterialIcons name="flag" size={size} color={color} />;
+              if (route.name === "Messages") return <Ionicons name="chatbubbles" size={size} color={color} />;
+            },
+            tabBarActiveTintColor: "#3B82F6",
+            tabBarInactiveTintColor: "#64748B",
+            tabBarStyle: {
+              backgroundColor: "#1E293B",
+              borderTopColor: "#334155",
+              paddingBottom: 8,
+              paddingTop: 8,
+              height: 60,
+            },
+            tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
+          };
+        }}
+      >
+        <Tab.Screen name="Home" component={TenantDashboard} />
+        <Tab.Screen name="Payments" component={TenantPayments} />
+        <Tab.Screen name="Alerts" component={NotificationsScreen} />
+        <Tab.Screen name="Complaints" component={ComplaintsScreen} />
+        <Tab.Screen name="Maintenance" component={TenantMaintenance} />
+        <Tab.Screen name="Messages" component={MessagesScreen} />
+      </Tab.Navigator>
+
+      <DrawerModal
+        visible={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        onLogout={onLogout}
+        tabNavigation={tabNavRef.current} 
+      />
+    </>
   );
 }
 
-// DRAWER NAVIGATOR 
-const Drawer = createDrawerNavigator();
 
-function TenantDrawer() {
-  return (
-    <Drawer.Navigator
-      drawerContent={props => <DrawerContent {...props} />}
-      screenOptions={{
-        headerShown: false,
-        drawerType: "slide",
-        drawerStyle: {
-          backgroundColor: C.bg,
-          width: 300,
-        },
-        overlayColor: "rgba(0,0,0,0.6)",
-        swipeEdgeWidth: 60,
-      }}
-    >
-      <Drawer.Screen name="Tabs" component={TenantTabs} />
-    </Drawer.Navigator>
-  );
-}
+// STYLES
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: "#0F172A",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 20,
+  },
+  placeholderIcon: { fontSize: 48, marginBottom: 12 },
+  placeholderTitle: { fontSize: 24, fontWeight: "700", color: "#F1F5F9" },
+  placeholderSub: { fontSize: 14, color: "#94A3B8", marginTop: 8 },
+});
 
-export default function TenantNavigation() {
-  return <TenantDrawer />;
-}
+const headerStyles = StyleSheet.create({
+  safe: {
+    backgroundColor: "#1E293B",
+    borderBottomWidth: 1,
+    borderBottomColor: "#334155",
+    paddingTop: 50,
+  },
+  container: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  hamburger: {
+    width: 24,
+    height: 18,
+    justifyContent: "space-between",
+  },
+  hamburgerLine: {
+    width: 20,
+    height: 2,
+    backgroundColor: "#F1F5F9",
+    borderRadius: 1,
+    marginBottom: 4,
+  },
+  title: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#F1F5F9",
+  },
+  avatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "#3B82F6",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+});
+
+const drawerStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    flexDirection: "row",
+  },
+  overlayBg: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.6)",
+  },
+  drawer: {
+    width: 280,
+    backgroundColor: "#0F172A",
+    position: "absolute",
+    left: 0,
+    top: 0,
+    bottom: 0,
+  },
+  safe: {
+    flex: 1,
+  },
+  profile: {
+    alignItems: "center",
+    padding: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: "#334155",
+  },
+  profileAvatar: {
+    width: 64, height: 64, borderRadius: 32,
+    backgroundColor: "#3B82F6",
+    alignItems: "center", justifyContent: "center", marginBottom: 12,
+  },
+  profileAvatarText: { color: "#FFFFFF", fontSize: 22, fontWeight: "700" },
+  profileName: { fontSize: 18, fontWeight: "700", color: "#F1F5F9" },
+  profileUnit: { fontSize: 13, color: "#94A3B8", marginTop: 4 },
+  menu: { flex: 1, padding: 16 },
+  menuTitle: {
+    fontSize: 11, fontWeight: "700", color: "#64748B",
+    letterSpacing: 1, marginBottom: 8, marginTop: 8,
+  },
+  menuItem: {
+    flexDirection: "row", alignItems: "center",
+    paddingVertical: 13, paddingHorizontal: 12,
+    borderRadius: 10, marginBottom: 2,
+  },
+  menuIcon: { marginRight: 14 },
+  menuLabel: { flex: 1, fontSize: 15, fontWeight: "600", color: "#F1F5F9" },
+  badge: {
+    backgroundColor: "#EF4444", borderRadius: 10,
+    minWidth: 20, height: 20,
+    alignItems: "center", justifyContent: "center", paddingHorizontal: 6,
+  },
+  badgeText: { color: "#FFFFFF", fontSize: 11, fontWeight: "700" },
+  divider: { height: 1, backgroundColor: "#334155", marginVertical: 8 },
+  logout: {
+    flexDirection: "row", alignItems: "center",
+    padding: 16, borderTopWidth: 1, borderTopColor: "#334155",
+  },
+  logoutText: { fontSize: 15, fontWeight: "700", color: "#EF4444" },
+});
+
+export default TenantNavigation;

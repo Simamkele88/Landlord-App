@@ -10,7 +10,6 @@ const path = require('path');
 const fs = require('fs');
 
 const app = express();
-app.use(express.json());
 app.use((req, res, next) => {
   console.log(req.method, req.url);
   next();
@@ -855,6 +854,39 @@ app.get("/maintenance", requireAuth, async (req, res) => {
   }
 });
 
+// GET /units/available — TENANT GETS OCCUPIED UNITS IN THEIR PROPERTY 
+app.get("/units/available", requireAuth, requireTenant, async (req, res) => {
+  try {
+    const tenant = await pool.query(
+      "SELECT t.id, l.unit_id, u.property_id FROM tenant t JOIN lease l ON l.tenant_id = t.id AND l.status = 'active' JOIN unit u ON u.id = l.unit_id WHERE t.user_id = $1",
+      [req.userId]
+    );
+    
+    if (!tenant.rows.length) {
+      return res.status(404).json({ error: "Active lease not found" });
+    }
+    
+    const { unit_id, property_id } = tenant.rows[0];
+    
+    const result = await pool.query(
+      `SELECT u.unit_number, u.unit_type, u.status,
+              t.first_name || ' ' || t.last_name AS tenant_name
+       FROM unit u
+       LEFT JOIN tenant t ON t.id = u.current_tenant_id
+       WHERE u.property_id = $1 
+         AND u.status = 'occupied'
+         AND u.id != $2
+       ORDER BY u.unit_number`,
+      [property_id, unit_id]
+    );
+    
+    res.json({ units: result.rows });
+  } catch (err) {
+    console.error("Get available units:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 // GET /caretaker/maintenance - CARETAKER VIEWS ALL REQUESTS FOR THEIR ASSIGNED PROPERTY
 app.get("/caretaker/maintenance", requireAuth, requireCaretaker, async (req, res) => {
   try {
@@ -1562,6 +1594,90 @@ app.get("/uploads/maintenance/:filename", (req, res) => {
   }
 });
 
+// POST /upload — GENERIC FILE UPLOAD FOR COMPLAINT EVIDENCE
+app.post("/upload", requireAuth, async (req, res) => {
+  console.log(" Upload request received");
+  
+  try {
+    const { image, fileName, mimeType, fileSize, uploadType } = req.body;
+    
+    console.log("Upload type:", uploadType || "maintenance");
+    
+    if (!image) {
+      return res.status(400).json({ error: "No image provided" });
+    }
+
+    const matches = image.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+    
+    if (!matches || matches.length !== 3) {
+      return res.status(400).json({ error: "Invalid image format" });
+    }
+
+    const imageType = matches[1];
+    const imageData = matches[2];
+    
+    let buffer;
+    try {
+      buffer = Buffer.from(imageData, 'base64');
+    } catch (bufErr) {
+      return res.status(400).json({ error: "Invalid base64 data" });
+    }
+    
+    if (buffer.length > 10 * 1024 * 1024) {
+      return res.status(400).json({ error: "File too large. Maximum 10MB." });
+    }
+    
+    const type = uploadType || 'maintenance';
+    const folderName = type === 'complaint' ? 'complaints' : 'maintenance';
+    const documentType = type === 'complaint' ? 'complaint_evidence' : 'maintenance_photo';
+    
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = imageType.includes('png') ? '.png' : '.jpg';
+    const filename = `${folderName}-${uniqueSuffix}${ext}`;
+    
+    const uploadDir = path.join(__dirname, 'uploads', folderName);
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    
+    const filePath = path.join(uploadDir, filename);
+    fs.writeFileSync(filePath, buffer);
+    
+    let documentId = null;
+    try {
+      let tenantId = null;
+      if (req.userRole === 'tenant') {
+        const tenant = await pool.query("SELECT id FROM tenant WHERE user_id = $1", [req.userId]);
+        if (tenant.rows.length) tenantId = tenant.rows[0].id;
+      }
+      
+      const docResult = await pool.query(
+        `INSERT INTO document_ (tenant_id, uploaded_by, document_type, document_name, document_url, file_size, mime_type)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+        [tenantId, req.userId, documentType, fileName || `${type} photo`, `/uploads/${folderName}/${filename}`, buffer.length, imageType]
+      );
+      documentId = docResult.rows[0].id;
+    } catch (dbErr) {
+      console.warn("Could not create document record:", dbErr.message);
+    }
+    
+    console.log(` Saved: ${filename}`);
+    
+    return res.json({
+      success: true,
+      document_url: `/uploads/${folderName}/${filename}`,
+      document_name: fileName || `${type} photo`,
+      file_size: buffer.length,
+      mime_type: imageType,
+      document_id: documentId
+    });
+    
+  } catch (err) {
+    console.error(" Upload error:", err);
+    return res.status(500).json({ error: "Upload failed" });
+  }
+});
+
 // PUT /maintenance/:id/confirm — TENANT CONFIRMS COMPLETION
 app.put("/maintenance/:id/confirm", requireAuth, requireTenant, async (req, res) => {
   try {
@@ -1810,6 +1926,967 @@ app.get("/maintenance/:id", requireAuth, async (req, res) => {
   }
 });
 
+// PROPERTY ROUTES
+
+// GET /properties — LANDLORD VIEWS ALL PROPERTIES
+app.get("/properties", requireAuth, async (req, res) => {
+  try {
+    if (req.userRole !== "landlord") {
+      return res.status(403).json({ error: "Only landlords can access properties" });
+    }
+    
+    const landlord = await pool.query("SELECT id FROM landlord WHERE user_id = $1", [req.userId]);
+    if (!landlord.rows.length) {
+      return res.status(404).json({ error: "Landlord not found" });
+    }
+    
+    const result = await pool.query(
+      `SELECT p.*, 
+              c.first_name || ' ' || c.last_name AS caretaker_name,
+              COALESCE(
+                (SELECT json_agg(
+                  json_build_object(
+                    'id', u.id,
+                    'unit_number', u.unit_number,
+                    'unit_type', u.unit_type,
+                    'floor_number', u.floor_number,
+                    'bedrooms', u.bedrooms,
+                    'bathrooms', u.bathrooms,
+                    'square_meters', u.square_meters,
+                    'monthly_rent', u.monthly_rent,
+                    'deposit_amount', u.deposit_amount,
+                    'status', u.status,
+                    'furnished', u.furnished,
+                    'parking_bay', u.parking_bay,
+                    'has_balcony', u.has_balcony,
+                    'tenant_name', t.first_name || ' ' || t.last_name
+                  ) ORDER BY u.unit_number)
+                FROM unit u
+                LEFT JOIN tenant t ON t.id = u.current_tenant_id
+                WHERE u.property_id = p.id),
+                '[]'::json
+              ) AS units
+       FROM property p
+       LEFT JOIN caretaker c ON c.id = p.caretaker_id
+       WHERE p.landlord_id = $1
+       ORDER BY p.name ASC`,
+      [landlord.rows[0].id]
+    );
+    
+    res.json({ properties: result.rows });
+  } catch (err) {
+    console.error("Get properties:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// GET /properties/:id — LANDLORD VIEWS SINGLE PROPERTY
+app.get("/properties/:id", requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const result = await pool.query(
+      `SELECT p.*, 
+              c.first_name || ' ' || c.last_name AS caretaker_name,
+              COALESCE(
+                (SELECT json_agg(
+                  json_build_object(
+                    'id', u.id,
+                    'unit_number', u.unit_number,
+                    'unit_type', u.unit_type,
+                    'floor_number', u.floor_number,
+                    'bedrooms', u.bedrooms,
+                    'bathrooms', u.bathrooms,
+                    'square_meters', u.square_meters,
+                    'monthly_rent', u.monthly_rent,
+                    'deposit_amount', u.deposit_amount,
+                    'status', u.status,
+                    'furnished', u.furnished,
+                    'parking_bay', u.parking_bay,
+                    'has_balcony', u.has_balcony,
+                    'tenant_name', t.first_name || ' ' || t.last_name
+                  ) ORDER BY u.unit_number)
+                FROM unit u
+                LEFT JOIN tenant t ON t.id = u.current_tenant_id
+                WHERE u.property_id = p.id),
+                '[]'::json
+              ) AS units
+       FROM property p
+       LEFT JOIN caretaker c ON c.id = p.caretaker_id
+       WHERE p.id = $1`,
+      [id]
+    );
+    
+    if (!result.rows.length) {
+      return res.status(404).json({ error: "Property not found" });
+    }
+    
+    res.json({ property: result.rows[0] });
+  } catch (err) {
+    console.error("Get property:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// POST /properties — LANDLORD CREATES PROPERTY
+app.post("/properties", requireAuth, async (req, res) => {
+  try {
+    if (req.userRole !== "landlord") {
+      return res.status(403).json({ error: "Only landlords can create properties" });
+    }
+    
+    const landlord = await pool.query("SELECT id FROM landlord WHERE user_id = $1", [req.userId]);
+    if (!landlord.rows.length) {
+      return res.status(404).json({ error: "Landlord not found" });
+    }
+    
+    const {
+      name, property_type, address_line1, address_line2, city, province,
+      postal_code, country, total_floors, total_units,
+      has_elevator, has_parking, has_security, has_pool, pet_friendly
+    } = req.body;
+    
+    if (!name || !address_line1 || !city) {
+      return res.status(400).json({ error: "Name, address, and city are required" });
+    }
+    
+    const result = await pool.query(
+      `INSERT INTO property (
+        landlord_id, name, property_type, address_line1, address_line2,
+        city, province, postal_code, country, total_floors, total_units,
+        has_elevator, has_parking, has_security, has_pool, pet_friendly
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+      RETURNING *`,
+      [
+        landlord.rows[0].id, name, property_type || "residential",
+        address_line1, address_line2 || null, city, province || null,
+        postal_code ? parseInt(postal_code) : null, country || "South Africa",
+        total_floors ? parseInt(total_floors) : null,
+        total_units ? parseInt(total_units) : null,
+        has_elevator || false, has_parking || false,
+        has_security || false, has_pool || false, pet_friendly || false
+      ]
+    );
+    
+    res.status(201).json({ message: "Property created", property: result.rows[0] });
+  } catch (err) {
+    console.error("Create property:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// PUT /properties/:id — LANDLORD UPDATES PROPERTY
+app.put("/properties/:id", requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const {
+      name, property_type, address_line1, address_line2, city, province,
+      postal_code, country, total_floors, total_units,
+      has_elevator, has_parking, has_security, has_pool, pet_friendly
+    } = req.body;
+    
+    const result = await pool.query(
+      `UPDATE property SET
+        name = $1, property_type = $2, address_line1 = $3, address_line2 = $4,
+        city = $5, province = $6, postal_code = $7, country = $8,
+        total_floors = $9, total_units = $10,
+        has_elevator = $11, has_parking = $12, has_security = $13,
+        has_pool = $14, pet_friendly = $15, updated_at = NOW()
+       WHERE id = $16 RETURNING *`,
+      [
+        name, property_type, address_line1, address_line2 || null,
+        city, province || null, postal_code ? parseInt(postal_code) : null,
+        country || "South Africa",
+        total_floors ? parseInt(total_floors) : null,
+        total_units ? parseInt(total_units) : null,
+        has_elevator || false, has_parking || false,
+        has_security || false, has_pool || false, pet_friendly || false,
+        id
+      ]
+    );
+    
+    if (!result.rows.length) {
+      return res.status(404).json({ error: "Property not found" });
+    }
+    
+    res.json({ message: "Property updated", property: result.rows[0] });
+  } catch (err) {
+    console.error("Update property:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// DELETE /properties/:id — LANDLORD DELETES PROPERTY
+app.delete("/properties/:id", requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const units = await pool.query("SELECT COUNT(*) FROM unit WHERE property_id = $1", [id]);
+    if (parseInt(units.rows[0].count) > 0) {
+      return res.status(400).json({ error: "Cannot delete property with assigned units. Remove units first." });
+    }
+    
+    const result = await pool.query("DELETE FROM property WHERE id = $1 RETURNING id", [id]);
+    
+    if (!result.rows.length) {
+      return res.status(404).json({ error: "Property not found" });
+    }
+    
+    res.json({ message: "Property deleted" });
+  } catch (err) {
+    console.error("Delete property:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// UNIT ROUTES
+
+// POST /properties/:propertyId/units — ADD UNIT TO PROPERTY
+app.post("/properties/:propertyId/units", requireAuth, async (req, res) => {
+  try {
+    const { propertyId } = req.params;
+    const {
+      unit_number, unit_type, floor_number, bedrooms, bathrooms,
+      square_meters, monthly_rent, deposit_amount, status,
+      furnished, parking_bay, has_balcony
+    } = req.body;
+    
+    if (!unit_number || !monthly_rent) {
+      return res.status(400).json({ error: "Unit number and monthly rent are required" });
+    }
+    
+    const property = await pool.query("SELECT id FROM property WHERE id = $1", [propertyId]);
+    if (!property.rows.length) {
+      return res.status(404).json({ error: "Property not found" });
+    }
+    
+    const result = await pool.query(
+      `INSERT INTO unit (
+        property_id, unit_number, unit_type, floor_number, bedrooms, bathrooms,
+        square_meters, monthly_rent, deposit_amount, status,
+        furnished, parking_bay, has_balcony
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+      RETURNING *`,
+      [
+        propertyId,
+        parseInt(unit_number),
+        unit_type || "1_bedroom",
+        floor_number ? parseInt(floor_number) : null,
+        bedrooms ? parseInt(bedrooms) : null,
+        bathrooms ? parseInt(bathrooms) : null,
+        square_meters ? parseFloat(square_meters) : null,
+        parseFloat(monthly_rent),
+        deposit_amount ? parseFloat(deposit_amount) : null,
+        status || "vacant",
+        furnished || false,
+        parking_bay || false,
+        has_balcony || false
+      ]
+    );
+    
+    res.status(201).json({ message: "Unit created", unit: result.rows[0] });
+  } catch (err) {
+    console.error("Create unit:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// PUT /units/:id — UPDATE UNIT
+app.put("/units/:id", requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      unit_number, unit_type, floor_number, bedrooms, bathrooms,
+      square_meters, monthly_rent, deposit_amount, status,
+      furnished, parking_bay, has_balcony
+    } = req.body;
+    
+    const result = await pool.query(
+      `UPDATE unit SET
+        unit_number = $1, unit_type = $2, floor_number = $3,
+        bedrooms = $4, bathrooms = $5, square_meters = $6,
+        monthly_rent = $7, deposit_amount = $8, status = $9,
+        furnished = $10, parking_bay = $11, has_balcony = $12,
+        updated_at = NOW()
+       WHERE id = $13 RETURNING *`,
+      [
+        parseInt(unit_number),
+        unit_type,
+        floor_number ? parseInt(floor_number) : null,
+        bedrooms ? parseInt(bedrooms) : null,
+        bathrooms ? parseInt(bathrooms) : null,
+        square_meters ? parseFloat(square_meters) : null,
+        parseFloat(monthly_rent),
+        deposit_amount ? parseFloat(deposit_amount) : null,
+        status || "vacant",
+        furnished || false,
+        parking_bay || false,
+        has_balcony || false,
+        id
+      ]
+    );
+    
+    if (!result.rows.length) {
+      return res.status(404).json({ error: "Unit not found" });
+    }
+    
+    res.json({ message: "Unit updated", unit: result.rows[0] });
+  } catch (err) {
+    console.error("Update unit:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// DELETE /units/:id — DELETE UNIT
+app.delete("/units/:id", requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const leaseCheck = await pool.query(
+      "SELECT COUNT(*) FROM lease WHERE unit_id = $1 AND status = 'active'",
+      [id]
+    );
+    if (parseInt(leaseCheck.rows[0].count) > 0) {
+      return res.status(400).json({ error: "Cannot delete unit with active lease" });
+    }
+    
+    const result = await pool.query("DELETE FROM unit WHERE id = $1 RETURNING id", [id]);
+    
+    if (!result.rows.length) {
+      return res.status(404).json({ error: "Unit not found" });
+    }
+    
+    res.json({ message: "Unit deleted" });
+  } catch (err) {
+    console.error("Delete unit:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// COMPLAINT ROUTES
+// POST /complaints — TENANT SUBMITS NEW COMPLAINT WITH EVIDENCE
+app.post("/complaints", requireAuth, requireTenant, async (req, res) => {
+  try {
+    const { 
+      subject, 
+      description, 
+      category, 
+      complaint_scope,        
+      against_unit_number,    
+      common_area_location,
+      evidence,              
+    } = req.body;
+    
+    if (!subject || !description || !category) {
+      return res.status(400).json({ error: "Subject, description, and category are required" });
+    }
+    
+    if (!complaint_scope) {
+      return res.status(400).json({ error: "Complaint scope is required" });
+    }
+    
+    if (complaint_scope === 'specific_tenant' && !against_unit_number) {
+      return res.status(400).json({ error: "Unit number is required for tenant-specific complaints" });
+    }
+    
+    if (complaint_scope === 'common_area' && !common_area_location) {
+      return res.status(400).json({ error: "Common area location is required" });
+    }
+    
+    const tenant = await pool.query(
+      "SELECT t.id, t.landlord_id, l.unit_id, u.property_id FROM tenant t JOIN lease l ON l.tenant_id = t.id AND l.status = 'active' JOIN unit u ON u.id = l.unit_id WHERE t.user_id = $1",
+      [req.userId]
+    );
+    
+    if (!tenant.rows.length) {
+      return res.status(404).json({ error: "Active lease not found" });
+    }
+    
+    const { id: tenantId, landlord_id, unit_id, property_id } = tenant.rows[0];
+    
+    let againstTenantId = null;
+    let againstUnitId = null;
+    
+    if (complaint_scope === 'specific_tenant' && against_unit_number) {
+      const unitResult = await pool.query(
+        "SELECT id, current_tenant_id FROM unit WHERE unit_number = $1 AND property_id = $2",
+        [parseInt(against_unit_number), property_id]
+      );
+      
+      if (unitResult.rows.length) {
+        againstUnitId = unitResult.rows[0].id;
+        againstTenantId = unitResult.rows[0].current_tenant_id;
+      }
+    }
+    
+    
+    const result = await pool.query(
+      `INSERT INTO complaint (
+        property_id, filed_by, filed_by_tenant_id, 
+        against_tenant_id, against_unit_id, 
+        subject, description, category, status,
+        complaint_scope, common_area_location
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'open', $9, $10) 
+      RETURNING *`,
+      [
+        property_id, req.userId, tenantId, 
+        againstTenantId, againstUnitId,
+        subject, description, category,
+        complaint_scope, common_area_location || null
+      ]
+    );
+    
+    const complaintId = result.rows[0].id;
+    
+  
+    if (evidence && Array.isArray(evidence) && evidence.length > 0) {
+      console.log(`Processing ${evidence.length} evidence items for complaint ${complaintId}`);
+      
+      for (const item of evidence) {
+        if (!item.document_url) {
+          console.warn("Skipping evidence item without document_url");
+          continue;
+        }
+        
+        try {
+       
+          const docResult = await pool.query(
+            `INSERT INTO document_ (
+              tenant_id, uploaded_by, document_type,
+              document_name, document_url, file_size, mime_type
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+            RETURNING id`,
+            [
+              tenantId,
+              req.userId,
+              'complaint_evidence',
+              item.document_name || `Complaint evidence - ${complaintId}`,
+              item.document_url,
+              item.file_size || 0,
+              item.mime_type || 'image/jpeg'
+            ]
+          );
+          
+          const documentId = docResult.rows[0].id;
+          console.log(` Created document record: ${documentId}`);
+          
+          
+          await pool.query(
+            `INSERT INTO complaint_evidence (
+              complaint_id, document_id, evidence_type, uploaded_by
+            ) VALUES ($1, $2, $3, $4)`,
+            [complaintId, documentId, item.photo_type || 'photo', req.userId]
+          );
+          
+          console.log(` Linked evidence ${documentId} to complaint ${complaintId}`);
+          
+        } catch (evidenceErr) {
+          console.error(" Failed to save evidence item:", evidenceErr.message);
+        }
+      }
+    }
+    
+
+    const caretaker = await pool.query(
+      "SELECT u.id FROM user_ u JOIN caretaker c ON c.user_id = u.id WHERE c.assigned_property = $1",
+      [property_id]
+    );
+    
+    const scopeLabels = {
+      specific_tenant: `against Unit ${against_unit_number}`,
+      common_area: `about ${common_area_location}`,
+      unknown: 'general complaint',
+      property_wide: 'property-wide issue'
+    };
+    
+    if (caretaker.rows.length) {
+      await createNotification(
+        caretaker.rows[0].id, 
+        "complaint_update", 
+        "New Complaint",
+        `New ${scopeLabels[complaint_scope]}: "${subject}"`, 
+        complaintId, 
+        "complaint"
+      );
+    }
+    
+    await createNotification(
+      req.userId, 
+      "complaint_update", 
+      "Complaint Submitted",
+      `Your complaint "${subject}" is under review.`, 
+      complaintId, 
+      "complaint"
+    );
+    
+    res.status(201).json({ 
+      message: "Complaint submitted", 
+      complaint: result.rows[0] 
+    });
+  } catch (err) {
+    console.error("Submit complaint:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// GET /complaints/my — TENANT VIEWS THEIR OWN COMPLAINTS
+app.get("/complaints/my", requireAuth, requireTenant, async (req, res) => {
+  try {
+    const tenant = await pool.query("SELECT id FROM tenant WHERE user_id = $1", [req.userId]);
+    if (!tenant.rows.length) return res.status(404).json({ error: "Tenant not found" });
+    
+    const result = await pool.query(
+      `SELECT c.*, 
+              t1.first_name || ' ' || t1.last_name AS filed_by_name,
+              t2.first_name || ' ' || t2.last_name AS against_name,
+              u.unit_number AS against_unit_number,
+              p.name AS property_name,
+              COALESCE(
+                (SELECT json_agg(json_build_object('id', ce.id, 'document_url', d.document_url, 'evidence_type', ce.evidence_type, 'label', d.document_name, 'mimeType', d.mime_type))
+                 FROM complaint_evidence ce
+                 LEFT JOIN document_ d ON d.id = ce.document_id
+                 WHERE ce.complaint_id = c.id),
+                '[]'::json
+              ) AS evidence
+       FROM complaint c
+       LEFT JOIN tenant t1 ON t1.id = c.filed_by_tenant_id
+       LEFT JOIN tenant t2 ON t2.id = c.against_tenant_id
+       LEFT JOIN unit u ON u.id = c.against_unit_id
+       LEFT JOIN property p ON p.id = c.property_id
+       WHERE c.filed_by_tenant_id = $1
+       ORDER BY c.created_at DESC`,
+      [tenant.rows[0].id]
+    );
+    
+    res.json({ complaints: result.rows });
+  } catch (err) {
+    console.error("Get tenant complaints:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// GET /complaints/:id — GET SINGLE COMPLAINT
+app.get("/complaints/:id", requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const result = await pool.query(
+      `SELECT c.*, 
+              t1.first_name || ' ' || t1.last_name AS filed_by_name,
+              t2.first_name || ' ' || t2.last_name AS against_name,
+              u.unit_number AS against_unit_number,
+              p.name AS property_name,
+              COALESCE(
+                (SELECT json_agg(json_build_object('id', ce.id, 'document_url', d.document_url, 'evidence_type', ce.evidence_type, 'label', d.document_name, 'mimeType', d.mime_type))
+                 FROM complaint_evidence ce
+                 LEFT JOIN document_ d ON d.id = ce.document_id
+                 WHERE ce.complaint_id = c.id),
+                '[]'::json
+              ) AS evidence
+       FROM complaint c
+       LEFT JOIN tenant t1 ON t1.id = c.filed_by_tenant_id
+       LEFT JOIN tenant t2 ON t2.id = c.against_tenant_id
+       LEFT JOIN unit u ON u.id = c.against_unit_id
+       LEFT JOIN property p ON p.id = c.property_id
+       WHERE c.id = $1`,
+      [id]
+    );
+    
+    if (!result.rows.length) {
+      return res.status(404).json({ error: "Complaint not found" });
+    }
+    
+    res.json({ complaint: result.rows[0] });
+  } catch (err) {
+    console.error("Get complaint:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// GET /caretaker/complaints — CARETAKER VIEWS PROPERTY COMPLAINTS
+app.get("/caretaker/complaints", requireAuth, requireCaretaker, async (req, res) => {
+  try {
+    const cr = await pool.query("SELECT assigned_property FROM caretaker WHERE user_id = $1", [req.userId]);
+    if (!cr.rows.length) return res.status(404).json({ error: "Caretaker not found" });
+    if (!cr.rows[0].assigned_property) return res.json({ complaints: [] });
+    
+    const result = await pool.query(
+      `SELECT c.*, 
+              t1.first_name || ' ' || t1.last_name AS filed_by_name,
+              t2.first_name || ' ' || t2.last_name AS against_name,
+              u.unit_number AS against_unit_number,
+              p.name AS property_name
+       FROM complaint c
+       LEFT JOIN tenant t1 ON t1.id = c.filed_by_tenant_id
+       LEFT JOIN tenant t2 ON t2.id = c.against_tenant_id
+       LEFT JOIN unit u ON u.id = c.against_unit_id
+       LEFT JOIN property p ON p.id = c.property_id
+       WHERE c.property_id = $1
+       ORDER BY c.created_at DESC`,
+      [cr.rows[0].assigned_property]
+    );
+    
+    res.json({ complaints: result.rows });
+  } catch (err) {
+    console.error("Get caretaker complaints:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// PUT /caretaker/complaints/:id/review — MARK UNDER REVIEW
+app.put("/caretaker/complaints/:id/review", requireAuth, requireCaretaker, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const result = await pool.query(
+      "UPDATE complaint SET status = 'under_review', updated_at = NOW() WHERE id = $1 AND status = 'open' RETURNING *",
+      [id]
+    );
+    
+    if (!result.rows.length) return res.status(404).json({ error: "Complaint not found or not open" });
+    
+    const tenantUser = await pool.query("SELECT user_id FROM tenant WHERE id = $1", [result.rows[0].filed_by_tenant_id]);
+    if (tenantUser.rows.length) {
+      await createNotification(tenantUser.rows[0].user_id, "complaint_update", "Complaint Under Review",
+        `Your complaint is being reviewed.`, id, "complaint");
+    }
+    
+    res.json({ message: "Complaint marked as under review", complaint: result.rows[0] });
+  } catch (err) {
+    console.error("Review complaint:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// PUT /caretaker/complaints/:id/resolve — MARK AS RESOLVED
+app.put("/caretaker/complaints/:id/resolve", requireAuth, requireCaretaker, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { notes } = req.body;
+    
+    const result = await pool.query(
+      `UPDATE complaint 
+       SET status = 'resolved', 
+           resolution_notes = COALESCE($2, 'Resolved by caretaker'),
+           resolved_by = $3,
+           resolved_at = NOW(), 
+           updated_at = NOW() 
+       WHERE id = $1 AND status IN ( 'under_review') 
+       RETURNING *`,
+      [id, notes || null, req.userId]
+    );
+    
+    if (!result.rows.length) {
+      return res.status(404).json({ error: "Complaint not found or cannot be resolved in current status" });
+    }
+    
+    const tenantUser = await pool.query(
+      "SELECT user_id FROM tenant WHERE id = $1", 
+      [result.rows[0].filed_by_tenant_id]
+    );
+    
+    if (tenantUser.rows.length) {
+      await createNotification(
+        tenantUser.rows[0].user_id, 
+        "complaint_update", 
+        "Complaint Resolved",
+        `Your complaint "${result.rows[0].subject}" has been resolved.`, 
+        id, 
+        "complaint"
+      );
+    }
+    
+    res.json({ message: "Complaint marked as resolved", complaint: result.rows[0] });
+  } catch (err) {
+    console.error("Resolve complaint:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// PUT /caretaker/complaints/:id/escalate — CARETAKER ESCALATES TO LANDLORD
+app.put("/caretaker/complaints/:id/escalate", requireAuth, requireCaretaker, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+    
+    const result = await pool.query(
+      "UPDATE complaint SET status = 'escalated', updated_at = NOW() WHERE id = $1 RETURNING *",
+      [id]
+    );
+    
+    if (!result.rows.length) return res.status(404).json({ error: "Complaint not found" });
+    
+    const property = await pool.query("SELECT landlord_id FROM property WHERE id = $1", [result.rows[0].property_id]);
+    if (property.rows.length) {
+      const landlordUser = await pool.query("SELECT user_id FROM landlord WHERE id = $1", [property.rows[0].landlord_id]);
+      if (landlordUser.rows.length) {
+        await createNotification(landlordUser.rows[0].user_id, "complaint_update", "Complaint Escalated",
+          `"${result.rows[0].subject}" has been escalated.`, id, "complaint");
+      }
+    }
+    
+    res.json({ message: "Complaint escalated", complaint: result.rows[0] });
+  } catch (err) {
+    console.error("Escalate complaint:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// PUT /caretaker/complaints/:id/dismiss — CARETAKER DISMISSES COMPLAINT
+app.put("/caretaker/complaints/:id/dismiss", requireAuth, requireCaretaker, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+    
+    if (!reason) return res.status(400).json({ error: "Dismissal reason is required" });
+    
+    const result = await pool.query(
+      "UPDATE complaint SET status = 'dismissed', resolution_notes = $1, resolved_by = $2, resolved_at = NOW(), updated_at = NOW() WHERE id = $3 RETURNING *",
+      [reason, req.userId, id]
+    );
+    
+    if (!result.rows.length) return res.status(404).json({ error: "Complaint not found" });
+    
+    const tenantUser = await pool.query("SELECT user_id FROM tenant WHERE id = $1", [result.rows[0].filed_by_tenant_id]);
+    if (tenantUser.rows.length) {
+      await createNotification(tenantUser.rows[0].user_id, "complaint_update", "Complaint Dismissed",
+        `Your complaint was dismissed: ${reason}`, id, "complaint");
+    }
+    
+    res.json({ message: "Complaint dismissed", complaint: result.rows[0] });
+  } catch (err) {
+    console.error("Dismiss complaint:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// GET /landlord/complaints — LANDLORD VIEWS ALL COMPLAINTS
+app.get("/landlord/complaints", requireAuth, async (req, res) => {
+  try {
+    if (req.userRole !== "landlord") return res.status(403).json({ error: "Access denied" });
+    
+    const landlord = await pool.query("SELECT id FROM landlord WHERE user_id = $1", [req.userId]);
+    if (!landlord.rows.length) return res.status(404).json({ error: "Landlord not found" });
+    
+    const result = await pool.query(
+      `SELECT c.*, 
+              t1.first_name || ' ' || t1.last_name AS filed_by_name,
+              t2.first_name || ' ' || t2.last_name AS against_name,
+              u.unit_number AS against_unit_number,
+              p.name AS property_name
+       FROM complaint c
+       LEFT JOIN tenant t1 ON t1.id = c.filed_by_tenant_id
+       LEFT JOIN tenant t2 ON t2.id = c.against_tenant_id
+       LEFT JOIN unit u ON u.id = c.against_unit_id
+       LEFT JOIN property p ON p.id = c.property_id
+       WHERE p.landlord_id = $1
+       ORDER BY c.created_at DESC`,
+      [landlord.rows[0].id]
+    );
+    
+    res.json({ complaints: result.rows });
+  } catch (err) {
+    console.error("Get landlord complaints:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// PUT /landlord/complaints/:id/approve — LANDLORD APPROVES
+app.put("/landlord/complaints/:id/approve", requireAuth, async (req, res) => {
+  try {
+    if (req.userRole !== "landlord") return res.status(403).json({ error: "Access denied" });
+    
+    const { id } = req.params;
+    
+    const result = await pool.query(
+      "UPDATE complaint SET status = 'approved', updated_at = NOW() WHERE id = $1 AND status IN ('escalated', 'awaiting_clarification') RETURNING *",
+      [id]
+    );
+    
+    if (!result.rows.length) return res.status(404).json({ error: "Complaint not found or cannot be approved" });
+    
+    const tenantUser = await pool.query("SELECT user_id FROM tenant WHERE id = $1", [result.rows[0].filed_by_tenant_id]);
+    if (tenantUser.rows.length) {
+      await createNotification(tenantUser.rows[0].user_id, "complaint_update", "Complaint Approved",
+        `Your complaint has been approved.`, id, "complaint");
+    }
+    
+    res.json({ message: "Complaint approved", complaint: result.rows[0] });
+  } catch (err) {
+    console.error("Approve complaint:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// PUT /landlord/complaints/:id/reject — LANDLORD REJECTS
+app.put("/landlord/complaints/:id/reject", requireAuth, async (req, res) => {
+  try {
+    if (req.userRole !== "landlord") return res.status(403).json({ error: "Access denied" });
+    
+    const { id } = req.params;
+    const { reason } = req.body;
+    
+    if (!reason) return res.status(400).json({ error: "Rejection reason is required" });
+    
+    const result = await pool.query(
+      "UPDATE complaint SET status = 'rejected', resolution_notes = $1, resolved_by = $2, resolved_at = NOW(), updated_at = NOW() WHERE id = $3 RETURNING *",
+      [reason, req.userId, id]
+    );
+    
+    if (!result.rows.length) return res.status(404).json({ error: "Complaint not found" });
+    
+    const tenantUser = await pool.query("SELECT user_id FROM tenant WHERE id = $1", [result.rows[0].filed_by_tenant_id]);
+    if (tenantUser.rows.length) {
+      await createNotification(tenantUser.rows[0].user_id, "complaint_update", "Complaint Rejected",
+        `Your complaint was not approved.`, id, "complaint");
+    }
+    
+    res.json({ message: "Complaint rejected", complaint: result.rows[0] });
+  } catch (err) {
+    console.error("Reject complaint:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// PUT /landlord/complaints/:id/clarify — LANDLORD REQUESTS CLARIFICATION
+app.put("/landlord/complaints/:id/clarify", requireAuth, async (req, res) => {
+  try {
+    if (req.userRole !== "landlord") return res.status(403).json({ error: "Access denied" });
+    
+    const { id } = req.params;
+    const { request } = req.body;
+    
+    if (!request) return res.status(400).json({ error: "Clarification request is required" });
+    
+    const result = await pool.query(
+      "UPDATE complaint SET status = 'awaiting_clarification', updated_at = NOW() WHERE id = $1 RETURNING *",
+      [id]
+    );
+    
+    if (!result.rows.length) return res.status(404).json({ error: "Complaint not found" });
+    
+    const tenantUser = await pool.query("SELECT user_id FROM tenant WHERE id = $1", [result.rows[0].filed_by_tenant_id]);
+    if (tenantUser.rows.length) {
+      await createNotification(tenantUser.rows[0].user_id, "complaint_update", "Clarification Needed",
+        `The landlord needs more information.`, id, "complaint");
+    }
+    
+    res.json({ message: "Clarification requested", complaint: result.rows[0] });
+  } catch (err) {
+    console.error("Request clarification:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// PUT /complaints/:id/clarify — TENANT PROVIDES CLARIFICATION
+app.put("/complaints/:id/clarify", requireAuth, requireTenant, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { response } = req.body;
+    
+    if (!response) return res.status(400).json({ error: "Response is required" });
+    
+    const result = await pool.query(
+      "UPDATE complaint SET status = 'escalated', updated_at = NOW() WHERE id = $1 AND filed_by = $2 AND status = 'awaiting_clarification' RETURNING *",
+      [id, req.userId]
+    );
+    
+    if (!result.rows.length) return res.status(404).json({ error: "Complaint not found or not awaiting clarification" });
+    
+    const property = await pool.query("SELECT landlord_id FROM property WHERE id = $1", [result.rows[0].property_id]);
+    if (property.rows.length) {
+      const landlordUser = await pool.query("SELECT user_id FROM landlord WHERE id = $1", [property.rows[0].landlord_id]);
+      if (landlordUser.rows.length) {
+        await createNotification(landlordUser.rows[0].user_id, "complaint_update", "Clarification Provided",
+          `Tenant provided clarification.`, id, "complaint");
+      }
+    }
+    
+    res.json({ message: "Clarification submitted", complaint: result.rows[0] });
+  } catch (err) {
+    console.error("Clarify complaint:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// PUT /landlord/complaints/:id/verdict — LANDLORD ISSUES VERDICT
+app.put("/landlord/complaints/:id/verdict", requireAuth, async (req, res) => {
+  try {
+    if (req.userRole !== "landlord") return res.status(403).json({ error: "Access denied" });
+    
+    const { id } = req.params;
+    const { type, fineAmount, notes } = req.body;
+    
+    if (!type || !["warning", "fine", "final_warning", "eviction_notice"].includes(type)) {
+      return res.status(400).json({ error: "Valid verdict type required" });
+    }
+    
+    if (type === "fine" && (!fineAmount || isNaN(Number(fineAmount)) || Number(fineAmount) <= 0)) {
+      return res.status(400).json({ error: "Valid fine amount required" });
+    }
+    
+    const resolutionNotes = `${type.replace(/_/g, " ")}${fineAmount ? ` | Fine: R${fineAmount}` : ""}${notes ? ` | ${notes}` : ""}`;
+    
+    const result = await pool.query(
+      "UPDATE complaint SET status = 'resolved', resolution_notes = $1, resolved_by = $2, resolved_at = NOW(), updated_at = NOW() WHERE id = $3 AND status = 'approved' RETURNING *",
+      [resolutionNotes, req.userId, id]
+    );
+    
+    if (!result.rows.length) return res.status(404).json({ error: "Complaint not found or not approved" });
+    
+    if (result.rows[0].against_tenant_id) {
+      const againstUser = await pool.query("SELECT user_id FROM tenant WHERE id = $1", [result.rows[0].against_tenant_id]);
+      if (againstUser.rows.length) {
+        await createNotification(againstUser.rows[0].user_id, "complaint_update", "Verdict Issued",
+          `A ${type.replace(/_/g, " ")} has been issued against you.`, id, "complaint");
+      }
+    }
+    
+    const filedByUser = await pool.query("SELECT user_id FROM tenant WHERE id = $1", [result.rows[0].filed_by_tenant_id]);
+    if (filedByUser.rows.length) {
+      await createNotification(filedByUser.rows[0].user_id, "complaint_update", "Verdict Issued",
+        `A verdict has been issued for your complaint.`, id, "complaint");
+    }
+    
+    res.json({ message: "Verdict issued", complaint: result.rows[0] });
+  } catch (err) {
+    console.error("Issue verdict:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// PUT /complaints/:id/reopen — TENANT REOPENS COMPLAINT
+app.put("/complaints/:id/reopen", requireAuth, requireTenant, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+    
+    const result = await pool.query(
+      `UPDATE complaint SET status = 'open', resolution_notes = NULL, resolved_by = NULL, resolved_at = NULL, updated_at = NOW() 
+       WHERE id = $1 AND filed_by = $2 AND status IN ('resolved', 'rejected', 'dismissed') RETURNING *`,
+      [id, req.userId]
+    );
+    
+    if (!result.rows.length) return res.status(404).json({ error: "Complaint not found or cannot be reopened" });
+    
+    const caretaker = await pool.query(
+      "SELECT u.id FROM user_ u JOIN caretaker c ON c.user_id = u.id WHERE c.assigned_property = $1",
+      [result.rows[0].property_id]
+    );
+    
+    if (caretaker.rows.length) {
+      await createNotification(caretaker.rows[0].id, "complaint_update", "Complaint Reopened",
+        `Tenant reopened a complaint.`, id, "complaint");
+    }
+    
+    res.json({ message: "Complaint reopened", complaint: result.rows[0] });
+  } catch (err) {
+    console.error("Reopen complaint:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 // START SERVER
 async function verifyConnection() {
   try {
@@ -1823,6 +2900,6 @@ async function verifyConnection() {
 
 verifyConnection().then(() => {
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`\n Server running on http://172.16.2.248:${PORT}`);
+    console.log(`\n Server running on http://172.16.5.82:${PORT}`);
   });
 });

@@ -7,7 +7,7 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
-import api from "../../api";
+import api from "../../utils/api";
 
 const API_URL = api.getBaseUrl(); 
 

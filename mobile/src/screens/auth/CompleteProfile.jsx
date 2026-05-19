@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialIcons, Ionicons, Feather } from "@expo/vector-icons";
-import api from "../../api";
+import api from "../../utils/api";
 
 const API_URL = api.getBaseUrl(); 
 

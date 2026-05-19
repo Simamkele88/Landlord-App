@@ -14,16 +14,19 @@ import Navigation from "./src/navigation/Navigation";
 import ForgotPassword from "./src/screens/auth/ForgotPassword";
 import VerifyCode from "./src/screens/auth/VerifyCode";
 import ResetPassword from "./src/screens/auth/ResetPassword";
-import MaintenanceNew from "./src/screens/MaintenanceNew";
-import MaintenanceDetail from "./src/screens/MaintenanceDetail";
-import PaymentMethod from "./src/screens/PaymentMethod";
-import PaymentUpload from "./src/screens/PaymentUpload";
-import PaymentInvoice from "./src/screens/PaymentInvoice";
-import PaymentReceipt from "./src/screens/PaymentReceipt"
+import MaintenanceNew from "./src/screens/maintenance/MaintenanceNew";
+import MaintenanceDetail from "./src/screens/maintenance/MaintenanceDetail";
+import PaymentMethod from "./src/screens/payments/PaymentMethod";
+import PaymentUpload from "./src/screens/payments/PaymentUpload";
+import PaymentInvoice from "./src/screens/payments/PaymentInvoice";
+import PaymentReceipt from "./src/screens/payments/PaymentReceipt"
+import Complaints from "./src/screens/complaints/Complaints";
+import ComplaintDetail from "./src/screens/complaints/ComplaintDetail";
+import ComplaintNew from "./src/screens/complaints/ComplaintNew";
 
 const Stack = createStackNavigator();
 
-export default function App() {
+export default function App() {``
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [userData, setUserData] = useState(null);
@@ -40,8 +43,6 @@ export default function App() {
       if (token && user) {
         setUserData(JSON.parse(user));
         setIsLoggedIn(true);
-      }else{
-        navigation.navigate("Login");
       }
     } catch (error) {
       console.error("Error checking login status:", error);
@@ -135,6 +136,9 @@ export default function App() {
             <Stack.Screen name="PaymentUpload" component={PaymentUpload} />
             <Stack.Screen name="PaymentInvoice" component={PaymentInvoice} />
             <Stack.Screen name="PaymentReceipt" component={PaymentReceipt} />
+            <Stack.Screen name="Complaints" component={Complaints} />
+            <Stack.Screen name="ComplaintDetail" component={ComplaintDetail} />
+            <Stack.Screen name="ComplaintNew" component={ComplaintNew} />
           </>
         ) : (
           <>

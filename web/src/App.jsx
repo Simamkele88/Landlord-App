@@ -22,6 +22,10 @@ import CaretakerLayout from "./layouts/CaretakerLayout";
 import CaretakerDashboard from "./pages/caretaker/Dashboard"; 
 import CaretakerMaintenance from "./pages/caretaker/maintenance/Maintenance";
 import CaretakerMaintenanceDetail from "./pages/caretaker/maintenance/MaintenanceDetail";
+import CaretakerComplaints from "./pages/caretaker/complaints/Complaints";
+import CaretakerComplaintDetail from "./pages/caretaker/complaints/ComplaintDetails"; 
+import LandlordComplaints from "./pages/landlord/complaints/Complaints";
+import LandlordComplaintDetail from "./pages/landlord/complaints/ComplaintDetail";
 
 
 import "./index.css";
@@ -110,6 +114,8 @@ export default function App() {
                 <Route path="properties" element={<PropertyDashboard />} />
                 <Route path="tenants" element={<Tenants />} />
                 <Route path="units" element={<Units />} />
+                <Route path="complaints" element={<LandlordComplaints />} />
+                <Route path="complaints/:id" element={<LandlordComplaintDetail />} />
               </Route>
 
               {/*  CARETAKER ROUTES*/}
@@ -126,8 +132,10 @@ export default function App() {
                 <Route path="maintenance/:id" element={<CaretakerMaintenanceDetail />} />
                 <Route path="units" element={<PlaceholderPage title="Units" />} />
                 <Route path="tenants" element={<PlaceholderPage title="Tenants" />} />
-                <Route path="complaints" element={<PlaceholderPage title="Complaints" />} />
+                <Route path="complaints" element={<CaretakerComplaints />} />
+                <Route path="complaints/:id" element={<CaretakerComplaintDetail />} />
                 <Route path="messages" element={<PlaceholderPage title="Messages" />} />
+
               </Route>
 
               {/* CATCH-ALL REDIRECT */}

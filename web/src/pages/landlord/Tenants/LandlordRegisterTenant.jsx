@@ -1,10 +1,13 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 // MODAL FOR REGISTERING A NEW TENANT BY THE LANDLORD
 import { useState, useEffect } from "react";  
 import { X, Plus, Loader2, CheckCircle, Info } from "lucide-react";
 import axios from "axios";
+import { useToast } from "../../../contexts/ToastContext";
+
  
 // API_URL
-const API = "http://172.16.4.139:4000";
+const API = "http://localhost:4000";
 
 // PAYMENT FREQUENCIES
 const FREQUENCIES = ["monthly", "weekly"];
@@ -43,6 +46,7 @@ function mapVacantUnit(u) {
 
 // MAIN COMPONENT
 export function LandlordRegisterTenantModal({ onClose, onCreated }) {
+  const toast = useToast();
   const [form, setForm] = useState({
     first_name:        "",
     last_name:         "",
@@ -76,8 +80,11 @@ export function LandlordRegisterTenantModal({ onClose, onCreated }) {
       });
       const mapped = (data.units || []).map(mapVacantUnit);
       setUnits(mapped);
+      toast.success(`Loaded ${mapped.length} vacant unit${mapped.length !== 1 ? "s" : ""}`);
     } catch (err) {
       console.error("Failed to fetch vacant units:", err);
+      toast.error("Failed to load vacant units. Please refresh and try again.");
+
     }
   }
  
@@ -94,6 +101,7 @@ export function LandlordRegisterTenantModal({ onClose, onCreated }) {
     if (!form.last_name.trim())     e.last_name        = "Required";
     if (!form.email.trim())         e.email            = "Required";
     if (!/\S+@\S+\.\S+/.test(form.email)) e.email     = "Invalid email";
+    if (!form.phone.trim() && !/^\d{7,15}$/.test(form.phone.trim())) e.phone = "Invalid phone number";
     if (!form.unit_id)              e.unit_id          = "Select a unit";
     if (!form.rent_amount)          e.rent_amount      = "Required";
     if (isNaN(Number(form.rent_amount)) || Number(form.rent_amount) <= 0)
@@ -134,10 +142,9 @@ export function LandlordRegisterTenantModal({ onClose, onCreated }) {
     }
   }
  
-  // ✅ Auto-fill rent when unit is selected — use local 'units' state
   function handleUnitChange(unitId) {
     set("unit_id", unitId);
-    const unit = units.find(u => u.id === unitId);  // ✅ Use units, not vacantUnits
+    const unit = units.find(u => u.id === unitId); 
     if (unit?.monthly_rent && !form.rent_amount) {
       set("rent_amount", String(unit.monthly_rent));
     }
@@ -228,8 +235,8 @@ export function LandlordRegisterTenantModal({ onClose, onCreated }) {
               onChange={e => set("email", e.target.value)} placeholder="tenant@email.com" />
           </Field>
  
-          <Field label="Phone Number" optional>
-            <input type="tel" className={inputCls(false)} value={form.phone}
+          <Field label="Phone Number" error={errors.phone} >
+            <input type="tel" className={inputCls(errors.phone)} value={form.phone}
               onChange={e => set("phone", e.target.value)} placeholder="0821234567" />
           </Field>
  
@@ -244,7 +251,7 @@ export function LandlordRegisterTenantModal({ onClose, onCreated }) {
             Unit & Lease
           </p>
  
-          {/* ✅ Use local 'units' state instead of 'vacantUnits' prop */}
+          
           <Field label="Unit" error={errors.unit_id}>
             <select className={inputCls(errors.unit_id)} value={form.unit_id}
               onChange={e => handleUnitChange(e.target.value)}>
@@ -281,8 +288,8 @@ export function LandlordRegisterTenantModal({ onClose, onCreated }) {
                 ))}
               </select>
             </Field>
-            <Field label="Payment Due Day" hint="Day of the month (1–28)">
-              <input type="number" min="1" max="28" className={inputCls(false)}
+            <Field label="Payment Due Day" hint="Day of the month">
+              <input type="number" min="1" max="31" className={inputCls(false)}
                 value={form.payment_due_day} onChange={e => set("payment_due_day", e.target.value)} />
             </Field>
           </div>
@@ -297,16 +304,7 @@ export function LandlordRegisterTenantModal({ onClose, onCreated }) {
                 value={form.lease_end_date} onChange={e => set("lease_end_date", e.target.value)} />
             </Field>
           </div>
- 
-          {/* INFO CALLOUT */}
-          <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800">
-            <Info size={15} className="text-blue-500 flex-shrink-0 mt-0.5" />
-            <p className="text-xs text-blue-700 dark:text-blue-300">
-              Personal details (ID number, date of birth, employment info, emergency contacts) are
-              collected directly from the tenant after their first login. You only need to fill in
-              what's shown here.
-            </p>
-          </div>
+
         </div>
  
         {/* FOOTER */}
@@ -319,7 +317,7 @@ export function LandlordRegisterTenantModal({ onClose, onCreated }) {
             className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-sm font-medium py-2.5 px-4 rounded-xl transition-colors">
             {loading
               ? <><Loader2 size={16} className="animate-spin" />Registering...</>
-              : <><Plus size={14} />Register Tenant</>
+              : "Register Tenant"
             }
           </button>
         </div>

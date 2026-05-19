@@ -5,7 +5,7 @@ import {
    StatusBar, Alert, ActivityIndicator, SafeAreaView
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import api from "../../api";
+import api from "../../utils/api";
 
 const API_URL = api.getBaseUrl(); 
 

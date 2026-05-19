@@ -833,7 +833,7 @@ export default function CaretakerMaintenanceDetail() {
                   onClick={() => setShowAssign(true)}
                   className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors"
                 >
-                  <User size={16} /> Assign Contractor
+                   Assign Contractor
                 </button>
               )}
 
@@ -842,7 +842,7 @@ export default function CaretakerMaintenanceDetail() {
                   onClick={() => setShowStatus(true)}
                   className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors"
                 >
-                  <Clock size={16} /> Update Status
+                   Update Status
                 </button>
               )}
 
@@ -851,7 +851,7 @@ export default function CaretakerMaintenanceDetail() {
                   onClick={() => setShowEscalate(true)}
                   className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium rounded-xl transition-colors"
                 >
-                  <ArrowUpCircle size={16} /> Escalate to Landlord
+                   Escalate to Landlord
                 </button>
               )}
 

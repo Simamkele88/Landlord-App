@@ -9,8 +9,9 @@ import { useNavigation } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { MaterialIcons, Ionicons } from "@expo/vector-icons";
 import TenantDashboard from "../screens/Dashboard";
-import TenantPayments from "../screens/Payments";
-import TenantMaintenance from "../screens/Maintenance";
+import TenantPayments from "../screens/payments/Payments";
+import TenantMaintenance from "../screens/maintenance/Maintenance";
+import Complaints from "../screens/complaints/Complaints";
 import api from "../utils/api";
 
 // PLACEHOLDER SCREENS
@@ -83,8 +84,6 @@ function DrawerModal({ visible, onClose, onLogout, tabNavigation }) {
           last_name: user.last_name,
           unit_number: user.unit_number,
         });
-      }else{
-        navigation.navigate("Login");
       }
 
       
@@ -311,7 +310,7 @@ function TenantNavigation({ onLogout }) {
         <Tab.Screen name="Home" component={TenantDashboard} />
         <Tab.Screen name="Payments" component={TenantPayments} />
         <Tab.Screen name="Alerts" component={NotificationsScreen} />
-        <Tab.Screen name="Complaints" component={ComplaintsScreen} />
+        <Tab.Screen name="Complaints" component={Complaints} />
         <Tab.Screen name="Maintenance" component={TenantMaintenance} />
         <Tab.Screen name="Messages" component={MessagesScreen} />
       </Tab.Navigator>

@@ -60,7 +60,7 @@ function timeAgo(dateValue) {
 }
 
 function isImageEvidence(item) {
-  return item.mimeType?.startsWith("image/");
+  return item.mime_type?.startsWith("image/") || item.document_url?.match(/\.(jpg|jpeg|png|gif|webp)$/i);
 }
 
 function actorLabel(role) {
@@ -291,11 +291,16 @@ export default function LandlordComplaintDetail() {
       )}
 
       {viewerOpen && evidence.length > 0 && isImageEvidence(evidence[viewerIndex]) && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 p-4" onClick={() => setViewerOpen(false)}>
-          <button onClick={() => setViewerOpen(false)} className="absolute right-4 top-4 rounded p-2 text-white/70 hover:text-white"><X size={20} /></button>
-          <img src={evidence[viewerIndex].document_url} alt={evidence[viewerIndex].label} className="max-h-[85vh] max-w-full rounded-lg object-contain" onClick={e => e.stopPropagation()} />
-        </div>
-      )}
+  <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 p-4" onClick={() => setViewerOpen(false)}>
+    <button onClick={() => setViewerOpen(false)} className="absolute right-4 top-4 rounded p-2 text-white/70 hover:text-white"><X size={20} /></button>
+    <img 
+      src={`${API}${evidence[viewerIndex].document_url}`} 
+      alt={evidence[viewerIndex].label || 'Evidence'} 
+      className="max-h-[85vh] max-w-full rounded-lg object-contain" 
+      onClick={e => e.stopPropagation()} 
+    />
+  </div>
+)}
 
       <div className="mx-auto max-w-screen-xl px-4 pb-12 pt-6">
         <button onClick={() => navigate("/landlord/complaints")} className="mb-6 flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">
@@ -351,7 +356,7 @@ export default function LandlordComplaintDetail() {
                         {isImageEvidence(item) ? (
                           <button onClick={() => { setViewerIndex(index); setViewerOpen(true); }} className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-3 py-2 text-xs font-medium text-blue-700 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-300"><Eye size={14} />Preview</button>
                         ) : (
-                          <a href={item.document_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg bg-gray-100 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"><FileText size={14} />Open</a>
+                          <a href={`${API}${item.document_url}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg bg-gray-100 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"><FileText size={14} />Open</a>
                         )}
                       </div>
                     </div>

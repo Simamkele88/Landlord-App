@@ -1,10 +1,16 @@
 // THIS FILE CONTAINS ALL ENDPOINTS, CONNECTS FRONTEND TO DATABASE
+require("dotenv").config();
+console.log("SUPABASE_DB_URL =", process.env.SUPABASE_DB_URL);
 const express = require("express");
 const cors = require("cors");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const { Pool } = require("pg");
+const pool = new Pool({
+  connectionString: process.env.SUPABASE_DB_URL,
+  ssl: { rejectUnauthorized: false },
+});
 const nodemailer = require("nodemailer");
 const path = require('path');
 const fs = require('fs');
@@ -21,6 +27,16 @@ app.use(cors({
 app.set("trust proxy", 1);
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+app.get("/db-test", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT NOW()");
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("DB connection failed");
+  }
+});
 
 // EMAIL CONFIGURATION
 const emailSender = process.env.EMAIL_SENDER || "noreplyconveniencyinc@gmail.com";
@@ -40,13 +56,13 @@ const transporter = nodemailer.createTransport({
 });
 
 // DATABASE CONFIGURATION
-const pool = new Pool({
+/*const pool = new Pool({
   host: process.env.DB_HOST || "localhost",
   port: process.env.DB_PORT || 5432,
   database: process.env.DB_NAME || "chihwa_rentals_db",
   user: process.env.DB_USER || "postgres",
   password: process.env.DB_PASSWORD || "Wekeza2004",
-});
+});*/
 
 // JWT CONFIGURATION
 const JWT_SECRET = process.env.JWT_SECRET || "supersunique_and_880409_jwt_secret_keyecretkey_";
@@ -2900,6 +2916,6 @@ async function verifyConnection() {
 
 verifyConnection().then(() => {
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`\n Server running on http://172.16.5.82:${PORT}`);
+    console.log(`\n Server running on http://172.16.7.44:${PORT}`);
   });
 });

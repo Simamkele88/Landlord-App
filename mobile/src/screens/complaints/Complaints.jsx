@@ -122,7 +122,7 @@ export default function TenantComplaints() {
           onPress={() => navigation.navigate("ComplaintNew")}
           activeOpacity={0.8}
         >
-          <Text style={S.newBtnText}>Log Complaint</Text>
+          <Text style={S.newBtnText}>New Complaint</Text>
         </TouchableOpacity>
       </View>
 

@@ -1,19 +1,24 @@
-// PAYMENTS PAGE
-import { useState } from "react";
-import useDocumentTitle from "../../../hooks/useDocumentTitle";
+/* eslint-disable no-unused-vars */
+// PAYMENTS PAGE 
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { usePayments } from "../../../contexts/PaymentsContext";
+import axios from "axios";
+import useDocumentTitle from "../../../hooks/useDocumentTitle";
 import { useToast } from "../../../contexts/ToastContext";
 import FullReportModal from "../../../components/FullReportModal";
+import { Icon } from "../../../components/Icon";
+import { c as C, f as F } from "../../../styles/theme";
 
+const API = "http://localhost:4000";
 
-// STATUS STYLES
-const STATUS_STYLES = {
-  "Paid":             "bg-green-100 text-green-800 dark:bg-gray-700 dark:text-green-400 border border-green-100 dark:border-green-500",
-  "Pending Approval": "bg-yellow-100 text-yellow-800 dark:bg-gray-700 dark:text-yellow-400 border border-yellow-100 dark:border-yellow-500",
-  "Late":             "bg-red-100 text-red-800 dark:bg-gray-700 dark:text-red-400 border border-red-100 dark:border-red-500",
-  "Rejected":         "bg-red-100 text-red-800 dark:bg-gray-700 dark:text-red-400 border border-red-100 dark:border-red-500",
-  "Collections":      "bg-purple-100 text-purple-800 dark:bg-gray-700 dark:text-purple-400 border border-purple-100 dark:border-purple-500",
+const statusConfig = {
+  "paid":             { color: C.greenLight, bg: 'rgba(26,122,74,0.1)',   border: '1px solid rgba(76,186,122,0.2)',  dot: C.greenLight, label: "Paid" },
+  "pending":          { color: C.gold,       bg: 'rgba(232,160,18,0.08)',  border: '1px solid rgba(232,160,18,0.2)',  dot: C.gold,       label: "Pending Approval" },
+  "pending_approval": { color: C.gold,       bg: 'rgba(232,160,18,0.08)',  border: '1px solid rgba(232,160,18,0.2)',  dot: C.gold,       label: "Pending Approval" },
+  "late":             { color: C.redLight,   bg: 'rgba(224,90,74,0.1)',    border: '1px solid rgba(224,90,74,0.2)',   dot: C.redLight,   label: "Late" },
+  "rejected":         { color: C.redLight,   bg: 'rgba(224,90,74,0.08)',   border: '1px solid rgba(224,90,74,0.15)',  dot: C.redLight,   label: "Rejected" },
+  "collections":      { color: C.purple,     bg: 'rgba(139,92,246,0.1)',   border: '1px solid rgba(139,92,246,0.2)',  dot: C.purple,     label: "Collections" },
+  "partial":          { color: C.blue,       bg: 'rgba(58,143,212,0.1)',   border: '1px solid rgba(58,143,212,0.2)',  dot: C.blue,       label: "Partial" },
 };
 
 const REJECT_REASONS = [
@@ -27,164 +32,317 @@ const REJECT_REASONS = [
 
 const FILTERS = ["All", "Paid", "Pending Approval", "Late", "Collections", "Rejected"];
 
-// HELPER FUNCTIONS
-function format(amount) { return `R ${amount.toLocaleString()}`; }
+const FILTER_MAP = {
+  "All": "All",
+  "Paid": "paid",
+  "Pending Approval": "pending",
+  "Late": "late",
+  "Collections": "collections",
+  "Rejected": "rejected",
+};
 
-function initials(name) {
-  return name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
-}
+const inputStyle = {
+  width: '100%', fontSize: '0.82rem', padding: '0.6rem 0.9rem', borderRadius: '3px',
+  background: C.black, border: `1px solid ${C.border}`, color: C.white,
+  fontFamily: F.dm, outline: 'none',
+};
 
+const btnPrimary = {
+  background: C.gold, color: C.black, border: 'none',
+  padding: '0.6rem 1.4rem', fontSize: '0.76rem', fontWeight: 700,
+  fontFamily: F.dm, letterSpacing: '0.04em', borderRadius: '3px',
+  cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+};
 
-function Spinner() {
-  return (
-    <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-    </svg>
-  );
-}
+const btnGhost = {
+  background: 'transparent', color: 'rgba(245,240,232,0.5)',
+  border: `1px solid ${C.border}`, padding: '0.6rem 1.2rem',
+  fontSize: '0.76rem', fontWeight: 500, fontFamily: F.dm,
+  letterSpacing: '0.04em', borderRadius: '3px', cursor: 'pointer',
+};
 
-// STATUS BADGE COMPONENT
+const cardStyle = {
+  background: C.muted2, border: `1px solid ${C.border}`, borderRadius: '6px', overflow: 'hidden',
+};
+
+const modalOverlay = {
+  position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center',
+  justifyContent: 'center', padding: '1rem', background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)',
+};
+
+const pillStyle = (cfg) => ({
+  display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+  fontSize: '0.6rem', fontWeight: 700, padding: '0.15rem 0.5rem',
+  borderRadius: '3px', fontFamily: F.mono, letterSpacing: '0.04em',
+  textTransform: 'uppercase', color: cfg.color, background: cfg.bg, border: cfg.border,
+});
+
+function formatAmount(amount) { return amount ? `R ${Number(amount).toLocaleString("en-ZA")}` : "—"; }
+function initials(name) { return (name || "").split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase(); }
+
 function StatusBadge({ status }) {
+  const cfg = statusConfig[status] ?? statusConfig["pending"];
   return (
-    <span className={`text-xs font-medium px-2.5 py-0.5 rounded-md ${STATUS_STYLES[status] ?? ""}`}>
-      {status}
+    <span style={pillStyle(cfg)}>
+      <span style={{ width: 5, height: 5, borderRadius: '50%', background: cfg.dot }} />
+      {cfg.label}
     </span>
   );
 }
 
-// INLINE SUMMARY BAR — REPLACES STAT CARDS FOR A CLEANER LESS REPETITIVE LOOK
-// SHOWS KEY PAYMENT METRICS IN A SINGLE HORIZONTAL STRIP DIVIDED BY SEPARATORS
 function SummaryBar({ totalExpected, totalCollected, pendingCount, lateCount, totalPayments }) {
   const collectionRate = totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0;
 
   const items = [
-    {
-      label: "Expected",
-      value: format(totalExpected),
-      sub: `${totalPayments} tenants`,
-      valueColor: "text-gray-900 dark:text-white",
-    },
-    {
-      label: "Collected",
-      value: format(totalCollected),
-      sub: `${collectionRate}% collection rate`,
-      valueColor: "text-green-600 dark:text-green-400",
-    },
-    {
-      label: "Pending Approval",
-      value: pendingCount,
-      sub: pendingCount === 1 ? "needs review" : "need review",
-      valueColor: pendingCount > 0 ? "text-yellow-600 dark:text-yellow-400" : "text-gray-900 dark:text-white",
-      // SHOW A PULSING DOT WHEN THERE ARE PENDING PAYMENTS THAT NEED ATTENTION
-      alert: pendingCount > 0,
-    },
-    {
-      label: "Late / Collections",
-      value: lateCount,
-      sub: lateCount === 1 ? "requires attention" : "require attention",
-      valueColor: lateCount > 0 ? "text-red-600 dark:text-red-400" : "text-gray-900 dark:text-white",
-      alert: lateCount > 0,
-    },
+    { label: "Expected",         value: formatAmount(totalExpected),  sub: `${totalPayments} tenants`,        valueColor: C.white },
+    { label: "Collected",        value: formatAmount(totalCollected), sub: `${collectionRate}% collection rate`, valueColor: C.greenLight },
+    { label: "Pending Approval", value: pendingCount,           sub: pendingCount === 1 ? "needs review" : "need review", valueColor: pendingCount > 0 ? C.gold : C.white, alert: pendingCount > 0, alertColor: C.gold },
+    { label: "Late / Collections", value: lateCount,            sub: lateCount === 1 ? "requires attention" : "require attention", valueColor: lateCount > 0 ? C.redLight : C.white, alert: lateCount > 0, alertColor: C.redLight },
   ];
 
   return (
-    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm mb-6">
-      <div className="grid grid-cols-2 lg:grid-cols-4 divide-y lg:divide-y-0 divide-x-0 lg:divide-x divide-gray-100 dark:divide-gray-700">
-        {items.map((item, i) => (
-          <div key={item.label} className="flex items-center justify-between px-5 py-4 gap-3">
-            <div className="min-w-0">
-              {/* LABEL */}
-              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
-                {item.label}
-              </p>
-              {/* VALUE */}
-              <p className={`text-xl font-bold truncate ${item.valueColor}`}>
-                {item.value}
-              </p>
-              {/* SUB TEXT */}
-              <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{item.sub}</p>
+    <div style={{ ...cardStyle, marginBottom: '1.5rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 0 }}>
+        <style>{`
+          @media (min-width: 640px) { .summary-grid { grid-template-columns: repeat(2, 1fr) !important; } }
+          @media (min-width: 1024px) { .summary-grid { grid-template-columns: repeat(4, 1fr) !important; } }
+        `}</style>
+        <div className="summary-grid" style={{ display: 'grid', gridTemplateColumns: '1fr' }}>
+          {items.map((item, i) => (
+            <div key={item.label} style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '1rem 1.25rem', gap: '0.8rem',
+              borderBottom: `1px solid ${C.border}`,
+            }}>
+              <div style={{ minWidth: 0 }}>
+                <p style={{ fontSize: '0.6rem', fontWeight: 600, color: 'rgba(245,240,232,0.3)', fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '0.25rem' }}>
+                  {item.label}
+                </p>
+                <p style={{ fontSize: '1.25rem', fontWeight: 700, color: item.valueColor, fontFamily: F.bebas, letterSpacing: '0.03em' }}>
+                  {item.value}
+                </p>
+                <p style={{ fontSize: '0.62rem', color: 'rgba(245,240,232,0.25)', fontFamily: F.mono, marginTop: '0.15rem' }}>{item.sub}</p>
+              </div>
+              {item.alert && (
+                <span style={{ width: 10, height: 10, borderRadius: '50%', background: item.alertColor, flexShrink: 0, animation: 'pulse 2s ease-in-out infinite', opacity: 0.7 }} />
+              )}
             </div>
-            {/* ALERT INDICATOR — ONLY SHOWS WHEN VALUE NEEDS ATTENTION */}
-            {item.alert && (
-              <span className="flex-shrink-0 w-2.5 h-2.5 rounded-full bg-current opacity-70 animate-pulse mt-1"
-                style={{ color: i === 2 ? "#ca8a04" : "#dc2626" }}
-              />
-            )}
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
-      {/* COLLECTION PROGRESS BAR — VISUAL REPRESENTATION OF HOW MUCH HAS BEEN COLLECTED */}
-      <div className="px-5 pb-4 pt-1 border-t border-gray-100 dark:border-gray-700">
-        <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mb-1.5">
-          <span>Collection progress — April 2026</span>
-          <span className={`font-semibold ${collectionRate >= 80 ? "text-green-600 dark:text-green-400" : collectionRate >= 50 ? "text-yellow-600 dark:text-yellow-400" : "text-red-600 dark:text-red-400"}`}>
+      <div style={{ padding: '0.75rem 1.25rem 1rem', borderTop: `1px solid ${C.border}` }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+          <span style={{ fontSize: '0.62rem', color: 'rgba(245,240,232,0.25)', fontFamily: F.mono }}>Collection progress</span>
+          <span style={{
+            fontSize: '0.62rem', fontWeight: 600, fontFamily: F.mono,
+            color: collectionRate >= 80 ? C.greenLight : collectionRate >= 50 ? C.gold : C.redLight,
+          }}>
             {collectionRate}%
           </span>
         </div>
-        <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-1.5">
-          <div
-            className={`h-1.5 rounded-full transition-all duration-500 ${collectionRate >= 80 ? "bg-green-500" : collectionRate >= 50 ? "bg-yellow-400" : "bg-red-500"}`}
-            style={{ width: `${Math.min(collectionRate, 100)}%` }}
-          />
+        <div style={{ width: '100%', height: 4, borderRadius: '2px', background: 'rgba(245,240,232,0.08)', overflow: 'hidden' }}>
+          <div style={{
+            height: 4, borderRadius: '2px', transition: 'width 0.5s',
+            background: collectionRate >= 80 ? C.greenLight : collectionRate >= 50 ? C.gold : C.redLight,
+            width: `${Math.min(collectionRate, 100)}%`,
+          }} />
         </div>
       </div>
     </div>
   );
 }
 
-
-// COLLECTIONS MODAL COMPONENT
-function CollectionsModal({ payment, onClose, onConfirm }) {
-  const [note, setNote] = useState("");
+function ReviewModal({ payment, onClose, onApproved, onRejected }) {
+  const [rejectReason, setRejectReason] = useState("");
+  const [customReason, setCustomReason] = useState("");
+  const [step, setStep] = useState("view");
   const [loading, setLoading] = useState(false);
+  const tenantName = payment.tenant_name || payment.tenant || "Unknown";
+  const unitInfo = payment.unit_number || payment.unit || "—";
+  const amount = payment.amount_paid || payment.amount || 0;
+  const dueDate = payment.due_date || payment.due || "—";
+  const paidDate = payment.payment_date || payment.paid || "—";
+  const method = payment.payment_method || payment.method || "—";
+  const reference = payment.bank_reference || payment.reference || "—";
+  const hasProof = !!payment.proof_of_payment_url;
 
-  function handleConfirm() {
+  async function handleApprove() {
     setLoading(true);
-    setTimeout(() => {
-      onConfirm(payment.id);
-      setLoading(false);
+    try {
+      const token = localStorage.getItem("token");
+      await axios.put(`${API}/landlord/payments/${payment.id}/approve`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      onApproved(payment.id);
       onClose();
-    }, 1000);
+    } catch (err) {
+      console.error("Approve error:", err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleReject() {
+    const reason = rejectReason === "Other" ? customReason : rejectReason;
+    if (!reason) return;
+    setLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      await axios.put(`${API}/landlord/payments/${payment.id}/reject`, { reason }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      onRejected(payment.id, reason);
+      onClose();
+    } catch (err) {
+      console.error("Reject error:", err);
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md border border-gray-200 dark:border-gray-700">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-          <h3 className="text-base font-semibold text-gray-900 dark:text-white">Send to Collections</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-white">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+    <div style={modalOverlay}>
+      <div style={{ width: '100%', maxWidth: 500, background: C.muted2, border: `1px solid ${C.border}`, borderRadius: '6px', boxShadow: '0 20px 60px rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column', maxHeight: '92vh' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.5rem', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
+          <div>
+            <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: C.white, fontFamily: F.bebas, letterSpacing: '0.04em' }}>
+              {step === "view" ? "Review Payment" : "Reject Payment"}
+            </h3>
+            <p style={{ fontSize: '0.65rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono }}>{tenantName} · {unitInfo}</p>
+          </div>
+          <button onClick={onClose} style={{ padding: '0.2rem', borderRadius: '3px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.3)' }}
+            onMouseEnter={e => e.currentTarget.style.color = C.white}
+            onMouseLeave={e => e.currentTarget.style.color = 'rgba(245,240,232,0.3)'}>
+            <Icon name="x" size={18} />
           </button>
         </div>
-        <div className="px-6 py-5 space-y-4">
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            You are escalating <span className="font-semibold text-gray-900 dark:text-white">{payment.tenant}</span> ({payment.unit}) to collections for an outstanding balance of <span className="font-semibold text-red-500">{format(payment.amount)}</span>.
+
+        <div style={{ flex: 1, overflowY: 'auto', padding: '1.2rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
+          <div style={{ borderRadius: '3px', border: `1px solid ${C.border}`, overflow: 'hidden' }}>
+            {[
+              ["Amount", formatAmount(amount)],
+              ["Due Date", dueDate],
+              ["Date Paid", paidDate],
+              ["Method", method],
+              ["Reference", reference],
+            ].map(([label, val]) => (
+              <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.6rem 0.9rem', background: 'rgba(245,240,232,0.02)', borderBottom: `1px solid ${C.border}` }}>
+                <span style={{ fontSize: '0.72rem', color: 'rgba(245,240,232,0.4)' }}>{label}</span>
+                <span style={{ fontSize: '0.72rem', fontWeight: 500, color: C.white }}>{val}</span>
+              </div>
+            ))}
+          </div>
+
+          {hasProof && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 0.9rem', borderRadius: '3px', background: 'rgba(26,122,74,0.06)', border: '1px solid rgba(76,186,122,0.15)' }}>
+              <Icon name="check" size={14} color={C.greenLight} />
+              <span style={{ fontSize: '0.72rem', color: C.greenLight, fontWeight: 500 }}>Proof of payment attached</span>
+            </div>
+          )}
+
+          {step === "reject" && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+              <p style={{ fontSize: '0.6rem', fontWeight: 600, color: 'rgba(245,240,232,0.3)', fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Reason for Rejection</p>
+              {REJECT_REASONS.map(r => (
+                <label key={r} style={{
+                  display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 0.8rem',
+                  borderRadius: '3px', border: `1px solid ${rejectReason === r ? 'rgba(224,90,74,0.4)' : C.border}`,
+                  background: rejectReason === r ? 'rgba(224,90,74,0.08)' : 'transparent',
+                  cursor: 'pointer', transition: 'all 0.15s',
+                }}>
+                  <input type="radio" name="reject-reason" value={r} checked={rejectReason === r} onChange={() => setRejectReason(r)} style={{ accentColor: C.redLight, width: 14, height: 14 }} />
+                  <span style={{ fontSize: '0.75rem', color: C.white }}>{r}</span>
+                </label>
+              ))}
+              {rejectReason === "Other" && (
+                <textarea rows={2} value={customReason} onChange={e => setCustomReason(e.target.value)} placeholder="Specify reason..." style={{ ...inputStyle, resize: 'vertical', minHeight: 50, fontSize: '0.72rem' }} />
+              )}
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: 'flex', gap: '0.8rem', padding: '1rem 1.5rem 1.5rem', borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
+          {step === "view" ? (
+            <>
+              <button onClick={() => setStep("reject")} style={{ ...btnGhost, flex: 1, textAlign: 'center', color: C.redLight, borderColor: 'rgba(224,90,74,0.3)' }}>Reject</button>
+              <button onClick={handleApprove} disabled={loading} style={{ ...btnPrimary, flex: 1, justifyContent: 'center', background: C.greenLight }}>
+                {loading ? <span style={{ width: 14, height: 14, border: '2px solid rgba(0,0,0,0.2)', borderTopColor: C.black, borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} /> : <><Icon name="check" size={14} /> Approve</>}
+              </button>
+            </>
+          ) : (
+            <>
+              <button onClick={() => setStep("view")} disabled={loading} style={{ ...btnGhost, flex: 1, textAlign: 'center' }}>Back</button>
+              <button onClick={handleReject} disabled={loading || (!rejectReason || (rejectReason === "Other" && !customReason))} style={{
+                flex: 1, padding: '0.6rem 1.2rem', borderRadius: '3px', fontSize: '0.76rem', fontWeight: 600,
+                fontFamily: F.dm, letterSpacing: '0.04em', border: 'none', cursor: (loading || !rejectReason) ? 'not-allowed' : 'pointer',
+                background: C.red, color: C.white, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
+                opacity: (loading || !rejectReason || (rejectReason === "Other" && !customReason)) ? 0.5 : 1,
+              }}>
+                {loading ? <span style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.2)', borderTopColor: C.white, borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} /> : "Confirm Rejection"}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CollectionsModal({ payment, onClose, onConfirm }) {
+  const [note, setNote] = useState("");
+  const [loading, setLoading] = useState(false);
+  const tenantName = payment.tenant_name || payment.tenant || "Unknown";
+  const unitInfo = payment.unit_number || payment.unit || "—";
+  const amount = payment.amount_paid || payment.amount || 0;
+
+  async function handleConfirm() {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      await axios.put(`${API}/landlord/payments/${payment.id}/collections`, { notes: note }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      onConfirm(payment.id);
+      onClose();
+    } catch (err) {
+      console.error("Collections error:", err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div style={modalOverlay}>
+      <div style={{ width: '100%', maxWidth: 440, background: C.muted2, border: `1px solid ${C.border}`, borderRadius: '6px', boxShadow: '0 20px 60px rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.5rem', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
+          <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: C.white, fontFamily: F.bebas, letterSpacing: '0.04em' }}>Send to Collections</h3>
+          <button onClick={onClose} style={{ padding: '0.2rem', borderRadius: '3px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.3)' }}
+            onMouseEnter={e => e.currentTarget.style.color = C.white}
+            onMouseLeave={e => e.currentTarget.style.color = 'rgba(245,240,232,0.3)'}>
+            <Icon name="x" size={18} />
+          </button>
+        </div>
+        <div style={{ padding: '1.2rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
+          <p style={{ fontSize: '0.78rem', color: 'rgba(245,240,232,0.5)', lineHeight: 1.5 }}>
+            You are escalating <span style={{ fontWeight: 600, color: C.white }}>{tenantName}</span> ({unitInfo}) to collections for an outstanding balance of <span style={{ fontWeight: 600, color: C.redLight }}>{formatAmount(amount)}</span>.
           </p>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Note for collections agent <span className="text-gray-400 font-normal">(optional)</span>
-          </label>
-          <textarea
-            rows={3}
-            value={note}
-            onChange={e => setNote(e.target.value)}
-            placeholder="Add context or instructions..."
-            className="w-full text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white p-2.5 focus:ring-purple-500 focus:border-purple-500 outline-none resize-none"
-          />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+            <label style={{ fontSize: '0.65rem', fontWeight: 600, color: 'rgba(245,240,232,0.5)', fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+              Note for collections agent <span style={{ color: 'rgba(245,240,232,0.25)', fontWeight: 400, textTransform: 'none' }}>(optional)</span>
+            </label>
+            <textarea rows={3} value={note} onChange={e => setNote(e.target.value)} placeholder="Add context or instructions..."
+              style={{ ...inputStyle, resize: 'vertical', minHeight: 60, fontSize: '0.72rem' }} />
+          </div>
         </div>
-        <div className="px-6 pb-6 flex gap-3">
-          <button onClick={onClose} disabled={loading} className="flex-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-white text-sm font-medium py-2.5 px-4 rounded-lg transition-colors disabled:opacity-50">
-            Cancel
-          </button>
-          <button
-            onClick={handleConfirm}
-            disabled={loading}
-            className="flex-1 flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-70 text-white text-sm font-medium py-2.5 px-4 rounded-lg transition-colors"
-          >
-            {loading ? <><Spinner /> Escalating...</> : "Confirm"}
+        <div style={{ display: 'flex', gap: '0.8rem', padding: '1rem 1.5rem 1.5rem', borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
+          <button onClick={onClose} disabled={loading} style={{ ...btnGhost, flex: 1, textAlign: 'center' }}>Cancel</button>
+          <button onClick={handleConfirm} disabled={loading} style={{
+            flex: 1, padding: '0.6rem 1.2rem', borderRadius: '3px', fontSize: '0.76rem', fontWeight: 600,
+            fontFamily: F.dm, letterSpacing: '0.04em', border: 'none', cursor: 'pointer',
+            background: C.purple, color: C.white, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
+          }}>
+            {loading ? <span style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.2)', borderTopColor: C.white, borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} /> : "Confirm"}
           </button>
         </div>
       </div>
@@ -192,274 +350,200 @@ function CollectionsModal({ payment, onClose, onConfirm }) {
   );
 }
 
-// TOAST COMPONENT
-function Toast({ toast }) {
-  if (!toast) return null;
-  const colours = {
-    success: "bg-green-600",
-    error:   "bg-red-600",
-    warning: "bg-purple-600",
-    info:    "bg-blue-600",
-  };
-  return (
-    <div className={`fixed top-5 right-5 z-[100] flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg text-sm font-medium text-white ${colours[toast.type] ?? "bg-gray-800"} animate-fade-in`}>
-      {toast.type === "success" && <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
-      {toast.type === "error"   && <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>}
-      {toast.msg}
-    </div>
-  );
-}
-
-// MAIN PAYMENTS PAGE COMPONENT
 export default function PaymentsPage() {
-  const { payments, approvePayment, rejectPayment, sendToCollections } = usePayments();
+  const [payments, setPayments] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
   const [reviewPayment, setReviewPayment] = useState(null);
   const [collectionsPayment, setCollectionsPayment] = useState(null);
   const [showFullReport, setShowFullReport] = useState(false);
-  const { showToast } = useToast();
+  const toast = useToast();
   const navigate = useNavigate();
 
   useDocumentTitle("Payments");
 
-   function handleApproved(id) {
-    approvePayment(id);
-    showToast("Payment approved. Receipt generated and sent to tenant.", "success");
+  const fetchPayments = useCallback(async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      const { data } = await axios.get(`${API}/landlord/payments`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setPayments(data.payments || []);
+    } catch (err) {
+      console.error("Fetch payments:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchPayments(); }, [fetchPayments]);
+
+  function handleApproved(id) {
+    setPayments(prev => prev.map(p => p.id === id ? { ...p, status: 'paid' } : p));
+    toast.success("Payment approved. Receipt generated and sent to tenant.");
   }
 
   function handleRejected(id, reason) {
-    rejectPayment(id, reason);
-    showToast(`Payment rejected: "${reason}". Tenant has been notified.`, "error");
-    setReviewPayment(null);
+    setPayments(prev => prev.map(p => p.id === id ? { ...p, status: 'rejected', rejection_reason: reason } : p));
+    toast.error(`Payment rejected: "${reason}". Tenant has been notified.`);
   }
 
   function handleCollections(id) {
-    sendToCollections(id);
-    showToast("Account escalated to collections.", "warning");
+    setPayments(prev => prev.map(p => p.id === id ? { ...p, status: 'collections' } : p));
+    toast.warning("Account escalated to collections.");
   }
 
   const filtered = payments.filter(p => {
-    const matchesFilter = filter === "All" || p.status === filter;
+    const matchFilter = filter === "All" || p.status === FILTER_MAP[filter];
     const q = search.toLowerCase();
-    const matchesSearch = !q || p.tenant.toLowerCase().includes(q) || p.unit.toLowerCase().includes(q) || p.property.toLowerCase().includes(q);
-    return matchesFilter && matchesSearch;
+    const tenantName = p.tenant_name || "";
+    const unitInfo = p.unit_number || "";
+    const propertyName = p.property_name || "";
+    const matchSearch = !q || tenantName.toLowerCase().includes(q) || unitInfo.toLowerCase().includes(q) || propertyName.toLowerCase().includes(q);
+    return matchFilter && matchSearch;
   });
 
-  const totalExpected  = payments.reduce((s, p) => s + p.amount, 0);
-  const totalCollected = payments.filter(p => p.status === "Paid").reduce((s, p) => s + p.amount, 0);
-  const pendingCount   = payments.filter(p => p.status === "Pending Approval").length;
-  const lateCount      = payments.filter(p => p.status === "Late" || p.status === "Collections").length;
+  const totalExpected  = payments.reduce((s, p) => s + Number(p.amount_paid || 0), 0);
+  const totalCollected = payments.filter(p => p.status === 'paid').reduce((s, p) => s + Number(p.amount_paid || 0), 0);
+  const pendingCount   = payments.filter(p => p.status === 'pending' || p.status === 'pending_approval').length;
+  const lateCount      = payments.filter(p => p.status === 'late' || p.status === 'collections').length;
+
+  const S = {
+    container: { maxWidth: 1280, padding: '1.5rem 1rem 3rem', margin: '-1rem -1.8rem' },
+    headerRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem', gap: '1rem', flexWrap: 'wrap' },
+    title: { fontSize: '1.8rem', fontWeight: 700, color: C.white, fontFamily: F.bebas, letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: '0.5rem' },
+    subtitle: { fontSize: '0.75rem', color: 'rgba(245,240,232,0.35)', fontFamily: F.mono, marginTop: '0.3rem' },
+    toolbarInner: { display: 'flex', alignItems: 'center', gap: '0.8rem', padding: '0.8rem 1rem', flexWrap: 'wrap' },
+    filterBtn: (active) => ({ padding: '0.4rem 0.8rem', borderRadius: '3px', fontSize: '0.72rem', fontWeight: 600, fontFamily: F.mono, letterSpacing: '0.04em', border: `1px solid ${active ? C.gold : C.border}`, background: active ? 'rgba(232,160,18,0.12)' : 'transparent', color: active ? C.gold : 'rgba(245,240,232,0.4)', cursor: 'pointer', transition: 'all 0.15s' }),
+    searchWrap: { position: 'relative', marginLeft: 'auto' },
+    searchIcon: { position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'rgba(245,240,232,0.25)' },
+    searchInput: { padding: '0.5rem 0.8rem 0.5rem 2.25rem', borderRadius: '3px', background: C.black, border: `1px solid ${C.border}`, color: C.white, fontFamily: F.dm, fontSize: '0.78rem', outline: 'none', width: 220 },
+    table: { width: '100%', fontSize: '0.75rem', borderCollapse: 'collapse' },
+    th: { fontSize: '0.6rem', fontWeight: 600, color: 'rgba(245,240,232,0.3)', fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '0.7rem 1rem', textAlign: 'left', borderBottom: `1px solid ${C.border}` },
+    td: { padding: '0.7rem 1rem', borderBottom: `1px solid ${C.border}` },
+    footer: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.8rem 1rem', fontSize: '0.72rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono },
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
-      
+    <div style={S.container}>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes pulse { 0%, 100% { opacity: 0.7; } 50% { opacity: 0.3; } }
+        input:focus, select:focus { border-color: ${C.borderFocus} !important; }
+      `}</style>
 
-      {/* MODALS */}
       {reviewPayment && (
-        <ReviewModal
-          payment={reviewPayment}
-          onClose={() => setReviewPayment(null)}
-          onApproved={handleApproved}
-          onRejected={handleRejected}
-        />
+        <ReviewModal payment={reviewPayment} onClose={() => setReviewPayment(null)} onApproved={handleApproved} onRejected={handleRejected} />
       )}
       {collectionsPayment && (
-        <CollectionsModal
-          payment={collectionsPayment}
-          onClose={() => setCollectionsPayment(null)}
-          onConfirm={handleCollections}
-        />
+        <CollectionsModal payment={collectionsPayment} onClose={() => setCollectionsPayment(null)} onConfirm={handleCollections} />
       )}
-      {showFullReport && (
-        <FullReportModal onClose={() => setShowFullReport(false)} />
-      )}
+      {showFullReport && <FullReportModal onClose={() => setShowFullReport(false)} />}
 
-      <div className="px-4 pt-6 max-w-screen-xl mx-auto pb-10">
+      <div style={S.headerRow}>
+        <div>
+          <h1 style={S.title}><Icon name="credit-card" size={24} color={C.gold} />Payments</h1>
+          <p style={S.subtitle}>All Properties</p>
+        </div>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button onClick={fetchPayments} style={btnGhost}><Icon name="refresh" size={14} /> Refresh</button>
+          <button onClick={() => setShowFullReport(true)} style={btnPrimary}><Icon name="download" size={14} /> Export Report</button>
+        </div>
+      </div>
 
-        {/* HEADER */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">April 2026 · All Properties</p>
+      <SummaryBar totalExpected={totalExpected} totalCollected={totalCollected} pendingCount={pendingCount} lateCount={lateCount} totalPayments={payments.length} />
+
+      <div style={cardStyle}>
+        <div style={S.toolbarInner}>
+          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+            {FILTERS.map(f => (
+              <button key={f} onClick={() => setFilter(f)} style={S.filterBtn(filter === f)}>
+                {f}{f !== "All" && <span style={{ marginLeft: '0.3rem', opacity: 0.6 }}>{payments.filter(p => p.status === FILTER_MAP[f]).length}</span>}
+              </button>
+            ))}
           </div>
-          <button 
-            onClick={() => setShowFullReport(true)}
-            className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-            </svg>
-            Export Report
-          </button>
+          <div style={S.searchWrap}>
+            <Icon name="search" size={14} style={S.searchIcon} />
+            <input type="text" placeholder="Search tenant, unit..." value={search} onChange={e => setSearch(e.target.value)} style={S.searchInput} />
+          </div>
         </div>
 
-        {/* SUMMARY BAR — REPLACES THE OLD STAT CARDS GRID */}
-        <SummaryBar
-          totalExpected={totalExpected}
-          totalCollected={totalCollected}
-          pendingCount={pendingCount}
-          lateCount={lateCount}
-          totalPayments={payments.length}
-        />
-
-        {/* TABLE CARD */}
-        <div className="bg-white border border-gray-200 rounded-lg shadow-sm dark:border-gray-700 dark:bg-gray-800">
-
-          {/* TOOLBAR */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex flex-wrap gap-2">
-              {FILTERS.map(f => (
-                <button
-                  key={f}
-                  onClick={() => setFilter(f)}
-                  className={`px-3 py-1.5 text-sm rounded-lg font-medium transition-colors ${
-                    filter === f
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
-                  }`}
-                >
-                  {f}
-                  {f !== "All" && (
-                    <span className="ml-1.5 text-xs opacity-70">{payments.filter(p => p.status === f).length}</span>
-                  )}
-                </button>
-              ))}
-            </div>
-            <div className="relative">
-              <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 105 11a6 6 0 0012 0z" />
-              </svg>
-              <input
-                type="text"
-                placeholder="Search tenant, unit..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="pl-9 pr-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 w-56"
-              />
-            </div>
-          </div>
-
-          {/* TABLE */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-              <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                <tr>
-                  <th className="px-6 py-3">Tenant</th>
-                  <th className="px-6 py-3">Unit / Property</th>
-                  <th className="px-6 py-3">Amount</th>
-                  <th className="px-6 py-3">Due Date</th>
-                  <th className="px-6 py-3">Date Paid</th>
-                  <th className="px-6 py-3">Method</th>
-                  <th className="px-6 py-3">Proof</th>
-                  <th className="px-6 py-3">Status</th>
-                  <th className="px-6 py-3">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {filtered.length === 0 && (
-                  <tr>
-                    <td colSpan={9} className="px-6 py-10 text-center text-gray-400 dark:text-gray-500">
-                      No payments match your filters.
-                    </td>
-                  </tr>
-                )}
-                {filtered.map(p => (
-                  <tr key={p.id} className="bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                    <td className="px-6 py-4 font-medium text-gray-900 dark:text-white whitespace-nowrap">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 flex items-center justify-center text-xs font-bold flex-shrink-0">
-                          {initials(p.tenant)}
+        <div style={{ overflowX: 'auto' }}>
+          <table style={S.table}>
+            <thead>
+              <tr>
+                {["Tenant", "Unit / Property", "Amount", "Method", "Reference", "Proof", "Status", "Actions"].map(h => (
+                  <th key={h} style={S.th}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={8} style={{ ...S.td, textAlign: 'center', padding: '3rem 0', color: 'rgba(245,240,232,0.25)' }}>Loading payments...</td></tr>
+              ) : filtered.length === 0 ? (
+                <tr><td colSpan={8} style={{ ...S.td, textAlign: 'center', padding: '3rem 0', color: 'rgba(245,240,232,0.25)' }}>No payments match your filters.</td></tr>
+              ) : (
+                filtered.map(p => {
+                  const tenantName = p.tenant_name || "Unknown";
+                  const unitInfo = p.unit_number || "—";
+                  const propertyName = p.property_name || "—";
+                  const amount = p.amount_paid || 0;
+                  const method = p.payment_method || "—";
+                  const reference = p.bank_reference || "—";
+                  const hasProof = !!p.proof_of_payment_url;
+                  return (
+                    <tr key={p.id} style={{ transition: 'background 0.15s' }}
+                      onMouseEnter={e => e.currentTarget.style.background = C.muted}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                      <td style={S.td}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(245,240,232,0.25)', color: C.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: F.bebas, fontSize: '0.65rem', flexShrink: 0 }}>{initials(tenantName)}</div>
+                          <div>
+                            <div style={{ fontWeight: 600, color: C.white }}>{tenantName}</div>
+                            {p.rejection_reason && <div style={{ fontSize: '0.62rem', color: C.redLight, marginTop: '1px' }} title={p.rejection_reason}>↳ {p.rejection_reason}</div>}
+                          </div>
                         </div>
-                        <div>
-                          <div>{p.tenant}</div>
-                          {p.rejectionReason && (
-                            <div className="text-xs text-red-500 dark:text-red-400 font-normal mt-0.5 max-w-[160px] truncate" title={p.rejectionReason}>
-                              ↳ {p.rejectionReason}
-                            </div>
+                      </td>
+                      <td style={S.td}><div style={{ fontWeight: 500, color: C.white }}>{unitInfo}</div><div style={{ fontSize: '0.65rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono }}>{propertyName}</div></td>
+                      <td style={{ ...S.td, fontWeight: 600, color: C.white }}>{formatAmount(amount)}</td>
+                      <td style={S.td}>{method}</td>
+                      <td style={S.td}><span style={{ fontFamily: F.mono, fontSize: '0.72rem', color: 'rgba(245,240,232,0.4)' }}>{reference}</span></td>
+                      <td style={S.td}>{hasProof ? <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: C.greenLight, fontWeight: 500 }}><Icon name="check" size={12} /> Yes</span> : <span style={{ color: 'rgba(245,240,232,0.25)' }}>—</span>}</td>
+                      <td style={S.td}><StatusBadge status={p.status} /></td>
+                      <td style={S.td}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                          {(p.status === "pending" || p.status === "pending_approval") && (
+                            <button onClick={() => navigate(`/landlord/payments/review/${p.id}`, { state: { payment: p } })} style={{ fontSize: '0.68rem', fontWeight: 500, color: C.blue, background: 'none', border: 'none', cursor: 'pointer', fontFamily: F.mono }}>Review</button>
+                          )}
+                          {p.status === "late" && (
+                            <button onClick={() => navigate(`/landlord/payments/collections/${p.id}`, { state: { payment: p } })} style={{ fontSize: '0.68rem', fontWeight: 500, color: C.purple, background: 'none', border: 'none', cursor: 'pointer', fontFamily: F.mono }}>Collections</button>
+                          )}
+                          {p.status === "rejected" && (
+                            <button onClick={() => navigate(`/landlord/payments/collections/${p.id}`, { state: { payment: p } })} style={{ fontSize: '0.68rem', fontWeight: 500, color: C.purple, background: 'none', border: 'none', cursor: 'pointer', fontFamily: F.mono }}>Collections</button>
+                          )}
+                          {p.status === "paid" && (
+                            <button onClick={() => navigate(`/landlord/payments/receipt/${p.id}`, { state: { payment: p } })} style={{ fontSize: '0.68rem', fontWeight: 500, color: 'rgba(245,240,232,0.3)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: F.mono }}>View Receipt</button>
+                          )}
+                          {p.status === "collections" && (
+                            <span style={{ fontSize: '0.65rem', color: 'rgba(245,240,232,0.2)', fontFamily: F.mono, fontStyle: 'italic' }}>Escalated</span>
                           )}
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-gray-900 dark:text-white font-medium">{p.unit}</div>
-                      <div className="text-xs text-gray-400">{p.property}</div>
-                    </td>
-                    <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white whitespace-nowrap">{format(p.amount)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{p.due}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{p.paid ?? <span className="text-red-400">—</span>}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {p.method ?? <span className="text-gray-400">—</span>}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {p.proof
-                        ? <span className="text-green-500 font-medium flex items-center gap-1">
-                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
-                            Yes
-                          </span>
-                        : <span className="text-gray-400">—</span>}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap"><StatusBadge status={p.status} /></td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-2">
-                        {p.status === "Pending Approval" && p.proof && (
-                          <button
-                            onClick={() => navigate('/landlord/payments/review', { state: { payment: p } })}
-                            className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline"
-                          >
-                            Review
-                          </button>
-                        )}
-                        {p.status === "Late" && (
-                          <button
-                            onClick={() => setCollectionsPayment(p)}
-                            className="text-xs font-medium text-purple-600 dark:text-purple-400 hover:underline"
-                          >
-                            Collections
-                          </button>
-                        )}
-                        {p.status === "Rejected" && (
-                          <button
-                            onClick={() => setCollectionsPayment(p)}
-                            className="text-xs font-medium text-purple-600 dark:text-purple-400 hover:underline"
-                          >
-                            Collections
-                          </button>
-                        )}
-                        {p.status === "Paid" && (
-                          <button
-                            onClick={() => navigate('/landlord/payments/receipt', { state: { payment: p } })}
-                            className="text-xs font-medium text-gray-500 dark:text-gray-400 hover:underline"
-                          >
-                            View Receipt
-                          </button>
-                        )}
-                        {p.status === "Collections" && (
-                          <span className="text-xs text-gray-400">Escalated</span>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* FOOTER */}
-          <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 dark:border-gray-700">
-            
-          <span className="text-sm text-gray-500 dark:text-gray-400">
-            Showing <span className="font-medium text-gray-900 dark:text-white">{filtered.length}</span> of <span className="font-medium text-gray-900 dark:text-white">{payments.length}</span> payments
-          </span>
-          <button 
-            onClick={() => setShowFullReport(true)}
-            className="inline-flex items-center text-xs font-medium uppercase text-blue-600 dark:text-blue-400 hover:underline"
-          >
-            Full Report
-            <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
         </div>
+
+        <div style={S.footer}>
+          <span>Showing <span style={{ color: C.white, fontWeight: 500 }}>{filtered.length}</span> of <span style={{ color: C.white, fontWeight: 500 }}>{payments.length}</span> payments</span>
+          <button onClick={() => setShowFullReport(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.65rem', fontWeight: 600, color: C.blue, fontFamily: F.mono, letterSpacing: '0.04em', textTransform: 'uppercase', background: 'none', border: 'none', cursor: 'pointer' }}>
+            Full Report <Icon name="chevronRight" size={12} />
+          </button>
         </div>
       </div>
     </div>

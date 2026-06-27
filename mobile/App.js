@@ -2,10 +2,11 @@
 import "react-native-gesture-handler";
 import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { registerForPushNotifications, addNotificationListeners } from "./src/utils/notifications.js";
 
 import Login from "./src/screens/auth/Login";
 import ChangePassword from "./src/screens/auth/ChangePassword";
@@ -23,6 +24,11 @@ import PaymentReceipt from "./src/screens/payments/PaymentReceipt"
 import Complaints from "./src/screens/complaints/Complaints";
 import ComplaintDetail from "./src/screens/complaints/ComplaintDetail";
 import ComplaintNew from "./src/screens/complaints/ComplaintNew";
+import Notifications from "./src/screens/notifications/Notifications";
+import NotificationDetail from "./src/screens/notifications/NotificationDetail";
+import Profile from "./src/screens/profile/Profile";
+import Settings from "./src/screens/settings/Settings";
+
 
 const Stack = createStackNavigator();
 
@@ -30,6 +36,14 @@ export default function App() {``
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [userData, setUserData] = useState(null);
+  const navigationRef = useRef(null);
+
+  useEffect(() => {
+    registerForPushNotifications();
+    const unsubscribe = addNotificationListeners(navigationRef);
+
+    return () => unsubscribe?.();
+  }, []);
 
   useEffect(() => {
     checkLoginStatus();
@@ -139,6 +153,10 @@ export default function App() {``
             <Stack.Screen name="Complaints" component={Complaints} />
             <Stack.Screen name="ComplaintDetail" component={ComplaintDetail} />
             <Stack.Screen name="ComplaintNew" component={ComplaintNew} />
+            <Stack.Screen name="Notifications" component={Notifications} />
+            <Stack.Screen name="NotificationDetail" component={NotificationDetail} />
+            <Stack.Screen name="Profile" component={Profile} />
+            <Stack.Screen name="Settings" component={Settings} />
           </>
         ) : (
           <>

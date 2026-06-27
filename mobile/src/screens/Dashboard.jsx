@@ -1,10 +1,11 @@
-// TENANT DASHBOARD SCREEN
+// TENANT DASHBOARD SCREEN 
 import {
   View, Text, ScrollView, TouchableOpacity,
-   StatusBar, SafeAreaView
+  StatusBar, SafeAreaView,
 } from "react-native";
-import { MaterialIcons, FontAwesome5, Ionicons, Feather } from "@expo/vector-icons";
-import { styles, C } from "./DashboardStyles";
+import { Ionicons, MaterialIcons, FontAwesome5, Feather } from "@expo/vector-icons";
+import { styles } from "./DashboardStyles";
+import { C, F } from "../styles/theme";
 
 // MOCK DATA
 const TENANT = {
@@ -18,7 +19,6 @@ const TENANT = {
   caretaker: "David Nkosi",
 };
 
-// CURRENT MONTH PAYMENT
 const CURRENT_PAYMENT = {
   period: "April 2026",
   amount: 5800,
@@ -26,7 +26,6 @@ const CURRENT_PAYMENT = {
   dueDate: "2026-04-01",
 };
 
-// OPEN MAINTENANCE REQUESTS
 const OPEN_MAINTENANCE = [
   { id: 1, title: "Burst pipe under kitchen sink", status: "In Progress", updatedOn: "2026-04-11" },
 ];
@@ -34,40 +33,39 @@ const OPEN_MAINTENANCE = [
 const UNREAD_NOTIFICATIONS = 3;
 const UNREAD_MESSAGES = 2;
 
-// HELPER FUNCTIONS
+// HELPERS
 function format(amount) {
   return `R ${Number(amount).toLocaleString("en-ZA")}`;
 }
-
 function firstName(fullName) {
   return fullName.split(" ")[0];
 }
-
 function getGreeting() {
   const h = new Date().getHours();
   if (h < 12) return "Good morning";
   if (h < 17) return "Good afternoon";
   return "Good evening";
 }
-
 function reliabilityColor(score) {
-  if (score === "Reliable") return C.success;
-  if (score === "Moderate Risk") return C.warning;
-  return C.danger;
+  if (score === "Reliable") return C.greenLight;
+  if (score === "Moderate Risk") return C.gold;
+  return C.redLight;
 }
-
 function maintenanceStatusColor(status) {
-  if (status === "Completed") return C.success;
-  if (status === "In Progress") return C.warning;
-  return C.danger;
+  if (status === "Completed") return C.greenLight;
+  if (status === "In Progress") return C.gold;
+  return C.redLight;
 }
-
 function rentStatusConfig(status) {
   switch (status) {
-    case "Paid": return { color: C.success, bg: C.successBg, label: "Paid" };
-    case "Pending Approval": return { color: C.warning, bg: C.warningBg, label: "Pending Review" };
-    case "Late": return { color: C.danger, bg: C.dangerBg, label: "Overdue" };
-    default: return { color: C.textMuted, bg: C.surface, label: status };
+    case "Paid":
+      return { color: C.greenLight, bg: "rgba(26,122,74,0.08)", border: "rgba(76,186,122,0.15)", label: "Paid" };
+    case "Pending Approval":
+      return { color: C.gold, bg: "rgba(232,160,18,0.06)", border: "rgba(232,160,18,0.12)", label: "Pending Review" };
+    case "Late":
+      return { color: C.redLight, bg: "rgba(224,90,74,0.08)", border: "rgba(224,90,74,0.15)", label: "Overdue" };
+    default:
+      return { color: "rgba(245,240,232,0.4)", bg: C.muted2, border: C.border, label: status };
   }
 }
 
@@ -84,7 +82,6 @@ function SectionLabel({ title, actionLabel, onAction }) {
   );
 }
 
-// QUICK ACTION COMPONENT
 function QuickAction({ icon, iconLibrary, label, color, bg, onPress, badge }) {
   const IconComponent =
     iconLibrary === "FontAwesome5" ? FontAwesome5 :
@@ -94,7 +91,7 @@ function QuickAction({ icon, iconLibrary, label, color, bg, onPress, badge }) {
   return (
     <TouchableOpacity style={[styles.qaCard, { backgroundColor: bg }]} onPress={onPress} activeOpacity={0.75}>
       <View style={styles.qaIconWrap}>
-        <IconComponent name={icon} size={24} color={color} />
+        <IconComponent name={icon} size={20} color={color} />
         {badge > 0 && (
           <View style={styles.qaBadge}>
             <Text style={styles.qaBadgeText}>{badge}</Text>
@@ -123,54 +120,54 @@ export default function TenantDashboard({ navigation }) {
     if (isPaid) {
       return (
         <View style={styles.rentBannerContent}>
-          <Ionicons name="checkmark-circle" size={16} color={C.success} />
-          <Text style={[styles.rentBannerText, { color: C.success }]}>Rent confirmed for this month</Text>
+          <Ionicons name="checkmark-circle" size={15} color={C.greenLight} />
+          <Text style={[styles.rentBannerText, { color: C.greenLight }]}>Rent confirmed for this month</Text>
         </View>
       );
     }
     if (isPending) {
       return (
         <View style={styles.rentBannerContent}>
-          <MaterialIcons name="pending-actions" size={16} color={C.warning} />
-          <Text style={[styles.rentBannerText, { color: C.warning }]}>Awaiting landlord approval</Text>
+          <MaterialIcons name="pending-actions" size={15} color={C.gold} />
+          <Text style={[styles.rentBannerText, { color: C.gold }]}>Awaiting landlord approval</Text>
         </View>
       );
     }
     if (isLate) {
       return (
         <View style={styles.rentBannerContent}>
-          <MaterialIcons name="error" size={16} color={C.danger} />
-          <Text style={[styles.rentBannerText, { color: C.danger }]}>Payment overdue — please pay now</Text>
+          <MaterialIcons name="error" size={15} color={C.redLight} />
+          <Text style={[styles.rentBannerText, { color: C.redLight }]}>Payment overdue — please pay now</Text>
         </View>
       );
     }
     if (days === 0) {
       return (
         <View style={styles.rentBannerContent}>
-          <MaterialIcons name="warning-amber" size={16} color={C.danger} />
-          <Text style={[styles.rentBannerText, { color: C.danger }]}>Due today!</Text>
+          <MaterialIcons name="warning-amber" size={15} color={C.redLight} />
+          <Text style={[styles.rentBannerText, { color: C.redLight }]}>Due today!</Text>
         </View>
       );
     }
     if (days === 1) {
       return (
         <View style={styles.rentBannerContent}>
-          <Ionicons name="time-outline" size={16} color={C.warning} />
-          <Text style={[styles.rentBannerText, { color: C.warning }]}>Due tomorrow</Text>
+          <Ionicons name="time-outline" size={15} color={C.gold} />
+          <Text style={[styles.rentBannerText, { color: C.gold }]}>Due tomorrow</Text>
         </View>
       );
     }
     return (
       <View style={styles.rentBannerContent}>
-        <Ionicons name="time-outline" size={16} color={C.textSecondary} />
-        <Text style={[styles.rentBannerText, { color: C.textSecondary }]}>Due in {days} days</Text>
+        <Ionicons name="time-outline" size={15} color="rgba(245,240,232,0.3)" />
+        <Text style={[styles.rentBannerText, { color: "rgba(245,240,232,0.4)" }]}>Due in {days} days</Text>
       </View>
     );
   };
 
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={C.bg} />
+      <StatusBar barStyle="light-content" backgroundColor={C.black} />
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
         {/* TOP BAR */}
@@ -181,8 +178,8 @@ export default function TenantDashboard({ navigation }) {
               <Text style={styles.tenantName}>{firstName(TENANT.name)}</Text>
             </View>
           </View>
-          <TouchableOpacity style={styles.bellWrap} onPress={() => navigation.navigate("Notifications")} activeOpacity={0.8}>
-            <Ionicons name="notifications-outline" size={22} color={C.textPrimary} />
+          <TouchableOpacity style={styles.bellWrap} onPress={() => navigation.navigate("Alerts")} activeOpacity={0.8}>
+            <Ionicons name="notifications-outline" size={22} color={C.white} />
             {UNREAD_NOTIFICATIONS > 0 && (
               <View style={styles.bellBadge}>
                 <Text style={styles.bellBadgeText}>{UNREAD_NOTIFICATIONS}</Text>
@@ -203,50 +200,50 @@ export default function TenantDashboard({ navigation }) {
           </View>
         </View>
 
-        {/* Rent status card */}
+        {/* RENT STATUS CARD */}
         <TouchableOpacity style={styles.rentCard} onPress={() => navigation.navigate("Payments")} activeOpacity={0.85}>
           <View style={styles.rentTop}>
             <View>
               <Text style={styles.rentCardLabel}>{CURRENT_PAYMENT.period} Rent</Text>
               <Text style={styles.rentCardAmount}>{format(CURRENT_PAYMENT.amount)}</Text>
             </View>
-            <View style={[styles.rentStatusPill, { backgroundColor: rentCfg.bg }]}>
+            <View style={[styles.rentStatusPill, { backgroundColor: rentCfg.bg, borderColor: rentCfg.border }]}>
               <Text style={[styles.rentStatusText, { color: rentCfg.color }]}>{rentCfg.label}</Text>
             </View>
           </View>
           <View style={[styles.rentBanner, {
-            backgroundColor: isPaid ? C.successBg : isPending ? C.warningBg : isLate ? C.dangerBg : days <= 3 ? C.dangerBg : C.surfaceAlt,
+            backgroundColor: isPaid ? "rgba(26,122,74,0.06)" : isPending ? "rgba(232,160,18,0.04)" : isLate ? "rgba(224,90,74,0.06)" : days <= 3 ? "rgba(224,90,74,0.04)" : C.muted2,
           }]}>
             {renderRentBanner()}
-            <MaterialIcons name="chevron-right" size={20} color={C.textMuted} />
+            <MaterialIcons name="chevron-right" size={18} color="rgba(245,240,232,0.25)" />
           </View>
         </TouchableOpacity>
 
-        {/* Alert banner */}
+        {/* ALERT BANNER */}
         {isLate && (
           <View style={styles.alertBanner}>
-            <MaterialIcons name="warning" size={16} color={C.danger} />
-            <Text style={styles.alertText}>Your account may be sent to collections if payment is not made urgently. Please pay or contact your caretaker.</Text>
+            <MaterialIcons name="warning" size={15} color={C.redLight} />
+            <Text style={styles.alertText}>Your account may be sent to collections if payment is not made urgently.</Text>
           </View>
         )}
 
-        {/* Quick actions */}
-        <SectionLabel title="Quick Actions" />
+        {/* QUICK ACTIONS */}
+        <SectionLabel title="QUICK ACTIONS" />
         <View style={styles.qaGrid}>
-          <QuickAction icon="credit-card" iconLibrary="FontAwesome5" label="Pay Rent" color={C.white} bg={C.primary} onPress={() => navigation.navigate("Payments")} />
-          <QuickAction icon="build" iconLibrary="MaterialIcons" label="Maintenance" color={C.textPrimary} bg={C.surface} onPress={() => navigation.navigate("Maintenance")} badge={OPEN_MAINTENANCE.length} />
-          <QuickAction icon="chatbubbles" iconLibrary="Ionicons" label="Messages" color={C.textPrimary} bg={C.surface} onPress={() => navigation.navigate("Messages")} badge={UNREAD_MESSAGES} />
-          <QuickAction icon="flag" iconLibrary="MaterialIcons" label="Complaints" color={C.textPrimary} bg={C.surface} onPress={() => navigation.navigate("Complaints")} />
+          <QuickAction icon="credit-card" iconLibrary="FontAwesome5" label="Pay Rent" color={C.black} bg={C.gold} onPress={() => navigation.navigate("Payments")} />
+          <QuickAction icon="build" iconLibrary="MaterialIcons" label="Maintenance" color={C.white} bg={C.muted2} onPress={() => navigation.navigate("Maintenance")} badge={OPEN_MAINTENANCE.length} />
+          <QuickAction icon="chatbubbles" iconLibrary="Ionicons" label="Messages" color={C.white} bg={C.muted2} onPress={() => navigation.navigate("Messages")} badge={UNREAD_MESSAGES} />
+          <QuickAction icon="flag" iconLibrary="MaterialIcons" label="Complaints" color={C.white} bg={C.muted2} onPress={() => navigation.navigate("Complaints")} />
         </View>
 
-        {/* Open maintenance */}
+        {/* OPEN MAINTENANCE */}
         {OPEN_MAINTENANCE.length > 0 && (
           <>
-            <SectionLabel title="Open Maintenance" actionLabel="View all" onAction={() => navigation.navigate("Maintenance")} />
+            <SectionLabel title="OPEN MAINTENANCE" actionLabel="View all" onAction={() => navigation.navigate("Maintenance")} />
             {OPEN_MAINTENANCE.map(item => (
               <TouchableOpacity key={item.id} style={styles.maintenanceCard} onPress={() => navigation.navigate("Maintenance")} activeOpacity={0.8}>
                 <View style={styles.maintenanceLeft}>
-                  <MaterialIcons name="build" size={20} color={C.warning} />
+                  <MaterialIcons name="build" size={18} color={C.gold} />
                 </View>
                 <View style={styles.maintenanceBody}>
                   <Text style={styles.maintenanceTitle} numberOfLines={1}>{item.title}</Text>
@@ -259,19 +256,21 @@ export default function TenantDashboard({ navigation }) {
           </>
         )}
 
-        {/* Contact card */}
-        <SectionLabel title="Need Help?" />
+        {/* CONTACT CARD */}
+        <SectionLabel title="NEED HELP?" />
         <View style={styles.contactCard}>
           <View style={styles.contactRow}>
             <View style={styles.contactAvatar}>
-              <Text style={styles.contactAvatarText}>{TENANT.caretaker.split(" ").map(n => n[0]).join("").slice(0, 2)}</Text>
+              <Text style={styles.contactAvatarText}>
+                {TENANT.caretaker.split(" ").map(n => n[0]).join("").slice(0, 2)}
+              </Text>
             </View>
             <View style={styles.contactInfo}>
               <Text style={styles.contactName}>{TENANT.caretaker}</Text>
               <Text style={styles.contactRole}>Caretaker · {TENANT.property}</Text>
             </View>
             <TouchableOpacity style={styles.contactBtn} onPress={() => navigation.navigate("Messages")} activeOpacity={0.8}>
-              <MaterialIcons name="message" size={16} color={C.white} />
+              <MaterialIcons name="message" size={14} color={C.black} />
               <Text style={styles.contactBtnText}>Message</Text>
             </TouchableOpacity>
           </View>

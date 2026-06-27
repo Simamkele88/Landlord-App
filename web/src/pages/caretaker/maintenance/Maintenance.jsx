@@ -1,41 +1,34 @@
 /* eslint-disable no-unused-vars */
 // CARETAKER MAINTENANCE PAGE 
-// AUTHOR: SIMAMKELE WEKEZA
-
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import {
-  Wrench, AlertCircle, CheckCircle, Clock, ArrowUpCircle,
-  Search, ChevronRight, User, Home, Calendar, DollarSign,
-  Loader2, Plus, Filter, RefreshCw,
-} from "lucide-react";
 import useDocumentTitle from "../../../hooks/useDocumentTitle";
+import { useToast } from "../../../contexts/ToastContext";
+import { Icon } from "../../../components/Icon";
+import { c as C, f as F } from "../../../styles/theme";
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:4000";
+const API = "http://localhost:4000";
 
-// STATUS CONFIG
 const STATUS_CONFIG = {
-  "needs_repair":     { label: "Needs Repair",    color: "text-red-600",    bg: "bg-red-100 dark:bg-red-900/30",     border: "border-red-200 dark:border-red-800",    dot: "bg-red-500"      },
-  "assigned":         { label: "Assigned",         color: "text-blue-600",   bg: "bg-blue-100 dark:bg-blue-900/30",    border: "border-blue-200 dark:border-blue-800",   dot: "bg-blue-500"     },
-  "in_progress":      { label: "In Progress",      color: "text-yellow-600", bg: "bg-yellow-100 dark:bg-yellow-900/30",  border: "border-yellow-200 dark:border-yellow-800", dot: "bg-yellow-400"   },
-  "completed":        { label: "Completed",        color: "text-green-600",  bg: "bg-green-100 dark:bg-green-900/30",   border: "border-green-200 dark:border-green-800",  dot: "bg-green-500"    },
-  "cancelled":        { label: "Cancelled",        color: "text-gray-600",   bg: "bg-gray-100 dark:bg-gray-900/30",     border: "border-gray-200 dark:border-gray-800",    dot: "bg-gray-500"     },
-  "pending_approval": { label: "Pending Approval", color: "text-purple-600", bg: "bg-purple-100 dark:bg-purple-900/30", border: "border-purple-200 dark:border-purple-800", dot: "bg-purple-500" },
+  "needs_repair":     { label: "Needs Repair",    color: C.redLight,   bg: 'rgba(224,90,74,0.06)',  border: '1px solid rgba(224,90,74,0.12)',  dot: C.redLight   },
+  "assigned":         { label: "Assigned",         color: C.blue,       bg: 'rgba(58,143,212,0.06)',  border: '1px solid rgba(58,143,212,0.12)',  dot: C.blue       },
+  "in_progress":      { label: "In Progress",      color: C.gold,       bg: 'rgba(232,160,18,0.04)',  border: '1px solid rgba(232,160,18,0.1)',   dot: C.gold       },
+  "completed":        { label: "Completed",        color: C.greenLight, bg: 'rgba(26,122,74,0.04)',   border: '1px solid rgba(76,186,122,0.1)',   dot: C.greenLight },
+  "cancelled":        { label: "Cancelled",        color: 'rgba(245,240,232,0.4)', bg: 'rgba(245,240,232,0.03)', border: '1px solid rgba(245,240,232,0.08)', dot: 'rgba(245,240,232,0.3)' },
+  "pending_approval": { label: "Pending Approval", color: C.purple,     bg: 'rgba(139,92,246,0.06)',  border: '1px solid rgba(139,92,246,0.12)',  dot: C.purple     },
 };
 
-// PRIORITY CONFIG
 const PRIORITY_CONFIG = {
-  "urgent":    "bg-red-500 text-white",
-  "high":      "bg-orange-400 text-white",
-  "medium":    "bg-yellow-400 text-gray-900",
-  "low":       "bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-white",
+  "urgent": { bg: C.redLight, color: C.white },
+  "high":   { bg: C.gold, color: C.black },
+  "medium": { bg: C.blue, color: C.white },
+  "low":    { bg: 'rgba(245,240,232,0.06)', color: 'rgba(245,240,232,0.4)' },
 };
 
 const FILTERS = ["All", "Needs Repair", "In Progress", "Completed", "Escalated"];
 
-// HELPERS
-function fmt(n) { return `R ${Number(n).toLocaleString("en-ZA")}`; }
+function fmt(n) { return n ? `R ${Number(n).toLocaleString("en-ZA")}` : "—"; }
 function timeAgo(dateStr) {
   if (!dateStr) return "";
   const diff = (Date.now() - new Date(dateStr)) / 1000;
@@ -45,30 +38,36 @@ function timeAgo(dateStr) {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-// STATUS BADGE
 function StatusBadge({ status }) {
   const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG["needs_repair"];
   return (
-    <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-0.5 rounded-md ${cfg.bg} ${cfg.color} ${cfg.border} border`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+      fontSize: '0.58rem', fontWeight: 600, padding: '0.12rem 0.45rem',
+      borderRadius: '3px', fontFamily: F.mono, letterSpacing: '0.04em',
+      textTransform: 'uppercase', color: cfg.color, background: cfg.bg, border: cfg.border,
+    }}>
+      <span style={{ width: 5, height: 5, borderRadius: '50%', background: cfg.dot }} />
       {cfg.label}
     </span>
   );
 }
 
-// PRIORITY BADGE
 function PriorityBadge({ priority }) {
+  const cfg = PRIORITY_CONFIG[priority] ?? PRIORITY_CONFIG["low"];
   return (
-    <span className={`text-xs font-semibold px-2 py-0.5 rounded ${PRIORITY_CONFIG[priority] ?? ""}`}>
-      {priority}
-    </span>
+    <span style={{
+      fontSize: '0.55rem', fontWeight: 700, padding: '0.1rem 0.45rem',
+      borderRadius: '2px', fontFamily: F.mono, letterSpacing: '0.04em',
+      textTransform: 'uppercase', background: cfg.bg, color: cfg.color,
+    }}>{priority}</span>
   );
 }
 
-// MAIN PAGE
 export default function CaretakerMaintenance() {
   useDocumentTitle("Maintenance");
   const navigate = useNavigate();
+  const toast = useToast();
 
   const [requests, setRequests] = useState([]);
   const [filter, setFilter] = useState("All");
@@ -77,20 +76,16 @@ export default function CaretakerMaintenance() {
   const [error, setError] = useState("");
   const [refreshing, setRefreshing] = useState(false);
 
-  // FETCH FROM API
   const fetchRequests = useCallback(async (isRefresh = false) => {
     if (!isRefresh) setLoading(true);
     setError("");
     try {
       const token = localStorage.getItem("token");
       const response = await axios.get(`${API}/caretaker/maintenance`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
       setRequests(response.data.requests || []);
     } catch (err) {
-      console.error("Failed to fetch maintenance requests:", err);
       setError(err.response?.data?.error || "Unable to connect to server");
     } finally {
       setLoading(false);
@@ -98,236 +93,226 @@ export default function CaretakerMaintenance() {
     }
   }, []);
 
+  useEffect(() => { fetchRequests(); }, [fetchRequests]);
 
-  useEffect(() => {
-    fetchRequests();
-  }, [fetchRequests]);
+  function handleRefresh() { setRefreshing(true); fetchRequests(true); }
 
-
-  const handleRefresh = () => {
-    setRefreshing(true);
-    fetchRequests(true);
-  };
-
-  // FILTER LOGIC
   function filterMatch(request) {
     if (filter === "All") return true;
     if (filter === "Needs Repair") return request.status === "needs_repair";
     if (filter === "In Progress") return ["assigned", "in_progress"].includes(request.status);
-    if (filter === "Completed") return ["completed"].includes(request.status);
-    if (filter === "Escalated") return ["pending_approval"].includes(request.status);
+    if (filter === "Completed") return request.status === "completed";
+    if (filter === "Escalated") return request.status === "pending_approval";
     return true;
   }
 
   const filtered = requests.filter(r => {
     const statusMatch = filterMatch(r);
     const q = search.toLowerCase();
-    const searchMatch = !q || [r.title, r.tenant_name, r.unit_number, r.property_name, r.request_number, r.category]
+    const searchMatch = !q || [r.title, r.tenant_name, r.unit_number?.toString(), r.property_name, r.request_number, r.category]
       .some(s => (s || "").toLowerCase().includes(q));
     return statusMatch && searchMatch;
   });
 
-  // STATS
   const needsAction = requests.filter(r => r.status === "needs_repair").length;
   const inProgress = requests.filter(r => ["assigned", "in_progress"].includes(r.status)).length;
-  const awaitingApproval = requests.filter(r => r.status === "pending_approval").length;
-  const awaitingConfirm = requests.filter(r => r.status === "completed").length;
+  const propertyName = requests[0]?.property_name || "Your Property";
 
-  // GET PROPERTY NAME FROM FIRST REQUEST
-  const propertyName = requests[0]?.property_name || "Property";
+  const S = {
+    container: { maxWidth: 1280, padding: '1.5rem 1rem 3rem', margin: '-1rem -1.8rem' },
+    headerRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.2rem', gap: '1rem', flexWrap: 'wrap' },
+    title: { fontSize: '1.5rem', fontWeight: 700, color: C.white, fontFamily: F.bebas, letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: '0.5rem' },
+    subtitle: { fontSize: '0.7rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono },
+    toolbar: {
+      display: 'flex', alignItems: 'center', gap: '0.8rem', padding: '0.7rem 1rem',
+      flexWrap: 'wrap', borderBottom: `1px solid ${C.border}`,
+    },
+    filterBtn: (active) => ({
+      padding: '0.35rem 0.7rem', borderRadius: '3px', fontSize: '0.68rem', fontWeight: 600,
+      fontFamily: F.mono, letterSpacing: '0.04em', cursor: 'pointer', transition: 'all 0.15s',
+      border: `1px solid ${active ? C.blue : C.border}`,
+      background: active ? 'rgba(58,143,212,0.08)' : 'transparent',
+      color: active ? C.blue : 'rgba(245,240,232,0.4)',
+    }),
+    searchWrap: { position: 'relative', marginLeft: 'auto' },
+    searchInput: {
+      padding: '0.4rem 0.7rem 0.4rem 2rem', borderRadius: '3px',
+      background: C.black, border: `1px solid ${C.border}`,
+      color: C.white, fontFamily: F.dm, fontSize: '0.74rem', outline: 'none', width: 200,
+    },
+    table: { width: '100%', fontSize: '0.75rem', borderCollapse: 'collapse' },
+    th: {
+      fontSize: '0.58rem', fontWeight: 600, color: 'rgba(245,240,232,0.25)',
+      fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase',
+      padding: '0.65rem 1rem', textAlign: 'left', borderBottom: `1px solid ${C.border}`,
+    },
+    td: { padding: '0.65rem 1rem', borderBottom: `1px solid ${C.border}` },
+    footer: {
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      padding: '0.7rem 1rem', fontSize: '0.7rem', color: 'rgba(245,240,232,0.25)',
+      fontFamily: F.mono, borderTop: `1px solid ${C.border}`,
+    },
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="px-4 pt-6 max-w-screen-xl mx-auto pb-12">
+    <div style={S.container}>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } } input:focus { border-color: ${C.borderFocus} !important; }`}</style>
 
-        {/* HEADER */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-              {propertyName} · {requests.length} total requests
-            </p>
+      {/* HEADER */}
+      <div style={S.headerRow}>
+        <div>
+          <h1 style={S.title}><Icon name="wrench" size={20} color={C.blue} />Maintenance</h1>
+          <p style={S.subtitle}>
+            {propertyName} · {requests.length} requests · {needsAction} need action · {inProgress} in progress
+          </p>
+        </div>
+        <button onClick={handleRefresh} disabled={refreshing} style={{
+          background: C.blue, color: C.white, border: 'none',
+          padding: '0.45rem 1rem', fontSize: '0.68rem', fontWeight: 600,
+          fontFamily: F.dm, letterSpacing: '0.04em', borderRadius: '3px',
+          cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+          opacity: refreshing ? 0.6 : 1,
+        }}>
+          <Icon name="refresh" size={12} /> {refreshing ? "Refreshing..." : "Refresh"}
+        </button>
+      </div>
+
+      {/* ERROR */}
+      {error && (
+        <div style={{
+          padding: '0.7rem 1rem', borderRadius: '3px', marginBottom: '1rem',
+          background: 'rgba(224,90,74,0.06)', border: '1px solid rgba(224,90,74,0.12)',
+          display: 'flex', alignItems: 'center', gap: '0.5rem',
+        }}>
+          <Icon name="warning" size={15} color={C.redLight} />
+          <p style={{ fontSize: '0.72rem', color: C.redLight, flex: 1 }}>{error}</p>
+          <button onClick={() => fetchRequests()} style={{ fontSize: '0.68rem', color: C.blue, background: 'none', border: 'none', cursor: 'pointer', fontFamily: F.mono }}>Retry</button>
+        </div>
+      )}
+
+      {/* TABLE */}
+      <div style={{ background: C.muted2, border: `1px solid ${C.border}`, borderRadius: '6px', overflow: 'hidden' }}>
+        
+        {/* TOOLBAR */}
+        <div style={S.toolbar}>
+          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+            {FILTERS.map(f => (
+              <button key={f} onClick={() => setFilter(f)} style={S.filterBtn(filter === f)}>
+                {f}
+                {f !== "All" && (
+                  <span style={{ marginLeft: '0.3rem', opacity: 0.5 }}>
+                    {requests.filter(r => {
+                      if (f === "Needs Repair") return r.status === "needs_repair";
+                      if (f === "In Progress") return ["assigned", "in_progress"].includes(r.status);
+                      if (f === "Completed") return r.status === "completed";
+                      if (f === "Escalated") return r.status === "pending_approval";
+                      return false;
+                    }).length}
+                  </span>
+                )}
+              </button>
+            ))}
           </div>
-          <button
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
-            {refreshing ? "Refreshing..." : "Refresh"}
-          </button>
+          <div style={S.searchWrap}>
+            <Icon name="search" size={13} style={{ position: 'absolute', left: '0.6rem', top: '50%', transform: 'translateY(-50%)', color: 'rgba(245,240,232,0.2)', pointerEvents: 'none' }} />
+            <input type="text" placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} style={S.searchInput} />
+          </div>
         </div>
 
-        {/* ERROR STATE */}
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-            <div className="flex items-center gap-2">
-              <AlertCircle size={18} className="text-red-500" />
-              <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
-            </div>
-            <button
-              onClick={() => fetchRequests()}
-              className="mt-2 text-sm font-medium text-red-600 dark:text-red-400 hover:underline"
-            >
-              Try again
-            </button>
+        {/* CONTENT */}
+        {loading ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4rem 0', color: 'rgba(245,240,232,0.3)', gap: '0.6rem' }}>
+            <span style={{ width: 20, height: 20, border: '2px solid rgba(245,240,232,0.06)', borderTopColor: C.blue, borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+            Loading requests...
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={S.table}>
+              <thead>
+                <tr>
+                  {["Request", "Tenant / Unit", "Priority", "Status", "Worker", "Cost", "Reported", ""].map(h => (
+                    <th key={h} style={S.th}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.length === 0 && (
+                  <tr><td colSpan={8} style={{ ...S.td, textAlign: 'center', padding: '3rem 0', color: 'rgba(245,240,232,0.2)' }}>No maintenance requests found.</td></tr>
+                )}
+                {filtered.map(r => (
+                  <tr key={r.id} style={{ transition: 'background 0.15s' }}
+                    onMouseEnter={e => e.currentTarget.style.background = C.muted}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                    
+                    <td style={S.td}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                        <div style={{
+                          width: 30, height: 30, borderRadius: '6px',
+                          background: 'rgba(58,143,212,0.08)', border: '1px solid rgba(58,143,212,0.12)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                        }}>
+                          <Icon name="wrench" size={13} color={C.blue} />
+                        </div>
+                        <div style={{ minWidth: 0 }}>
+                          <p style={{ fontWeight: 600, color: C.white, fontSize: '0.78rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>{r.title}</p>
+                          <p style={{ fontSize: '0.6rem', color: 'rgba(245,240,232,0.25)', fontFamily: F.mono }}>{r.category}</p>
+                        </div>
+                      </div>
+                    </td>
+
+                    <td style={S.td}>
+                      <p style={{ fontWeight: 500, color: C.white, fontSize: '0.75rem' }}>{r.tenant_name}</p>
+                      <p style={{ fontSize: '0.62rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono }}>
+                        {r.unit_number ? `Unit ${r.unit_number}` : "—"}
+                      </p>
+                    </td>
+
+                    <td style={S.td}><PriorityBadge priority={r.priority} /></td>
+                    <td style={S.td}><StatusBadge status={r.status} /></td>
+
+                    <td style={{ ...S.td, fontSize: '0.72rem' }}>
+                      {r.contractor_name ? (
+                        <span style={{ color: 'rgba(245,240,232,0.4)' }}>{r.contractor_name}</span>
+                      ) : (
+                        <span style={{ color: 'rgba(245,240,232,0.15)', fontStyle: 'italic', fontFamily: F.mono, fontSize: '0.65rem' }}>Unassigned</span>
+                      )}
+                    </td>
+
+                    <td style={{ ...S.td, fontWeight: 600, fontSize: '0.74rem' }}>
+                      {r.estimated_cost ? (
+                        <span style={{ color: C.gold }}>{fmt(r.estimated_cost)}</span>
+                      ) : r.actual_cost ? (
+                        <span style={{ color: C.greenLight }}>{fmt(r.actual_cost)}</span>
+                      ) : (
+                        <span style={{ color: 'rgba(245,240,232,0.2)' }}>—</span>
+                      )}
+                    </td>
+
+                    <td style={{ ...S.td, fontSize: '0.68rem', color: 'rgba(245,240,232,0.25)', fontFamily: F.mono }}>
+                      {timeAgo(r.created_at)}
+                    </td>
+
+                    <td style={S.td}>
+                      <button onClick={() => navigate(`/caretaker/maintenance/${r.id}`)} style={{
+                        fontSize: '0.66rem', fontWeight: 500, color: C.blue,
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        fontFamily: F.mono, whiteSpace: 'nowrap',
+                      }}
+                        onMouseEnter={e => e.currentTarget.style.textDecoration = 'underline'}
+                        onMouseLeave={e => e.currentTarget.style.textDecoration = 'none'}>
+                        Review →
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
 
-        {/* TABLE CARD */}
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
-
-          {/* TOOLBAR */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 sm:p-5 border-b border-gray-200 dark:border-gray-700">
-            {/* FILTER TABS */}
-            <div className="flex flex-wrap gap-2">
-              {FILTERS.map(f => (
-                <button
-                  key={f}
-                  onClick={() => setFilter(f)}
-                  className={`px-3 py-1.5 text-sm rounded-lg font-medium transition-colors ${
-                    filter === f
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
-                  }`}
-                >
-                  {f}
-                  {f !== "All" && (
-                    <span className="ml-1.5 text-xs opacity-70">
-                      {requests.filter(r => {
-                        if (f === "Needs Repair") return r.status === "needs_repair";
-                        if (f === "In Progress") return ["assigned", "in_progress"].includes(r.status);
-                        if (f === "Completed") return ["completed"].includes(r.status);
-                        if (f === "Escalated") return ["pending_approval"].includes(r.status);
-                        return false;
-                      }).length}
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
-
-            {/* SEARCH */}
-            <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search requests..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="pl-9 pr-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 w-56"
-              />
-            </div>
-          </div>
-
-          {/* TABLE */}
-          {loading ? (
-            <div className="flex items-center justify-center py-20">
-              <Loader2 size={32} className="animate-spin text-blue-500" />
-              <span className="ml-3 text-gray-500 dark:text-gray-400">Loading requests...</span>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-                <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                  <tr>
-                    <th className="px-5 py-3">Request</th>
-                    <th className="px-5 py-3">Tenant / Unit</th>
-                    <th className="px-5 py-3">Priority</th>
-                    <th className="px-5 py-3">Status</th>
-                    <th className="px-5 py-3">Worker</th>
-                    <th className="px-5 py-3">Cost</th>
-                    <th className="px-5 py-3">Reported</th>
-                    <th className="px-5 py-3"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {filtered.length === 0 && (
-                    <tr>
-                      <td colSpan={8} className="px-5 py-12 text-center text-gray-400 dark:text-gray-500">
-                        No maintenance requests found.
-                      </td>
-                    </tr>
-                  )}
-                  {filtered.map(r => (
-                    <tr key={r.id} className="bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                      {/* TITLE */}
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
-                            <Wrench size={14} className="text-blue-600 dark:text-blue-400" />
-                          </div>
-                          <div>
-                            <p className="font-semibold text-gray-900 dark:text-white text-sm">{r.title}</p>
-                            <p className="text-xs text-gray-400">{r.category}</p>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* TENANT + UNIT */}
-                      <td className="px-5 py-4 whitespace-nowrap">
-                        <div>
-                          <p className="font-medium text-gray-900 dark:text-white text-sm">{r.tenant_name}</p>
-                          <p className="text-xs text-gray-400">{r.unit_number ? `Unit ${r.unit_number}` : 'No unit'}</p>
-                        </div>
-                      </td>
-
-                      {/* PRIORITY */}
-                      <td className="px-5 py-4 whitespace-nowrap">
-                        <PriorityBadge priority={r.priority} />
-                      </td>
-
-                      {/* STATUS */}
-                      <td className="px-5 py-4 whitespace-nowrap">
-                        <StatusBadge status={r.status} />
-                      </td>
-
-                      {/* WORKER */}
-                      <td className="px-5 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {r.contractor_name ?? <span className="italic text-gray-400">Unassigned</span>}
-                      </td>
-
-                      {/* COST */}
-                      <td className="px-5 py-4 whitespace-nowrap text-sm font-semibold">
-                        {r.estimated_cost ? (
-                          <span className="text-gray-900 dark:text-white">{fmt(r.estimated_cost)}</span>
-                        ) : r.actual_cost ? (
-                          <span className="text-green-500">{fmt(r.actual_cost)}</span>
-                        ) : (
-                          <span className="text-gray-400">—</span>
-                        )}
-                      </td>
-
-                      {/* REPORTED */}
-                      <td className="px-5 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {timeAgo(r.created_at)}
-                      </td>
-
-                      {/* ACTION */}
-                      <td className="px-5 py-4 whitespace-nowrap">
-                        <button
-                          onClick={() => navigate(`/caretaker/maintenance/${r.id}`)}
-                          className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline"
-                        >
-                          Review
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {/* FOOTER */}
-          <div className="flex items-center justify-between px-5 py-4 border-t border-gray-200 dark:border-gray-700">
-            <span className="text-sm text-gray-500 dark:text-gray-400">
-              Showing <span className="font-medium text-gray-900 dark:text-white">{filtered.length}</span> of{" "}
-              <span className="font-medium text-gray-900 dark:text-white">{requests.length}</span> requests
-            </span>
-            {loading && (
-              <Loader2 size={16} className="animate-spin text-gray-400" />
-            )}
-          </div>
+        {/* FOOTER */}
+        <div style={S.footer}>
+          <span>Showing <span style={{ color: C.white, fontWeight: 500 }}>{filtered.length}</span> of <span style={{ color: C.white, fontWeight: 500 }}>{requests.length}</span> requests</span>
         </div>
       </div>
     </div>

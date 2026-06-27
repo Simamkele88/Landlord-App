@@ -1,29 +1,28 @@
-// LANDLORD MAINTENANCE DASHBOARD
+// LANDLORD MAINTENANCE DASHBOARD 
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import {
-  Wrench, Search, Loader2, RefreshCw, AlertCircle,
-  Eye, ArrowUpCircle,
-} from "lucide-react";
 import useDocumentTitle from "../../../hooks/useDocumentTitle";
+import { useToast } from "../../../contexts/ToastContext";
+import { Icon } from "../../../components/Icon";
+import { c as C, f as F } from "../../../styles/theme";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:4000";
 
 const STATUS_CONFIG = {
-  "needs_repair":     { label: "Needs Repair",    color: "text-red-600",    bg: "bg-red-100 dark:bg-red-900/30",     border: "border-red-200 dark:border-red-800",    dot: "bg-red-500"      },
-  "assigned":         { label: "Assigned",         color: "text-blue-600",   bg: "bg-blue-100 dark:bg-blue-900/30",    border: "border-blue-200 dark:border-blue-800",   dot: "bg-blue-500"     },
-  "in_progress":      { label: "In Progress",      color: "text-yellow-600", bg: "bg-yellow-100 dark:bg-yellow-900/30",  border: "border-yellow-200 dark:border-yellow-800", dot: "bg-yellow-400"   },
-  "completed":        { label: "Completed",        color: "text-green-600",  bg: "bg-green-100 dark:bg-green-900/30",   border: "border-green-200 dark:border-green-800",  dot: "bg-green-500"    },
-  "cancelled":        { label: "Closed",           color: "text-gray-600",   bg: "bg-gray-100 dark:bg-gray-700/50",     border: "border-gray-200 dark:border-gray-700",    dot: "bg-gray-400"     },
-  "pending_approval": { label: "Pending Approval", color: "text-purple-600", bg: "bg-purple-100 dark:bg-purple-900/30", border: "border-purple-200 dark:border-purple-800", dot: "bg-purple-500" },
+  "needs_repair":     { label: "Needs Repair",    color: C.redLight,   bg: 'rgba(224,90,74,0.1)',    border: '1px solid rgba(224,90,74,0.2)',   dot: C.redLight      },
+  "assigned":         { label: "Assigned",         color: C.blue,       bg: 'rgba(58,143,212,0.1)',    border: '1px solid rgba(58,143,212,0.2)',   dot: C.blue          },
+  "in_progress":      { label: "In Progress",      color: C.gold,       bg: 'rgba(232,160,18,0.08)',   border: '1px solid rgba(232,160,18,0.2)',   dot: C.gold          },
+  "completed":        { label: "Completed",        color: C.greenLight, bg: 'rgba(26,122,74,0.1)',    border: '1px solid rgba(76,186,122,0.2)',   dot: C.greenLight    },
+  "cancelled":        { label: "Closed",           color: 'rgba(245,240,232,0.4)', bg: 'rgba(245,240,232,0.04)', border: '1px solid rgba(245,240,232,0.1)', dot: 'rgba(245,240,232,0.3)' },
+  "pending_approval": { label: "Pending Approval", color: C.purple,     bg: 'rgba(139,92,246,0.1)',    border: '1px solid rgba(139,92,246,0.2)',   dot: C.purple        },
 };
 
 const PRIORITY_CONFIG = {
-  "urgent":    "bg-red-500 text-white",
-  "high":      "bg-orange-400 text-white",
-  "medium":    "bg-yellow-400 text-gray-900",
-  "low":       "bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-white",
+  "urgent": { bg: C.redLight, color: C.white },
+  "high":   { bg: 'rgba(232,160,18,0.2)', color: C.gold },
+  "medium": { bg: 'rgba(58,143,212,0.15)', color: C.blue },
+  "low":    { bg: 'rgba(245,240,232,0.08)', color: 'rgba(245,240,232,0.4)' },
 };
 
 const FILTERS = ["All", "Needs Repair", "In Progress", "Pending Approval", "Completed", "Closed"];
@@ -42,51 +41,61 @@ function timeAgo(dateStr) {
 function StatusBadge({ status }) {
   const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG["needs_repair"];
   return (
-    <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-0.5 rounded-md ${cfg.bg} ${cfg.color} ${cfg.border} border`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+      fontSize: '0.58rem', fontWeight: 700, padding: '0.12rem 0.45rem',
+      borderRadius: '3px', fontFamily: F.mono, letterSpacing: '0.04em',
+      textTransform: 'uppercase', color: cfg.color, background: cfg.bg, border: cfg.border,
+    }}>
+      <span style={{ width: 5, height: 5, borderRadius: '50%', background: cfg.dot }} />
       {cfg.label}
     </span>
   );
 }
 
 function PriorityBadge({ priority }) {
+  const cfg = PRIORITY_CONFIG[priority] ?? PRIORITY_CONFIG["low"];
   return (
-    <span className={`text-xs font-semibold px-2 py-0.5 rounded ${PRIORITY_CONFIG[priority] ?? ""}`}>
+    <span style={{
+      fontSize: '0.58rem', fontWeight: 700, padding: '0.12rem 0.5rem',
+      borderRadius: '3px', fontFamily: F.mono, letterSpacing: '0.04em',
+      textTransform: 'uppercase', background: cfg.bg, color: cfg.color,
+    }}>
       {priority}
     </span>
   );
 }
 
-function ModalShell({ title, sub, icon: Icon, iconBg, onClose, children, footer }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg border border-gray-200 dark:border-gray-700 flex flex-col max-h-[90vh]">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
-          <div className="flex items-center gap-3">
-            {Icon && (
-              <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${iconBg}`}>
-                <Icon size={18} />
-              </div>
-            )}
-            <div>
-              <h3 className="text-base font-semibold text-gray-900 dark:text-white">{title}</h3>
-              {sub && <p className="text-xs text-gray-500 dark:text-gray-400">{sub}</p>}
-            </div>
-          </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-white p-1 rounded">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">{children}</div>
-        {footer && (
-          <div className="px-6 pb-6 flex gap-3 flex-shrink-0 border-t border-gray-200 dark:border-gray-700 pt-4">
-            {footer}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+
+const inputStyle = {
+  width: '100%', fontSize: '0.82rem', padding: '0.6rem 0.9rem', borderRadius: '3px',
+  background: C.black, border: `1px solid ${C.border}`, color: C.white,
+  fontFamily: F.dm, outline: 'none',
+};
+
+const btnPrimary = {
+  background: C.gold, color: C.black, border: 'none',
+  padding: '0.6rem 1.4rem', fontSize: '0.76rem', fontWeight: 700,
+  fontFamily: F.dm, letterSpacing: '0.04em', borderRadius: '3px',
+  cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+};
+
+const btnGhost = {
+  background: 'transparent', color: 'rgba(245,240,232,0.5)',
+  border: `1px solid ${C.border}`, padding: '0.6rem 1.2rem',
+  fontSize: '0.76rem', fontWeight: 500, fontFamily: F.dm,
+  letterSpacing: '0.04em', borderRadius: '3px', cursor: 'pointer',
+};
+
+const cardStyle = {
+  background: C.muted2, border: `1px solid ${C.border}`, borderRadius: '6px', overflow: 'hidden',
+};
+
+const modalOverlay = {
+  position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center',
+  justifyContent: 'center', padding: '1rem', background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)',
+};
+
 
 function ReopenModal({ request, onClose, onReopen }) {
   const [reason, setReason] = useState("");
@@ -102,51 +111,65 @@ function ReopenModal({ request, onClose, onReopen }) {
   }
 
   return (
-    <ModalShell
-      title="Reopen Request"
-      sub={`${request.request_number} · ${request.title}`}
-      icon={ArrowUpCircle}
-      iconBg="bg-orange-100 dark:bg-orange-900/40 text-orange-600 dark:text-orange-400"
-      onClose={onClose}
-      footer={
-        <>
-          <button onClick={onClose} disabled={loading} className="flex-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-white text-sm font-medium py-2.5 px-4 rounded-xl transition-colors disabled:opacity-50">
-            Cancel
+    <div style={modalOverlay}>
+      <div style={{ width: '100%', maxWidth: 440, background: C.muted2, border: `1px solid ${C.border}`, borderRadius: '6px', boxShadow: '0 20px 60px rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.5rem', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem' }}>
+            <div style={{ width: 36, height: 36, borderRadius: '6px', background: 'rgba(232,160,18,0.12)', border: '1px solid rgba(232,160,18,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Icon name="refresh" size={16} color={C.gold} />
+            </div>
+            <div>
+              <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: C.white, fontFamily: F.bebas, letterSpacing: '0.04em' }}>Reopen Request</h3>
+              <p style={{ fontSize: '0.65rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono }}>{request.request_number} · {request.title}</p>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ padding: '0.2rem', borderRadius: '3px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.3)' }}
+            onMouseEnter={e => e.currentTarget.style.color = C.white}
+            onMouseLeave={e => e.currentTarget.style.color = 'rgba(245,240,232,0.3)'}>
+            <Icon name="x" size={18} />
           </button>
-          <button onClick={handleSubmit} disabled={loading} className="flex-1 flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-700 disabled:opacity-60 text-white text-sm font-medium py-2.5 px-4 rounded-xl transition-colors">
-            {loading ? <><Loader2 size={15} className="animate-spin" />Reopening...</> : <>Reopen Request</>}
+        </div>
+        <div style={{ padding: '1.2rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
+          {error && (
+            <div style={{ padding: '0.6rem 0.8rem', borderRadius: '3px', background: 'rgba(224,90,74,0.08)', border: '1px solid rgba(224,90,74,0.2)', fontSize: '0.72rem', color: C.redLight }}>
+              {error}
+            </div>
+          )}
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', padding: '0.6rem 0.8rem', borderRadius: '3px', background: 'rgba(232,160,18,0.06)', border: '1px solid rgba(232,160,18,0.15)' }}>
+            <Icon name="warning" size={13} color={C.gold} style={{ flexShrink: 0, marginTop: '1px' }} />
+            <p style={{ fontSize: '0.62rem', color: C.gold, lineHeight: 1.4 }}>
+              This will reopen the request and set the status back to "Needs Repair". The caretaker will be notified.
+            </p>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+            <label style={{ fontSize: '0.65rem', fontWeight: 600, color: 'rgba(245,240,232,0.5)', fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+              Reason <span style={{ color: C.redLight }}>*</span>
+            </label>
+            <textarea rows={4} value={reason} onChange={e => { setReason(e.target.value); setError(""); }}
+              placeholder="Why is this request being reopened?"
+              style={{ ...inputStyle, resize: 'vertical', minHeight: 80, fontSize: '0.72rem' }} />
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: '0.8rem', padding: '1rem 1.5rem 1.5rem', borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
+          <button onClick={onClose} disabled={loading} style={{ ...btnGhost, flex: 1, textAlign: 'center' }}>Cancel</button>
+          <button onClick={handleSubmit} disabled={loading} style={{
+            flex: 1, padding: '0.6rem 1.2rem', borderRadius: '3px', fontSize: '0.76rem', fontWeight: 600,
+            fontFamily: F.dm, letterSpacing: '0.04em', border: 'none', cursor: 'pointer',
+            background: C.gold, color: C.black, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
+          }}>
+            {loading ? <span style={{ width: 14, height: 14, border: '2px solid rgba(0,0,0,0.2)', borderTopColor: C.black, borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} /> : <><Icon name="refresh" size={14} /> Reopen Request</>}
           </button>
-        </>
-      }
-    >
-      {error && (
-        <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 text-sm text-red-700 dark:text-red-400">{error}</div>
-      )}
-
-      <div className="flex items-start gap-3 p-3 rounded-lg bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700">
-        <AlertCircle size={14} className="text-orange-500 flex-shrink-0 mt-0.5" />
-        <p className="text-xs text-orange-700 dark:text-orange-300">
-          This will reopen the request and set the status back to "Needs Repair". The caretaker will be notified.
-        </p>
+        </div>
       </div>
-
-      <div>
-        <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Reason *</label>
-        <textarea
-          rows={4}
-          value={reason}
-          onChange={e => { setReason(e.target.value); setError(""); }}
-          placeholder="Why is this request being reopened?"
-          className="w-full text-sm rounded-lg px-3 py-2.5 border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none"
-        />
-      </div>
-    </ModalShell>
+    </div>
   );
 }
+
 
 export default function LandlordMaintenance() {
   useDocumentTitle("Maintenance");
   const navigate = useNavigate();
+  const toast = useToast();
 
   const [requests, setRequests] = useState([]);
   const [filter, setFilter] = useState("All");
@@ -211,25 +234,52 @@ export default function LandlordMaintenance() {
       });
       await fetchRequests();
       setReopenModal(null);
+      toast.success("Request reopened successfully.");
     } catch (err) {
       console.error("Failed to reopen:", err);
-      alert(err.response?.data?.error || "Failed to reopen request");
+      toast.error(err.response?.data?.error || "Failed to reopen request");
     } finally {
       setSaving(false);
     }
   }
 
+  
+  const S = {
+    container: { maxWidth: 1280, padding: '1.5rem 1rem 3rem', margin: '-1rem -1.8rem' },
+    headerRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem', gap: '1rem', flexWrap: 'wrap' },
+    title: { fontSize: '1.8rem', fontWeight: 700, color: C.white, fontFamily: F.bebas, letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: '0.5rem' },
+    subtitle: { fontSize: '0.75rem', color: 'rgba(245,240,232,0.35)', fontFamily: F.mono, marginTop: '0.3rem' },
+    toolbar: { ...cardStyle, padding: '0', marginBottom: '1.2rem' },
+    toolbarInner: { display: 'flex', alignItems: 'center', gap: '0.8rem', padding: '0.8rem 1rem', flexWrap: 'wrap' },
+    filterBtn: (active) => ({ padding: '0.4rem 0.8rem', borderRadius: '3px', fontSize: '0.72rem', fontWeight: 600, fontFamily: F.mono, letterSpacing: '0.04em', border: `1px solid ${active ? C.gold : C.border}`, background: active ? 'rgba(232,160,18,0.12)' : 'transparent', color: active ? C.gold : 'rgba(245,240,232,0.4)', cursor: 'pointer', transition: 'all 0.15s' }),
+    searchWrap: { position: 'relative', marginLeft: 'auto' },
+    searchIcon: { position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'rgba(245,240,232,0.25)' },
+    searchInput: { padding: '0.5rem 0.8rem 0.5rem 2.25rem', borderRadius: '3px', background: C.black, border: `1px solid ${C.border}`, color: C.white, fontFamily: F.dm, fontSize: '0.78rem', outline: 'none', width: 220 },
+    loading: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '5rem 0', color: 'rgba(245,240,232,0.3)', gap: '0.8rem' },
+    table: { width: '100%', fontSize: '0.75rem', borderCollapse: 'collapse' },
+    th: { fontSize: '0.6rem', fontWeight: 600, color: 'rgba(245,240,232,0.3)', fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '0.7rem 1rem', textAlign: 'left', borderBottom: `1px solid ${C.border}` },
+    td: { padding: '0.7rem 1rem', borderBottom: `1px solid ${C.border}` },
+    footer: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.8rem 1rem', fontSize: '0.72rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono },
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div style={S.container}>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        input:focus, textarea:focus, select:focus { border-color: ${C.borderFocus} !important; }
+      `}</style>
+
+      {/* SAVING OVERLAY */}
       {saving && (
-        <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center">
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 flex items-center gap-3 shadow-xl">
-            <Loader2 size={20} className="animate-spin text-blue-500" />
-            <span className="text-sm font-medium text-gray-900 dark:text-white">Saving changes...</span>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: C.muted2, border: `1px solid ${C.border}`, borderRadius: '6px', padding: '1.2rem 1.8rem', display: 'flex', alignItems: 'center', gap: '0.8rem', boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}>
+            <span style={{ width: 18, height: 18, border: '2px solid rgba(245,240,232,0.1)', borderTopColor: C.gold, borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+            <span style={{ fontSize: '0.8rem', fontWeight: 500, color: C.white, fontFamily: F.dm }}>Saving changes...</span>
           </div>
         </div>
       )}
 
+      {/* REOPEN MODAL */}
       {reopenModal && (
         <ReopenModal
           request={reopenModal}
@@ -238,168 +288,185 @@ export default function LandlordMaintenance() {
         />
       )}
 
-      <div className="px-4 pt-6 max-w-screen-xl mx-auto pb-12">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-              All Properties · {requests.length} total requests
-            </p>
+      {/* HEADER */}
+      <div style={S.headerRow}>
+        <div>
+          <h1 style={S.title}><Icon name="wrench" size={24} color={C.gold} />Maintenance</h1>
+          <p style={S.subtitle}>All Properties · {requests.length} total requests</p>
+        </div>
+        <button onClick={handleRefresh} disabled={refreshing} style={btnPrimary}>
+          <Icon name="refresh" size={14} /> {refreshing ? "Refreshing..." : "Refresh"}
+        </button>
+      </div>
+
+      {/* ERROR */}
+      {error && (
+        <div style={{ padding: '0.8rem 1rem', borderRadius: '3px', background: 'rgba(224,90,74,0.08)', border: '1px solid rgba(224,90,74,0.2)', marginBottom: '1.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Icon name="warning" size={16} color={C.redLight} />
+          <p style={{ fontSize: '0.75rem', color: C.redLight, flex: 1 }}>{error}</p>
+          <button onClick={() => fetchRequests()} style={{ fontSize: '0.72rem', color: C.gold, background: 'none', border: 'none', cursor: 'pointer', fontFamily: F.mono, fontWeight: 500 }}>Retry</button>
+        </div>
+      )}
+
+      {/* TABLE CARD */}
+      <div style={cardStyle}>
+        {/* TOOLBAR */}
+        <div style={S.toolbarInner}>
+          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+            {FILTERS.map(f => (
+              <button key={f} onClick={() => setFilter(f)} style={S.filterBtn(filter === f)}>
+                {f}
+              </button>
+            ))}
           </div>
-          <button
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
-            {refreshing ? "Refreshing..." : "Refresh"}
-          </button>
+          <div style={S.searchWrap}>
+            <Icon name="search" size={14} style={S.searchIcon} />
+            <input type="text" placeholder="Search requests..." value={search} onChange={e => setSearch(e.target.value)} style={S.searchInput} />
+          </div>
         </div>
 
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-            <div className="flex items-center gap-2">
-              <AlertCircle size={18} className="text-red-500" />
-              <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
-            </div>
-            <button onClick={() => fetchRequests()} className="mt-2 text-sm font-medium text-red-600 dark:text-red-400 hover:underline">
-              Try again
-            </button>
+        {/* TABLE */}
+        {loading ? (
+          <div style={S.loading}>
+            <span style={{ width: 20, height: 20, border: '2px solid rgba(245,240,232,0.1)', borderTopColor: C.gold, borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+            Loading requests...
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={S.table}>
+              <thead>
+                <tr>
+                  {["Request", "Tenant / Unit", "Property", "Priority", "Status", "Contractor", "Cost", "Reported", ""].map(h => (
+                    <th key={h} style={S.th}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.length === 0 && (
+                  <tr>
+                    <td colSpan={9} style={{ ...S.td, textAlign: 'center', padding: '3rem 0', color: 'rgba(245,240,232,0.25)' }}>
+                      No maintenance requests found.
+                    </td>
+                  </tr>
+                )}
+                {filtered.map(r => (
+                  <tr key={r.id} style={{ transition: 'background 0.15s' }}
+                    onMouseEnter={e => e.currentTarget.style.background = C.muted}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                    
+                    {/* Request */}
+                    <td style={S.td}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                        <div style={{
+                          width: 32, height: 32, borderRadius: '6px',
+                          background: 'rgba(58,143,212,0.1)', border: '1px solid rgba(58,143,212,0.15)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                        }}>
+                          <Icon name="wrench" size={14} color={C.blue} />
+                        </div>
+                        <div style={{ minWidth: 0 }}>
+                          <p style={{ fontWeight: 600, color: C.white, fontSize: '0.8rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>
+                            {r.title}
+                          </p>
+                          <p style={{ fontSize: '0.62rem', color: 'rgba(245,240,232,0.25)', fontFamily: F.mono, marginTop: '1px' }}>
+                            {r.request_number} · {r.category || "Maintenance"}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Tenant / Unit */}
+                    <td style={S.td}>
+                      <p style={{ fontWeight: 500, color: C.white, fontSize: '0.78rem' }}>{r.tenant_name || "—"}</p>
+                      <p style={{ fontSize: '0.65rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono }}>
+                        {r.unit_number ? `Unit ${r.unit_number}` : "—"}
+                      </p>
+                    </td>
+
+                    {/* Property */}
+                    <td style={{ ...S.td, color: 'rgba(245,240,232,0.4)', fontSize: '0.75rem' }}>
+                      {r.property_name}
+                    </td>
+
+                    {/* Priority */}
+                    <td style={S.td}>
+                      <PriorityBadge priority={r.priority} />
+                    </td>
+
+                    {/* Status */}
+                    <td style={S.td}>
+                      <StatusBadge status={r.status} />
+                    </td>
+
+                    {/* Contractor */}
+                    <td style={{ ...S.td, fontSize: '0.75rem' }}>
+                      {r.contractor_name ? (
+                        <span style={{ color: 'rgba(245,240,232,0.4)' }}>{r.contractor_name}</span>
+                      ) : (
+                        <span style={{ color: 'rgba(245,240,232,0.15)', fontStyle: 'italic', fontFamily: F.mono, fontSize: '0.68rem' }}>Unassigned</span>
+                      )}
+                    </td>
+
+                    {/* Cost */}
+                    <td style={{ ...S.td, fontWeight: 600, fontSize: '0.78rem' }}>
+                      {r.estimated_cost ? (
+                        <span style={{ color: C.gold }}>{fmt(r.estimated_cost)}</span>
+                      ) : r.actual_cost ? (
+                        <span style={{ color: C.greenLight }}>{fmt(r.actual_cost)}</span>
+                      ) : (
+                        <span style={{ color: 'rgba(245,240,232,0.2)' }}>—</span>
+                      )}
+                    </td>
+
+                    {/* Reported */}
+                    <td style={{ ...S.td, fontSize: '0.7rem', color: 'rgba(245,240,232,0.25)', fontFamily: F.mono }}>
+                      {timeAgo(r.created_at)}
+                    </td>
+
+                    {/* Actions */}
+                    <td style={S.td}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                        <button
+                          onClick={() => navigate(`/landlord/maintenance/${r.id}`)}
+                          style={{
+                            fontSize: '0.7rem', fontWeight: 500, color: C.blue,
+                            background: 'none', border: 'none', cursor: 'pointer',
+                            fontFamily: F.mono, whiteSpace: 'nowrap',
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.textDecoration = 'underline'}
+                          onMouseLeave={e => e.currentTarget.style.textDecoration = 'none'}
+                        >
+                          Review
+                        </button>
+                        {["completed", "cancelled"].includes(r.status) && (
+                          <button
+                            onClick={() => setReopenModal(r)}
+                            style={{
+                              fontSize: '0.7rem', fontWeight: 500, color: C.gold,
+                              background: 'none', border: 'none', cursor: 'pointer',
+                              fontFamily: F.mono, whiteSpace: 'nowrap',
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.textDecoration = 'underline'}
+                            onMouseLeave={e => e.currentTarget.style.textDecoration = 'none'}
+                          >
+                            Reopen
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
 
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 sm:p-5 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex flex-wrap gap-2">
-              {FILTERS.map(f => (
-                <button
-                  key={f}
-                  onClick={() => setFilter(f)}
-                  className={`px-3 py-1.5 text-sm rounded-lg font-medium transition-colors ${
-                    filter === f
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
-                  }`}
-                >
-                  {f}
-                </button>
-              ))}
-            </div>
-            <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search requests..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="pl-9 pr-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 w-56"
-              />
-            </div>
-          </div>
-
-          {loading ? (
-            <div className="flex items-center justify-center py-20">
-              <Loader2 size={32} className="animate-spin text-blue-500" />
-              <span className="ml-3 text-gray-500 dark:text-gray-400">Loading requests...</span>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-                <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                  <tr>
-                    <th className="px-5 py-3">Request</th>
-                    <th className="px-5 py-3">Tenant / Unit</th>
-                    <th className="px-5 py-3">Property</th>
-                    <th className="px-5 py-3">Priority</th>
-                    <th className="px-5 py-3">Status</th>
-                    <th className="px-5 py-3">Contractor</th>
-                    <th className="px-5 py-3">Cost</th>
-                    <th className="px-5 py-3">Reported</th>
-                    <th className="px-5 py-3"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {filtered.length === 0 && (
-                    <tr>
-                      <td colSpan={9} className="px-5 py-12 text-center text-gray-400 dark:text-gray-500">
-                        No maintenance requests found.
-                      </td>
-                    </tr>
-                  )}
-                  {filtered.map(r => (
-                    <tr key={r.id} className="bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
-                            <Wrench size={14} className="text-blue-600 dark:text-blue-400" />
-                          </div>
-                          <div>
-                            <p className="font-semibold text-gray-900 dark:text-white text-sm">{r.title}</p>
-                            <p className="text-xs text-gray-400">{r.request_number} · {r.category}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-5 py-4 whitespace-nowrap">
-                        <div>
-                          <p className="font-medium text-gray-900 dark:text-white text-sm">{r.tenant_name}</p>
-                          <p className="text-xs text-gray-400">{r.unit_number ? `Unit ${r.unit_number}` : "—"}</p>
-                        </div>
-                      </td>
-                      <td className="px-5 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {r.property_name}
-                      </td>
-                      <td className="px-5 py-4 whitespace-nowrap">
-                        <PriorityBadge priority={r.priority} />
-                      </td>
-                      <td className="px-5 py-4 whitespace-nowrap">
-                        <StatusBadge status={r.status} />
-                      </td>
-                      <td className="px-5 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {r.contractor_name ?? <span className="italic text-gray-400">Unassigned</span>}
-                      </td>
-                      <td className="px-5 py-4 whitespace-nowrap text-sm font-semibold">
-                        {r.estimated_cost ? (
-                          <span className="text-gray-900 dark:text-white">{fmt(r.estimated_cost)}</span>
-                        ) : r.actual_cost ? (
-                          <span className="text-green-500">{fmt(r.actual_cost)}</span>
-                        ) : (
-                          <span className="text-gray-400">—</span>
-                        )}
-                      </td>
-                      <td className="px-5 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {timeAgo(r.created_at)}
-                      </td>
-                      <td className="px-5 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => navigate(`/landlord/maintenance/${r.id}`)}
-                            className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline"
-                          >
-                            Review
-                          </button>
-                          {["completed", "cancelled"].includes(r.status) && (
-                            <button
-                              onClick={() => setReopenModal(r)}
-                              className="text-xs font-medium text-orange-600 dark:text-orange-400 hover:underline"
-                            >
-                              Reopen
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          <div className="flex items-center justify-between px-5 py-4 border-t border-gray-200 dark:border-gray-700">
-            <span className="text-sm text-gray-500 dark:text-gray-400">
-              Showing <span className="font-medium text-gray-900 dark:text-white">{filtered.length}</span> of{" "}
-              <span className="font-medium text-gray-900 dark:text-white">{requests.length}</span> requests
-            </span>
-            {loading && <Loader2 size={16} className="animate-spin text-gray-400" />}
-          </div>
+        {/* FOOTER */}
+        <div style={S.footer}>
+          <span>
+            Showing <span style={{ color: C.white, fontWeight: 500 }}>{filtered.length}</span> of{" "}
+            <span style={{ color: C.white, fontWeight: 500 }}>{requests.length}</span> requests
+          </span>
         </div>
       </div>
     </div>

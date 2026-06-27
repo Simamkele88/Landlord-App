@@ -1,23 +1,22 @@
+// LANDLORD COMPLAINTS PAGE 
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import {
-  Search, RefreshCw, AlertCircle,
-  MessageSquare,
-} from "lucide-react";
 import useDocumentTitle from "../../../hooks/useDocumentTitle";
+import { Icon } from "../../../components/Icon";
+import { c as C, f as F } from "../../../styles/theme";
 
 const API = "http://localhost:4000";
 
 const STATUS_CONFIG = {
-  "open":          { label: "Open",         color: "text-red-600",    bg: "bg-red-100 dark:bg-red-900/30",     dot: "bg-red-500"      },
-  "under_review":  { label: "Under Review", color: "text-yellow-600", bg: "bg-yellow-100 dark:bg-yellow-900/30", dot: "bg-yellow-400"   },
-  "awaiting_clarification": { label: "Needs Clarification", color: "text-orange-600", bg: "bg-orange-100 dark:bg-orange-900/30", dot: "bg-orange-500" },
-  "approved":      { label: "Approved",     color: "text-blue-600",   bg: "bg-blue-100 dark:bg-blue-900/30",    dot: "bg-blue-500"    },
-  "resolved":      { label: "Resolved",     color: "text-green-600",  bg: "bg-green-100 dark:bg-green-900/30",  dot: "bg-green-500"    },
-  "dismissed":     { label: "Dismissed",    color: "text-gray-600",   bg: "bg-gray-100 dark:bg-gray-700/50",    dot: "bg-gray-400"     },
-  "escalated":     { label: "Escalated",    color: "text-purple-600", bg: "bg-purple-100 dark:bg-purple-900/30",dot: "bg-purple-500"   },
-  "rejected":      { label: "Rejected",     color: "text-gray-600",   bg: "bg-gray-100 dark:bg-gray-700/50",    dot: "bg-gray-400"     },
+  "open":                   { label: "Open",               color: C.redLight,   bg: 'rgba(224,90,74,0.1)',    border: '1px solid rgba(224,90,74,0.2)',   dot: C.redLight   },
+  "under_review":           { label: "Under Review",       color: C.gold,       bg: 'rgba(232,160,18,0.08)',   border: '1px solid rgba(232,160,18,0.2)',   dot: C.gold       },
+  "awaiting_clarification": { label: "Needs Clarification",color: '#f59e0b',    bg: 'rgba(245,158,11,0.1)',    border: '1px solid rgba(245,158,11,0.2)',   dot: '#f59e0b'    },
+  "approved":               { label: "Approved",           color: C.blue,       bg: 'rgba(58,143,212,0.1)',    border: '1px solid rgba(58,143,212,0.2)',   dot: C.blue       },
+  "resolved":               { label: "Resolved",           color: C.greenLight, bg: 'rgba(26,122,74,0.1)',    border: '1px solid rgba(76,186,122,0.2)',   dot: C.greenLight },
+  "dismissed":              { label: "Dismissed",          color: 'rgba(245,240,232,0.4)', bg: 'rgba(245,240,232,0.04)', border: '1px solid rgba(245,240,232,0.1)', dot: 'rgba(245,240,232,0.3)' },
+  "escalated":              { label: "Escalated",          color: C.purple,     bg: 'rgba(139,92,246,0.1)',    border: '1px solid rgba(139,92,246,0.2)',   dot: C.purple     },
+  "rejected":               { label: "Rejected",           color: 'rgba(245,240,232,0.4)', bg: 'rgba(245,240,232,0.04)', border: '1px solid rgba(245,240,232,0.1)', dot: 'rgba(245,240,232,0.3)' },
 };
 
 const FILTERS = ["All", "Open", "Under Review", "Escalated", "Resolved", "Dismissed"];
@@ -32,8 +31,13 @@ const SCOPE_LABELS = {
 function StatusBadge({ status }) {
   const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG["open"];
   return (
-    <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-0.5 rounded-md ${cfg.bg} ${cfg.color} border`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+      fontSize: '0.58rem', fontWeight: 700, padding: '0.12rem 0.45rem',
+      borderRadius: '3px', fontFamily: F.mono, letterSpacing: '0.04em',
+      textTransform: 'uppercase', color: cfg.color, background: cfg.bg, border: cfg.border,
+    }}>
+      <span style={{ width: 5, height: 5, borderRadius: '50%', background: cfg.dot }} />
       {cfg.label}
     </span>
   );
@@ -47,6 +51,7 @@ function timeAgo(dateStr) {
   if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
   return `${Math.floor(diff / 86400)}d ago`;
 }
+
 
 export default function LandlordComplaints() {
   useDocumentTitle("Complaints");
@@ -104,103 +109,171 @@ export default function LandlordComplaints() {
   const escalatedCount = complaints.filter(c => c.status === "escalated").length;
   const openCount = complaints.filter(c => ["open", "under_review"].includes(c.status)).length;
 
+  
+  const btnPrimary = {
+    background: C.gold, color: C.black, border: 'none',
+    padding: '0.6rem 1.4rem', fontSize: '0.76rem', fontWeight: 700,
+    fontFamily: F.dm, letterSpacing: '0.04em', borderRadius: '3px',
+    cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+  };
+
+  const cardStyle = {
+    background: C.muted2, border: `1px solid ${C.border}`, borderRadius: '6px', overflow: 'hidden',
+  };
+
+  const S = {
+    container: { maxWidth: 1280, padding: '1.5rem 1rem 3rem', margin: '-1rem -1.8rem' },
+    headerRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem', gap: '1rem', flexWrap: 'wrap' },
+    title: { fontSize: '1.8rem', fontWeight: 700, color: C.white, fontFamily: F.bebas, letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: '0.5rem' },
+    subtitle: { fontSize: '0.75rem', color: 'rgba(245,240,232,0.35)', fontFamily: F.mono, marginTop: '0.3rem' },
+    toolbar: { ...cardStyle, padding: '0', marginBottom: '1.2rem' },
+    toolbarInner: { display: 'flex', alignItems: 'center', gap: '0.8rem', padding: '0.8rem 1rem', flexWrap: 'wrap' },
+    filterBtn: (active) => ({ padding: '0.4rem 0.8rem', borderRadius: '3px', fontSize: '0.72rem', fontWeight: 600, fontFamily: F.mono, letterSpacing: '0.04em', border: `1px solid ${active ? C.gold : C.border}`, background: active ? 'rgba(232,160,18,0.12)' : 'transparent', color: active ? C.gold : 'rgba(245,240,232,0.4)', cursor: 'pointer', transition: 'all 0.15s' }),
+    searchWrap: { position: 'relative', marginLeft: 'auto' },
+    searchIcon: { position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'rgba(245,240,232,0.25)' },
+    searchInput: { padding: '0.5rem 0.8rem 0.5rem 2.25rem', borderRadius: '3px', background: C.black, border: `1px solid ${C.border}`, color: C.white, fontFamily: F.dm, fontSize: '0.78rem', outline: 'none', width: 220 },
+    loading: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '5rem 0', color: 'rgba(245,240,232,0.3)', gap: '0.8rem' },
+    table: { width: '100%', fontSize: '0.75rem', borderCollapse: 'collapse' },
+    th: { fontSize: '0.6rem', fontWeight: 600, color: 'rgba(245,240,232,0.3)', fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '0.7rem 1rem', textAlign: 'left', borderBottom: `1px solid ${C.border}` },
+    td: { padding: '0.7rem 1rem', borderBottom: `1px solid ${C.border}` },
+    footer: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.8rem 1rem', fontSize: '0.72rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono },
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="px-4 pt-6 max-w-screen-xl mx-auto pb-12">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-              All Properties · {complaints.length} total · {escalatedCount} escalated · {openCount} active
-            </p>
+    <div style={S.container}>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        input:focus, select:focus { border-color: ${C.borderFocus} !important; }
+      `}</style>
+
+      {/* HEADER */}
+      <div style={S.headerRow}>
+        <div>
+          <h1 style={S.title}><Icon name="message-square" size={24} color={C.gold} />Complaints</h1>
+          <p style={S.subtitle}>
+            All Properties · {complaints.length} total · {escalatedCount} escalated · {openCount} active
+          </p>
+        </div>
+        <button onClick={handleRefresh} disabled={refreshing} style={btnPrimary}>
+          <Icon name="refresh" size={14} /> {refreshing ? "Refreshing..." : "Refresh"}
+        </button>
+      </div>
+
+      {/* ERROR */}
+      {error && (
+        <div style={{ padding: '0.8rem 1rem', borderRadius: '3px', background: 'rgba(224,90,74,0.08)', border: '1px solid rgba(224,90,74,0.2)', marginBottom: '1.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Icon name="warning" size={16} color={C.redLight} />
+          <p style={{ fontSize: '0.75rem', color: C.redLight, flex: 1 }}>{error}</p>
+          <button onClick={() => fetchComplaints()} style={{ fontSize: '0.72rem', color: C.gold, background: 'none', border: 'none', cursor: 'pointer', fontFamily: F.mono, fontWeight: 500 }}>Retry</button>
+        </div>
+      )}
+
+      {/* TABLE CARD */}
+      <div style={cardStyle}>
+        {/* TOOLBAR */}
+        <div style={S.toolbarInner}>
+          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+            {FILTERS.map(f => (
+              <button key={f} onClick={() => setFilter(f)} style={S.filterBtn(filter === f)}>
+                {f}
+              </button>
+            ))}
           </div>
-          <button onClick={handleRefresh} disabled={refreshing}
-            className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50">
-            <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
-            {refreshing ? "Refreshing..." : "Refresh"}
-          </button>
+          <div style={S.searchWrap}>
+            <Icon name="search" size={14} style={S.searchIcon} />
+            <input type="text" placeholder="Search complaints..." value={search}
+              onChange={e => setSearch(e.target.value)} style={S.searchInput} />
+          </div>
         </div>
 
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-            <div className="flex items-center gap-2">
-              <AlertCircle size={18} className="text-red-500" />
-              <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
-            </div>
-            <button onClick={() => fetchComplaints()} className="mt-2 text-sm font-medium text-red-600 dark:text-red-400 hover:underline">Try again</button>
+        {/* TABLE */}
+        {loading ? (
+          <div style={S.loading}>
+            <span style={{ width: 20, height: 20, border: '2px solid rgba(245,240,232,0.1)', borderTopColor: C.gold, borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+            Loading complaints...
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={S.table}>
+              <thead>
+                <tr>
+                  {["Complaint", "Property", "Filed By", "Scope", "Status", "Date", ""].map(h => (
+                    <th key={h} style={S.th}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.length === 0 && (
+                  <tr>
+                    <td colSpan={7} style={{ ...S.td, textAlign: 'center', padding: '3rem 0', color: 'rgba(245,240,232,0.25)' }}>
+                      No complaints found.
+                    </td>
+                  </tr>
+                )}
+                {filtered.map(c => (
+                  <tr key={c.id} style={{ transition: 'background 0.15s' }}
+                    onMouseEnter={e => e.currentTarget.style.background = C.muted}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                    <td style={S.td}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                        <div style={{
+                          width: 32, height: 32, borderRadius: '6px',
+                          background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.15)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                        }}>
+                          <Icon name="message-square" size={14} color="#f59e0b" />
+                        </div>
+                        <div style={{ minWidth: 0 }}>
+                          <p style={{
+                            fontWeight: 600, color: C.white, fontSize: '0.8rem',
+                            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '240px',
+                          }}>
+                            {c.subject}
+                          </p>
+                          {c.category && (
+                            <p style={{ fontSize: '0.62rem', color: 'rgba(245,240,232,0.25)', fontFamily: F.mono, marginTop: '1px' }}>
+                              {c.category}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td style={{ ...S.td, color: 'rgba(245,240,232,0.4)', fontSize: '0.75rem' }}>{c.property_name}</td>
+                    <td style={{ ...S.td, fontWeight: 500, color: C.white }}>{c.filed_by_name}</td>
+                    <td style={{ ...S.td, color: 'rgba(245,240,232,0.3)', fontSize: '0.68rem', fontFamily: F.mono }}>
+                      {SCOPE_LABELS[c.complaint_scope] || "—"}
+                    </td>
+                    <td style={S.td}><StatusBadge status={c.status} /></td>
+                    <td style={{ ...S.td, fontSize: '0.7rem', color: 'rgba(245,240,232,0.25)', fontFamily: F.mono }}>
+                      {timeAgo(c.created_at)}
+                    </td>
+                    <td style={S.td}>
+                      <button
+                        onClick={() => navigate(`/landlord/complaints/${c.id}`)}
+                        style={{
+                          fontSize: '0.7rem', fontWeight: 500, color: C.blue,
+                          background: 'none', border: 'none', cursor: 'pointer',
+                          fontFamily: F.mono, whiteSpace: 'nowrap',
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.textDecoration = 'underline'}
+                        onMouseLeave={e => e.currentTarget.style.textDecoration = 'none'}
+                      >
+                        View
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
 
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 sm:p-5 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex flex-wrap gap-2">
-              {FILTERS.map(f => (
-                <button key={f} onClick={() => setFilter(f)}
-                  className={`px-3 py-1.5 text-sm rounded-lg font-medium transition-colors ${filter === f ? "bg-blue-600 text-white" : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"}`}>
-                  {f}
-                </button>
-              ))}
-            </div>
-            <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input type="text" placeholder="Search complaints..." value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="pl-9 pr-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 w-56" />
-            </div>
-          </div>
-
-          {loading ? (
-            <div className="flex items-center justify-center py-20">
-              <span className="ml-3 text-gray-500 dark:text-gray-400">Loading complaints...</span>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-                <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                  <tr>
-                    <th className="px-5 py-3">Complaint</th>
-                    <th className="px-5 py-3">Property</th>
-                    <th className="px-5 py-3">Filed By</th>
-                    <th className="px-5 py-3">Scope</th>
-                    <th className="px-5 py-3">Status</th>
-                    <th className="px-5 py-3">Date</th>
-                    <th className="px-5 py-3"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {filtered.length === 0 && (
-                    <tr><td colSpan={7} className="px-5 py-12 text-center text-gray-400">No complaints found.</td></tr>
-                  )}
-                  {filtered.map(c => (
-                    <tr key={c.id} className="bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center flex-shrink-0">
-                            <MessageSquare size={14} className="text-orange-600 dark:text-orange-400" />
-                          </div>
-                          <p className="font-semibold text-gray-900 dark:text-white text-sm max-w-xs truncate">{c.subject}</p>
-                        </div>
-                      </td>
-                      <td className="px-5 py-4 text-sm text-gray-500">{c.property_name}</td>
-                      <td className="px-5 py-4 text-sm text-gray-900 dark:text-white">{c.filed_by_name}</td>
-                      <td className="px-5 py-4 text-xs text-gray-500">{SCOPE_LABELS[c.complaint_scope] || "—"}</td>
-                      <td className="px-5 py-4"><StatusBadge status={c.status} /></td>
-                      <td className="px-5 py-4 text-xs text-gray-400">{timeAgo(c.created_at)}</td>
-                      <td className="px-5 py-4">
-                        <button onClick={() => navigate(`/landlord/complaints/${c.id}`)}
-                          className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline">View</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          <div className="flex items-center justify-between px-5 py-4 border-t border-gray-200 dark:border-gray-700">
-            <span className="text-sm text-gray-500 dark:text-gray-400">
-              Showing <span className="font-medium text-gray-900 dark:text-white">{filtered.length}</span> of{" "}
-              <span className="font-medium text-gray-900 dark:text-white">{complaints.length}</span> complaints
-            </span>
-          </div>
+        {/* FOOTER */}
+        <div style={S.footer}>
+          <span>
+            Showing <span style={{ color: C.white, fontWeight: 500 }}>{filtered.length}</span> of{" "}
+            <span style={{ color: C.white, fontWeight: 500 }}>{complaints.length}</span> complaints
+          </span>
         </div>
       </div>
     </div>

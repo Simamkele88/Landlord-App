@@ -2916,6 +2916,6 @@ async function verifyConnection() {
 
 verifyConnection().then(() => {
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`\n Server running on http://172.16.7.44:${PORT}`);
+    console.log(`\n Server running on http://10.254.73.40:${PORT}`);
   });
 });

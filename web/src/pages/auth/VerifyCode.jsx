@@ -1,10 +1,10 @@
 // LANDLORD VERIFY RESET CODE PAGE
-
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Key, Loader2, Shield, ArrowLeft } from "lucide-react";
 import axios from "axios";
 import useDocumentTitle from "../../hooks/useDocumentTitle";
+import { Icon } from "../../components/Icon";
+import { c as C, f as F } from "../../styles/theme";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:4000";
 
@@ -25,152 +25,98 @@ export default function VerifyCode() {
 
   async function handleSubmit(e) {
     e.preventDefault();
-
-    if (!email.trim()) {
-      setError("Email is required");
-      return;
-    }
-    if (!code || code.length < 6) {
-      setError("Please enter the 6-digit reset code");
-      return;
-    }
-
+    if (!email.trim()) { setError("Email is required"); return; }
+    if (!code || code.length < 6) { setError("Please enter the 6-digit reset code"); return; }
     setLoading(true);
     setError("");
-
     try {
-      // Verify the code is valid
-      await axios.post(`${API}/auth/verify-reset-code`, {
-        email: email.trim().toLowerCase(),
-        code: code,
-      });
-
-      // Redirect to reset password page with email and code
-      navigate("/reset-password", {
-        state: {
-          email: email.trim().toLowerCase(),
-          code: code,
-        },
-      });
+      await axios.post(`${API}/auth/verify-reset-code`, { email: email.trim().toLowerCase(), code });
+      navigate("/reset-password", { state: { email: email.trim().toLowerCase(), code } });
     } catch (err) {
-      if (err.code === "ERR_NETWORK") {
-        setError("Unable to connect to server. Please check your connection.");
-      } else if (err.response?.status === 400) {
-        setError("Invalid or expired reset code. Please request a new one.");
-      } else {
-        setError("Verification failed. Please try again.");
-      }
-    } finally {
-      setLoading(false);
-    }
+      if (err.code === "ERR_NETWORK") setError("Unable to connect to server.");
+      else if (err.response?.status === 400) setError("Invalid or expired reset code.");
+      else setError("Verification failed.");
+    } finally { setLoading(false); }
   }
 
-  return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-gray-50 dark:bg-gray-900">
-      <div className="w-full max-w-md">
-        {/* Logo */}
-        <Link to="/login" className="flex items-center justify-center mb-8">
-          <img
-            src="/images/logo/logo.jpg"
-            className="h-12 w-12 object-cover shadow-md"
-            alt="Logo"
-          />
-          <span className="ml-3 text-xl font-bold text-gray-900 dark:text-white">Chihwa Rentals</span>
-        </Link>
+  const inputStyle = {
+    width: '100%', fontSize: '0.88rem', padding: '0.7rem 1rem',
+    borderRadius: '3px', background: C.black, border: `1px solid ${C.border}`,
+    color: C.white, fontFamily: F.dm, outline: 'none',
+  };
 
-        <div className="p-8 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center">
-              <Shield size={20} className="text-blue-600 dark:text-blue-400" />
+  const btnStyle = {
+    width: '100%', padding: '0.7rem', borderRadius: '3px',
+    fontSize: '0.82rem', fontWeight: 700, fontFamily: F.dm,
+    letterSpacing: '0.04em', border: 'none', cursor: 'pointer',
+    background: C.gold, color: C.black,
+    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '2rem', background: C.black }}>
+      <div style={{ width: '100%', maxWidth: 420 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', marginBottom: '2rem' }}>
+          <span style={{ fontFamily: F.bebas, fontSize: '1.4rem', letterSpacing: '0.06em', color: C.white }}>
+            Chihwa<span style={{ color: C.gold }}>Rentals</span>
+          </span>
+        </div>
+
+        <div style={{ background: C.muted2, borderRadius: '8px', border: `1px solid ${C.border}`, padding: '2rem', boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', marginBottom: '0.5rem' }}>
+            <div style={{ width: 40, height: 40, borderRadius: '8px', background: 'rgba(58,143,212,0.1)', border: '1px solid rgba(58,143,212,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="shield" size={20} color={C.blue} />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Verify Reset Code</h2>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Step 1 of 2</p>
+              <h2 style={{ fontSize: '1rem', fontWeight: 600, color: C.white, fontFamily: F.bebas, letterSpacing: '0.04em' }}>Verify Reset Code</h2>
+              <p style={{ fontSize: '0.65rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono }}>Step 1 of 2</p>
             </div>
           </div>
+          <p style={{ fontSize: '0.78rem', color: 'rgba(245,240,232,0.4)', marginBottom: '1.5rem' }}>Enter the 6-digit code sent to your email.</p>
 
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-            Enter the 6-digit code sent to your email address.
-          </p>
-
-          {/* Error */}
           {error && (
-            <div className="p-3 mb-4 text-sm text-red-800 bg-red-50 rounded-lg border border-red-200 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400">
-              {error}
-            </div>
+            <div style={{ padding: '0.6rem 0.8rem', borderRadius: '3px', background: 'rgba(224,90,74,0.08)', border: '1px solid rgba(224,90,74,0.2)', marginBottom: '1rem', fontSize: '0.75rem', color: C.redLight }}>{error}</div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Email */}
-            <div>
-              <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
-                Email Address
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => { setEmail(e.target.value); setError(""); }}
-                placeholder="name@company.com"
-                required
-                className="w-full px-4 py-2.5 text-sm bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
-              />
+          <form onSubmit={handleSubmit}>
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 500, color: 'rgba(245,240,232,0.6)', marginBottom: '0.4rem' }}>Email Address</label>
+              <input type="email" value={email} onChange={e => { setEmail(e.target.value); setError(""); }} placeholder="name@company.com" style={inputStyle} />
             </div>
 
-            {/* Reset Code */}
-            <div>
-              <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
-                Reset Code
-              </label>
-              <div className="relative">
-                <Key size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  value={code}
-                  onChange={handleCodeChange}
-                  placeholder="000000"
-                  required
-                  maxLength={6}
-                  className="w-full pl-10 pr-4 py-2.5 text-sm bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 tracking-[8px] text-center text-lg font-bold dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
-                />
+            <div style={{ marginBottom: '0.3rem' }}>
+              <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 500, color: 'rgba(245,240,232,0.6)', marginBottom: '0.4rem' }}>Reset Code</label>
+              <div style={{ position: 'relative' }}>
+                <Icon name="lock" size={15} style={{ position: 'absolute', left: '0.8rem', top: '50%', transform: 'translateY(-50%)', color: 'rgba(245,240,232,0.25)', zIndex: 1 }} />
+                <input type="text" value={code} onChange={handleCodeChange} placeholder="000000" maxLength={6}
+                  style={{ ...inputStyle, paddingLeft: '2.5rem', letterSpacing: '8px', textAlign: 'center', fontSize: '1.1rem', fontWeight: 700 }} />
               </div>
-              {code && code.length < 6 && (
-                <p className="text-xs text-gray-400 mt-1">Enter all 6 digits</p>
-              )}
+              {code && code.length < 6 && <p style={{ fontSize: '0.65rem', color: 'rgba(245,240,232,0.2)', fontFamily: F.mono, marginTop: '0.3rem' }}>Enter all 6 digits</p>}
             </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {loading ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" />
-                  Verifying...
-                </>
-              ) : (
-                "Verify Code"
-              )}
+            <button type="submit" disabled={loading} style={{ ...btnStyle, marginTop: '1.2rem', opacity: loading ? 0.6 : 1 }}>
+              {loading ? <span style={{ width: 16, height: 16, border: '2px solid rgba(0,0,0,0.2)', borderTopColor: C.black, borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} /> : "Verify Code"}
             </button>
 
-            <div className="text-center">
-              <Link
-                to="/forgot-password"
-                className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
-              >
+            <div style={{ textAlign: 'center', marginTop: '0.8rem' }}>
+              <Link to="/forgot-password" style={{ fontSize: '0.72rem', color: C.gold, textDecoration: 'none', fontFamily: F.mono }}
+                onMouseEnter={e => e.currentTarget.style.textDecoration = 'underline'}
+                onMouseLeave={e => e.currentTarget.style.textDecoration = 'none'}>
                 Didn't receive a code? Send again
               </Link>
             </div>
           </form>
         </div>
 
-        <div className="text-center mt-4">
-          <Link to="/login" className="inline-flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
-            <ArrowLeft size={14} />
-            Back to Login
+        <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+          <Link to="/login" style={{ fontSize: '0.78rem', color: C.gold, textDecoration: 'none', fontFamily: F.mono, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+            onMouseEnter={e => e.currentTarget.style.textDecoration = 'underline'}
+            onMouseLeave={e => e.currentTarget.style.textDecoration = 'none'}>
+            <Icon name="chevron-left" size={13} /> Back to Login
           </Link>
         </div>
       </div>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }

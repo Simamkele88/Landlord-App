@@ -1,11 +1,10 @@
-// LANDLORD FORGOT PASSWORD PAGE
-
-
+// LANDLORD FORGOT PASSWORD PAGE 
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Mail, ArrowLeft, Loader2, CheckCircle } from "lucide-react";
 import axios from "axios";
 import useDocumentTitle from "../../hooks/useDocumentTitle";
+import { Icon } from "../../components/Icon";
+import { c as C, f as F } from "../../styles/theme";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:4000";
 
@@ -19,70 +18,56 @@ export default function ForgotPassword() {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    
-    if (!email.trim()) {
-      setError("Please enter your email address");
-      return;
-    }
-
+    if (!email.trim()) { setError("Please enter your email address"); return; }
     setLoading(true);
     setError("");
-
     try {
-      await axios.post(`${API}/auth/forgot-password`, { 
-        email: email.trim().toLowerCase() 
-      });
+      await axios.post(`${API}/auth/forgot-password`, { email: email.trim().toLowerCase() });
       setSubmitted(true);
     } catch (err) {
-      if (err.code === "ERR_NETWORK") {
-        setError("Unable to connect to server. Please check your connection.");
-      } else {
-        setError(err.response?.data?.error || "Failed to send reset code. Please try again.");
-      }
-    } finally {
-      setLoading(false);
-    }
+      if (err.code === "ERR_NETWORK") setError("Unable to connect to server.");
+      else setError(err.response?.data?.error || "Failed to send reset code.");
+    } finally { setLoading(false); }
   }
 
-  // SUCCESS STATE — CODE SENT
+  const inputStyle = {
+    width: '100%', fontSize: '0.88rem', padding: '0.7rem 1rem 0.7rem 2.5rem',
+    borderRadius: '3px', background: C.black, border: `1px solid ${C.border}`,
+    color: C.white, fontFamily: F.dm, outline: 'none',
+  };
+
+  const btnStyle = {
+    width: '100%', padding: '0.7rem', borderRadius: '3px',
+    fontSize: '0.82rem', fontWeight: 700, fontFamily: F.dm,
+    letterSpacing: '0.04em', border: 'none', cursor: 'pointer',
+    background: C.gold, color: C.black,
+    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+  };
+
+  // SUCCESS STATE
   if (submitted) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-gray-50 dark:bg-gray-900">
-        <div className="w-full max-w-md p-8 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
-          <div className="text-center">
-            <div className="mx-auto w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-4">
-              <CheckCircle size={32} className="text-green-600 dark:text-green-400" />
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '2rem', background: C.black }}>
+        <div style={{ width: '100%', maxWidth: 420, background: C.muted2, borderRadius: '8px', border: `1px solid ${C.border}`, padding: '2.5rem 2rem', boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(26,122,74,0.1)', border: '1px solid rgba(76,186,122,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
+              <Icon name="check" size={30} color={C.greenLight} />
             </div>
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-              Check Your Email
-            </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-              If an account exists for <span className="font-semibold text-gray-700 dark:text-gray-300">{email}</span>, 
-              a 6-digit reset code has been sent.
+            <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: C.white, fontFamily: F.bebas, letterSpacing: '0.04em', marginBottom: '0.5rem' }}>Check Your Email</h2>
+            <p style={{ fontSize: '0.82rem', color: 'rgba(245,240,232,0.5)', lineHeight: 1.6, marginBottom: '0.3rem' }}>
+              If an account exists for <strong style={{ color: C.white }}>{email}</strong>, a 6-digit reset code has been sent.
             </p>
-            <p className="text-xs text-gray-400 dark:text-gray-500 mb-6">
-              The code expires in 15 minutes. Check your spam folder if you don't see it.
+            <p style={{ fontSize: '0.7rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono, marginBottom: '1.5rem' }}>
+              The code expires in 15 minutes. Check your spam folder.
             </p>
-            
-            <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 mb-6">
-              <p className="text-xs text-blue-700 dark:text-blue-300">
-                Enter the code on the reset password page to set a new password.
-              </p>
+            <div style={{ padding: '0.7rem', borderRadius: '3px', background: 'rgba(58,143,212,0.06)', border: '1px solid rgba(58,143,212,0.15)', marginBottom: '1.2rem' }}>
+              <p style={{ fontSize: '0.72rem', color: 'rgba(58,143,212,0.7)', lineHeight: 1.4 }}>Enter the code on the reset password page to set a new password.</p>
             </div>
-
-            <Link
-              to="/verify-code"
-              className="inline-flex items-center justify-center w-full px-5 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors mb-3"
-            >
-              Enter Reset Code
-            </Link>
-
-            <Link
-              to="/login"
-              className="inline-flex items-center gap-1 text-sm text-blue-600 dark:text-blue-400 hover:underline"
-            >
-              <ArrowLeft size={14} />
-              Back to Login
+            <Link to="/verify-code" style={{ ...btnStyle, textDecoration: 'none', marginBottom: '0.8rem', display: 'flex' }}>Enter Reset Code</Link>
+            <Link to="/login" style={{ fontSize: '0.78rem', color: C.gold, textDecoration: 'none', fontFamily: F.mono, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+              onMouseEnter={e => e.currentTarget.style.textDecoration = 'underline'}
+              onMouseLeave={e => e.currentTarget.style.textDecoration = 'none'}>
+              <Icon name="chevron-left" size={13} /> Back to Login
             </Link>
           </div>
         </div>
@@ -90,80 +75,49 @@ export default function ForgotPassword() {
     );
   }
 
-  // FORGOT PASSWORD FORM
+  // FORM
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-gray-50 dark:bg-gray-900">
-      <div className="w-full max-w-md">
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '2rem', background: C.black }}>
+      <div style={{ width: '100%', maxWidth: 420 }}>
         {/* Logo */}
-        <Link to="/login" className="flex items-center justify-center mb-8">
-          <img
-            src="/images/logo/logo.jpg"
-            className="h-12 w-12 object-cover shadow-md"
-            alt="Logo"
-          />
-          <span className="ml-3 text-xl font-bold text-gray-900 dark:text-white">Chihwa Rentals</span>
-        </Link>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', marginBottom: '2rem' }}>
+          <span style={{ fontFamily: F.bebas, fontSize: '1.4rem', letterSpacing: '0.06em', color: C.white }}>
+            Chihwa<span style={{ color: C.gold }}>Rentals</span>
+          </span>
+        </div>
 
-        <div className="p-8 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-            Forgot Password
-          </h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-            Enter your email address and we'll send you a 6-digit reset code.
-          </p>
+        <div style={{ background: C.muted2, borderRadius: '8px', border: `1px solid ${C.border}`, padding: '2rem', boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}>
+          <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: C.white, fontFamily: F.bebas, letterSpacing: '0.04em', marginBottom: '0.3rem' }}>Forgot Password</h2>
+          <p style={{ fontSize: '0.78rem', color: 'rgba(245,240,232,0.4)', marginBottom: '1.5rem' }}>Enter your email and we'll send you a 6-digit reset code.</p>
 
-          {/* ERROR */}
           {error && (
-            <div className="p-3 mb-4 text-sm text-red-800 bg-red-50 rounded-lg border border-red-200 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400">
-              {error}
-            </div>
+            <div style={{ padding: '0.6rem 0.8rem', borderRadius: '3px', background: 'rgba(224,90,74,0.08)', border: '1px solid rgba(224,90,74,0.2)', marginBottom: '1rem', fontSize: '0.75rem', color: C.redLight }}>{error}</div>
           )}
 
           <form onSubmit={handleSubmit}>
-            <div className="mb-4">
-              <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
-                Email Address
-              </label>
-              <div className="relative">
-                <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => { setEmail(e.target.value); setError(""); }}
-                  placeholder="name@company.com"
-                  required
-                  className="w-full pl-10 pr-4 py-2.5 text-sm bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
-                />
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 500, color: 'rgba(245,240,232,0.6)', marginBottom: '0.4rem' }}>Email Address</label>
+              <div style={{ position: 'relative' }}>
+                <Icon name="mail" size={15} style={{ position: 'absolute', left: '0.8rem', top: '50%', transform: 'translateY(-50%)', color: 'rgba(245,240,232,0.25)' }} />
+                <input type="email" value={email} onChange={e => { setEmail(e.target.value); setError(""); }} placeholder="name@company.com" style={inputStyle} />
               </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors mb-4"
-            >
-              {loading ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" />
-                  Sending Code...
-                </>
-              ) : (
-                "Send Reset Code"
-              )}
+            <button type="submit" disabled={loading} style={{ ...btnStyle, opacity: loading ? 0.6 : 1 }}>
+              {loading ? <span style={{ width: 16, height: 16, border: '2px solid rgba(0,0,0,0.2)', borderTopColor: C.black, borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} /> : "Send Reset Code"}
             </button>
 
-            <div className="text-center">
-              <Link
-                to="/login"
-                className="inline-flex items-center gap-1 text-sm text-blue-600 dark:text-blue-400 hover:underline"
-              >
-                <ArrowLeft size={14} />
-                Back to Login
+            <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+              <Link to="/login" style={{ fontSize: '0.78rem', color: C.gold, textDecoration: 'none', fontFamily: F.mono, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+                onMouseEnter={e => e.currentTarget.style.textDecoration = 'underline'}
+                onMouseLeave={e => e.currentTarget.style.textDecoration = 'none'}>
+                <Icon name="chevron-left" size={13} /> Back to Login
               </Link>
             </div>
           </form>
         </div>
       </div>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }

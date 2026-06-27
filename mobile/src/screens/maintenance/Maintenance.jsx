@@ -1,5 +1,4 @@
-// TENANT MAINTENANCE LIST SCREEN — FETCHES FROM DATABASE
-
+// TENANT MAINTENANCE LIST SCREEN 
 import { useState, useEffect, useCallback } from "react";
 import {
   View, Text, ScrollView, TouchableOpacity,
@@ -11,41 +10,48 @@ import { Feather, Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import api from "../../utils/api";
 
-// THEME COLORS
+
 const C = {
-  bg: "#0F172A", surface: "#1E293B", surfaceAlt: "#273449",
-  border: "#334155", primary: "#3B82F6",
-  success: "#22C55E", successBg: "#052E16",
-  warning: "#F59E0B", warningBg: "#451A03",
-  danger: "#EF4444", dangerBg: "#450A0A",
-  textPrimary: "#F1F5F9", textSecondary: "#94A3B8", textMuted: "#64748B",
-  white: "#FFFFFF",
+  black:        "#0a0a0a",
+  muted:        "#141414",
+  muted2:       "#1a1a1a",
+  border:       "#2a2a2a",
+  gold:         "#E8A012",
+  white:        "#F5F0E8",
+  blue:         "#3A8FD4",
+  greenLight:   "#1A7A4A",
+  redLight:     "#E05A4A",
+  purple:       "#8B5CF6",
 };
 
-// CATEGORY CONFIG
+const F = {
+  bebas: "bebas-neue",
+  dm:    "dm-sans",
+  mono:  "space-mono",
+};
+
+
 const CATEGORIES = {
-  plumbing:      { label: "Plumbing",     icon: "water",           color: "#3B82F6" },
-  electrical:    { label: "Electrical",   icon: "flash",           color: "#F59E0B" },
-  structural:    { label: "Structural",   icon: "business",        color: "#5c7df6" },
+  plumbing:      { label: "Plumbing",     icon: "water",           color: C.blue },
+  electrical:    { label: "Electrical",   icon: "flash",           color: C.gold },
+  structural:    { label: "Structural",   icon: "business",        color: C.purple },
   appliance:     { label: "Appliance",    icon: "settings",        color: "#48ecb5" },
   hvac:          { label: "HVAC",         icon: "thermometer",     color: "#062fd4" },
   painting:      { label: "Painting",     icon: "color-palette",   color: "#84CC16" },
-  cleaning:      { label: "Cleaning",     icon: "sparkles",        color: "#22C55E" },
-  pest_control:  { label: "Pest Control", icon: "bug",             color: "#EF4444" },
-  other:         { label: "Other",        icon: "ellipsis-horizontal", color: C.textMuted },
+  cleaning:      { label: "Cleaning",     icon: "sparkles",        color: C.greenLight },
+  pest_control:  { label: "Pest Control", icon: "bug",             color: C.redLight },
+  other:         { label: "Other",        icon: "ellipsis-horizontal", color: "rgba(245,240,232,0.4)" },
 };
 
-// STATUS CONFIG
 const STATUS = {
-  needs_repair:     { label: "Needs Repair",     color: C.danger,  bg: C.dangerBg },
-  assigned:         { label: "Assigned",          color: C.primary, bg: "#1a2a3a" },
-  in_progress:      { label: "In Progress",       color: C.warning, bg: C.warningBg },
-  completed:        { label: "Completed",         color: C.success, bg: C.successBg },
-  cancelled:        { label: "Closed",         color: C.textMuted, bg: C.surfaceAlt },
-  pending_approval: { label: "Pending Approval",  color: C.warning, bg: C.warningBg },
+  needs_repair:     { label: "Needs Repair",     color: C.redLight,  bg: "rgba(224,90,74,0.08)" },
+  assigned:         { label: "Assigned",          color: C.blue,      bg: "rgba(58,143,212,0.08)" },
+  in_progress:      { label: "In Progress",       color: C.gold,      bg: "rgba(232,160,18,0.06)" },
+  completed:        { label: "Completed",         color: C.greenLight,bg: "rgba(26,122,74,0.08)" },
+  cancelled:        { label: "Closed",            color: "rgba(245,240,232,0.4)", bg: "rgba(245,240,232,0.04)" },
+  pending_approval: { label: "Pending Approval",  color: C.gold,      bg: "rgba(232,160,18,0.06)" },
 };
 
-// HELPERS
 function timeAgo(dateStr) {
   if (!dateStr) return "";
   const diff = (Date.now() - new Date(dateStr).getTime()) / 1000;
@@ -55,15 +61,9 @@ function timeAgo(dateStr) {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-function getCat(id) {
-  return CATEGORIES[id] ?? CATEGORIES.other;
-}
+function getCat(id) { return CATEGORIES[id] ?? CATEGORIES.other; }
+function getStatusCfg(status) { return STATUS[status] ?? STATUS.needs_repair; }
 
-function getStatusCfg(status) {
-  return STATUS[status] ?? STATUS.needs_repair;
-}
-
-// STATUS PILL
 function StatusPill({ status }) {
   const cfg = getStatusCfg(status);
   return (
@@ -73,7 +73,6 @@ function StatusPill({ status }) {
   );
 }
 
-// REQUEST CARD
 function RequestCard({ request, onPress }) {
   const cat = getCat(request.category);
   const latestUpdate = request.updates?.[request.updates?.length - 1];
@@ -83,8 +82,8 @@ function RequestCard({ request, onPress }) {
       <View style={[S.cardBar, { backgroundColor: cat.color }]} />
       <View style={S.cardInner}>
         <View style={S.cardTop}>
-          <View style={[S.catIcon, { backgroundColor: cat.color + "18" }]}>
-            <Ionicons name={cat.icon} size={16} color={cat.color} />
+          <View style={[S.catIcon, { backgroundColor: cat.color + "15", borderColor: cat.color + "25" }]}>
+            <Ionicons name={cat.icon} size={15} color={cat.color} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={S.cardTitle} numberOfLines={1}>{request.title}</Text>
@@ -97,16 +96,13 @@ function RequestCard({ request, onPress }) {
           <View style={S.cardUpdate}>
             <View style={[S.updateDot, { backgroundColor: getStatusCfg(latestUpdate.status_to).color }]} />
             <Text style={S.cardUpdateText} numberOfLines={1}>{latestUpdate.notes}</Text>
-            <Feather name="chevron-right" size={12} color={C.textMuted} />
+            <Feather name="chevron-right" size={11} color="rgba(245,240,232,0.25)" />
           </View>
         )}
-        {/* COMPLETION BANNER */}
         {request.status === "completed" && (
-          <View style={[S.banner, { backgroundColor: C.successBg, borderColor: C.success + "30" }]}>
-            <Ionicons name="checkmark-circle" size={13} color={C.success} />
-            <Text style={[S.bannerText, { color: C.success }]}>
-              Repair complete tap to confirm
-            </Text>
+          <View style={[S.banner, { backgroundColor: "rgba(26,122,74,0.06)", borderColor: "rgba(76,186,122,0.15)" }]}>
+            <Ionicons name="checkmark-circle" size={13} color={C.greenLight} />
+            <Text style={[S.bannerText, { color: C.greenLight }]}>Repair complete — tap to confirm</Text>
           </View>
         )}
       </View>
@@ -114,7 +110,6 @@ function RequestCard({ request, onPress }) {
   );
 }
 
-// MAIN SCREEN
 const FILTERS = ["All", "Active", "Completed"];
 
 export default function TenantMaintenance() {
@@ -125,26 +120,18 @@ export default function TenantMaintenance() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
 
-  // FETCH FROM API
   const fetchRequests = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     setError("");
     try {
       const token = await AsyncStorage.getItem("token");
       const response = await fetch(`${api.getBaseUrl()}/maintenance`, {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       });
       const data = await response.json();
-      if (response.ok) {
-        setRequests(data.requests || []);
-      } else {
-        setError(data.error || "Failed to load requests");
-      }
+      if (response.ok) setRequests(data.requests || []);
+      else setError(data.error || "Failed to load requests");
     } catch (err) {
-      console.error("Failed to fetch maintenance requests:", err);
       setError("Unable to connect to server");
     } finally {
       setLoading(false);
@@ -152,14 +139,8 @@ export default function TenantMaintenance() {
     }
   }, []);
 
-  // REFRESH ON FOCUS
-  useFocusEffect(
-    useCallback(() => {
-      fetchRequests(true);
-    }, [fetchRequests])
-  );
+  useFocusEffect(useCallback(() => { fetchRequests(true); }, [fetchRequests]));
 
-  // FILTER LOGIC
   const filtered = requests.filter(r => {
     if (filter === "All") return true;
     if (filter === "Active") return ["needs_repair", "assigned", "in_progress", "pending_approval"].includes(r.status);
@@ -167,14 +148,13 @@ export default function TenantMaintenance() {
     return true;
   });
 
-  // NAVIGATE TO DETAIL
   function openDetail(request) {
     navigation.getParent()?.navigate("MaintenanceDetail", { request });
   }
 
   return (
     <SafeAreaView style={S.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={C.bg} />
+      <StatusBar barStyle="light-content" backgroundColor={C.black} />
 
       {/* HEADER */}
       <View style={S.header}>
@@ -187,7 +167,8 @@ export default function TenantMaintenance() {
           onPress={() => navigation.getParent()?.navigate("MaintenanceNew")}
           activeOpacity={0.8}
         >
-          <Text style={S.newBtnText}>New Maintenance</Text>
+          <Ionicons name="add" size={16} color={C.black} />
+          <Text style={S.newBtnText}>New Request</Text>
         </TouchableOpacity>
       </View>
 
@@ -210,11 +191,11 @@ export default function TenantMaintenance() {
       {/* CONTENT */}
       {loading ? (
         <View style={S.loader}>
-          <ActivityIndicator size="large" color={C.primary} />
+          <ActivityIndicator size="large" color={C.gold} />
         </View>
       ) : error ? (
         <View style={S.emptyState}>
-          <Feather name="wifi-off" size={32} color={C.textMuted} />
+          <Feather name="wifi-off" size={30} color="rgba(245,240,232,0.2)" />
           <Text style={S.emptyTitle}>{error}</Text>
           <TouchableOpacity onPress={() => fetchRequests()} style={S.retryBtn}>
             <Text style={S.retryBtnText}>Retry</Text>
@@ -229,26 +210,22 @@ export default function TenantMaintenance() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={() => { setRefreshing(true); fetchRequests(); }}
-              tintColor={C.primary}
+              tintColor={C.gold}
             />
           }
         >
           {filtered.length === 0 ? (
             <View style={S.emptyState}>
               <View style={S.emptyIcon}>
-                <Ionicons name="construct-outline" size={30} color={C.textMuted} />
+                <Ionicons name="construct-outline" size={28} color="rgba(245,240,232,0.2)" />
               </View>
               <Text style={S.emptyTitle}>No requests</Text>
               <Text style={S.emptySub}>
-                {filter === "All" 
-                  ? "Tap 'New Maintenance' to report an issue" 
-                  : `No ${filter.toLowerCase()} requests found`}
+                {filter === "All" ? "Tap 'New Request' to report an issue" : `No ${filter.toLowerCase()} requests found`}
               </Text>
             </View>
           ) : (
-            filtered.map(r => (
-              <RequestCard key={r.id} request={r} onPress={() => openDetail(r)} />
-            ))
+            filtered.map(r => <RequestCard key={r.id} request={r} onPress={() => openDetail(r)} />)
           )}
           <View style={{ height: 32 }} />
         </ScrollView>
@@ -257,67 +234,75 @@ export default function TenantMaintenance() {
   );
 }
 
-// STYLES
 const S = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.bg },
+  safe: { flex: 1, backgroundColor: C.black },
   header: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingHorizontal: 20, paddingTop: 16, paddingBottom: 14,
-    borderBottomWidth: 1, borderBottomColor: C.border,
+    paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12,
+    borderBottomWidth: 1, borderBottomColor: C.border, backgroundColor: C.muted2,
   },
-  headerTitle: { fontSize: 22, fontWeight: "800", color: C.textPrimary },
-  headerSub: { fontSize: 12, color: C.textMuted, marginTop: 2 },
+  headerTitle: { fontSize: 20, fontWeight: "700", color: C.white, fontFamily: F.bebas, letterSpacing: 1 },
+  headerSub: { fontSize: 11, color: "rgba(245,240,232,0.3)", fontFamily: F.mono, marginTop: 2 },
   newBtn: {
-    flexDirection: "row", alignItems: "center", gap: 4,
-    backgroundColor: C.primary, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 10,
+    flexDirection: "row", alignItems: "center", gap: 5,
+    backgroundColor: C.gold, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 3,
   },
-  newBtnText: { fontSize: 13, fontWeight: "700", color: C.white },
-  filterRow: { borderBottomWidth: 1, borderBottomColor: C.border },
-  filterScroll: { paddingHorizontal: 16, paddingVertical: 10, gap: 8 },
+  newBtnText: { fontSize: 11, fontWeight: "700", color: C.black, fontFamily: F.dm, letterSpacing: 0.5, textTransform: "uppercase" },
+
+  filterRow: { borderBottomWidth: 1, borderBottomColor: C.border, backgroundColor: C.muted2 },
+  filterScroll: { paddingHorizontal: 14, paddingVertical: 10, gap: 6 },
   filterTab: {
-    paddingHorizontal: 14, paddingVertical: 6, borderRadius: 8,
-    backgroundColor: C.surfaceAlt, borderWidth: 1, borderColor: C.border,
+    paddingHorizontal: 12, paddingVertical: 5, borderRadius: 3,
+    backgroundColor: C.black, borderWidth: 1, borderColor: C.border,
   },
-  filterTabActive: { backgroundColor: C.primary + "20", borderColor: C.primary },
-  filterTabText: { fontSize: 12, fontWeight: "600", color: C.textSecondary },
-  filterTabTextActive: { color: C.primary },
-  loader: { flex: 1, alignItems: "center", justifyContent: "center" },
+  filterTabActive: { backgroundColor: "rgba(232,160,18,0.08)", borderColor: C.gold },
+  filterTabText: { fontSize: 11, fontWeight: "600", color: "rgba(245,240,232,0.4)", fontFamily: F.mono, letterSpacing: 0.5 },
+  filterTabTextActive: { color: C.gold },
+
+  loader: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: C.black },
   scroll: { flex: 1 },
-  scrollPad: { padding: 16, gap: 12 },
+  scrollPad: { padding: 14, gap: 10 },
+
   card: {
-    flexDirection: "row", backgroundColor: C.surface,
-    borderRadius: 14, borderWidth: 1, borderColor: C.border, overflow: "hidden",
+    flexDirection: "row", backgroundColor: C.muted2,
+    borderRadius: 6, borderWidth: 1, borderColor: C.border, overflow: "hidden",
   },
   cardBar: { width: 3 },
-  cardInner: { flex: 1, padding: 14, gap: 8 },
-  cardTop: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
-  catIcon: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
-  cardTitle: { fontSize: 14, fontWeight: "700", color: C.textPrimary, flex: 1 },
-  cardMeta: { fontSize: 11, color: C.textMuted, marginTop: 3 },
-  cardDesc: { fontSize: 12, color: C.textSecondary, lineHeight: 18 },
+  cardInner: { flex: 1, padding: 12, gap: 6 },
+  cardTop: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
+  catIcon: {
+    width: 32, height: 32, borderRadius: 6,
+    alignItems: "center", justifyContent: "center", borderWidth: 1,
+  },
+  cardTitle: { fontSize: 13, fontWeight: "600", color: C.white, fontFamily: F.dm, flex: 1 },
+  cardMeta: { fontSize: 10, color: "rgba(245,240,232,0.25)", fontFamily: F.mono, marginTop: 2 },
+  cardDesc: { fontSize: 11, color: "rgba(245,240,232,0.4)", fontFamily: F.dm, lineHeight: 17 },
   cardUpdate: {
-    flexDirection: "row", alignItems: "center", gap: 6,
-    backgroundColor: C.surfaceAlt, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 5,
+    flexDirection: "row", alignItems: "center", gap: 5,
+    backgroundColor: C.black, borderRadius: 3, paddingHorizontal: 8, paddingVertical: 4,
+    borderWidth: 1, borderColor: C.border,
   },
   updateDot: { width: 5, height: 5, borderRadius: 3 },
-  cardUpdateText: { flex: 1, fontSize: 11, color: C.textSecondary },
+  cardUpdateText: { flex: 1, fontSize: 10, color: "rgba(245,240,232,0.35)", fontFamily: F.mono },
   banner: {
-    flexDirection: "row", alignItems: "center", gap: 6,
-    borderRadius: 6, padding: 8, borderWidth: 1,
+    flexDirection: "row", alignItems: "center", gap: 5,
+    borderRadius: 3, padding: 6, borderWidth: 1,
   },
-  bannerText: { flex: 1, fontSize: 11, fontWeight: "600" },
-  pill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, alignSelf: "flex-start" },
-  pillText: { fontSize: 10, fontWeight: "700", textTransform: "uppercase" },
-  emptyState: { alignItems: "center", paddingTop: 60, gap: 12 },
+  bannerText: { flex: 1, fontSize: 10, fontWeight: "600", fontFamily: F.dm },
+
+  pill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 3, alignSelf: "flex-start" },
+  pillText: { fontSize: 9, fontWeight: "700", textTransform: "uppercase", fontFamily: F.mono, letterSpacing: 1 },
+
+  emptyState: { alignItems: "center", paddingTop: 60, gap: 10 },
   emptyIcon: {
-    width: 60, height: 60, borderRadius: 18, backgroundColor: C.surface,
+    width: 56, height: 56, borderRadius: 8, backgroundColor: C.muted2,
     borderWidth: 1, borderColor: C.border, alignItems: "center", justifyContent: "center",
   },
-  emptyTitle: { fontSize: 15, fontWeight: "700", color: C.textSecondary },
-  emptySub: { fontSize: 12, color: C.textMuted, textAlign: "center" },
+  emptyTitle: { fontSize: 14, fontWeight: "700", color: "rgba(245,240,232,0.4)", fontFamily: F.dm },
+  emptySub: { fontSize: 11, color: "rgba(245,240,232,0.25)", fontFamily: F.mono, textAlign: "center" },
   retryBtn: {
-    paddingHorizontal: 20, paddingVertical: 8, borderRadius: 8,
-    backgroundColor: C.primary + "20", borderWidth: 1, borderColor: C.primary,
+    paddingHorizontal: 18, paddingVertical: 7, borderRadius: 3,
+    backgroundColor: "rgba(232,160,18,0.08)", borderWidth: 1, borderColor: "rgba(232,160,18,0.15)",
   },
-  retryBtnText: { fontSize: 13, fontWeight: "600", color: C.primary },
+  retryBtnText: { fontSize: 11, fontWeight: "600", color: C.gold, fontFamily: F.mono, letterSpacing: 0.5 },
 });

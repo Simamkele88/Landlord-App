@@ -2,22 +2,25 @@
 import { useState } from "react";
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-   StatusBar, KeyboardAvoidingView, Platform,
-  ActivityIndicator, Alert, SafeAreaView
+  StatusBar, KeyboardAvoidingView, Platform,
+  ActivityIndicator, Alert, SafeAreaView,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
 import api from "../../utils/api";
 
-
 const C = {
-  bg: "#0F172A", surface: "#1E293B", surfaceAlt: "#273449",
-  border: "#334155", primary: "#3B82F6",
-  success: "#22C55E", successBg: "#052E16",
-  danger: "#EF4444", dangerBg: "#450A0A",
-  textPrimary: "#F1F5F9", textSecondary: "#94A3B8", textMuted: "#64748B",
-  white: "#FFFFFF",
+  black:        "#0a0a0a",
+  muted:        "#141414",
+  muted2:       "#1a1a1a",
+  border:       "#2a2a2a",
+  gold:         "#E8A012",
+  white:        "#F5F0E8",
+  blue:         "#3A8FD4",
+  greenLight:   "#1A7A4A",
+  redLight:     "#E05A4A",
 };
+const F = { bebas: "bebas-neue", dm: "dm-sans", mono: "space-mono" };
 
 export default function ForgotPassword() {
   const navigation = useNavigation();
@@ -27,87 +30,78 @@ export default function ForgotPassword() {
   const [error, setError] = useState("");
 
   async function handleSendCode() {
-  if (!email.trim()) {
-    setError("Please enter your email address");
-    return;
+    if (!email.trim()) { setError("Please enter your email address"); return; }
+    setLoading(true);
+    setError("");
+    try {
+      await api.post("/auth/forgot-password", { email: email.trim().toLowerCase() });
+      setSent(true);
+    } catch (err) {
+      setError(err.data?.error || "Unable to connect. Please try again.");
+    } finally { setLoading(false); }
   }
 
-  setLoading(true);
-  setError("");
+  const $input = {
+    backgroundColor: C.black, borderWidth: 1, borderColor: C.border,
+    borderRadius: 3, paddingHorizontal: 12, paddingVertical: 13,
+    fontSize: 15, color: C.white, fontFamily: F.dm,
+  };
+  const $btnGold = {
+    backgroundColor: C.gold, borderRadius: 3, paddingVertical: 15,
+    alignItems: "center", justifyContent: "center",
+  };
 
-  try {
-    await api.post("/auth/forgot-password", {
-      email: email.trim().toLowerCase()
-    });
-
-    
-    setSent(true);
-  } catch (err) {
-    setError(err.data?.error || "Unable to connect. Please try again.");
-  } finally {
-    setLoading(false);
-  }
-}
-
-  // SUCCESS
+  // SUCCESS STATE
   if (sent) {
     return (
-      <SafeAreaView style={styles.safe}>
-        <StatusBar barStyle="light-content" backgroundColor={C.bg} />
-        <View style={styles.container}>
-          <View style={styles.successIcon}>
-            <Feather name="check" size={32} color={C.success} />
+      <SafeAreaView style={S.safe}>
+        <StatusBar barStyle="light-content" backgroundColor={C.black} />
+        <View style={S.container}>
+          <View style={S.successIcon}>
+            <Feather name="check" size={30} color={C.greenLight} />
           </View>
-          <Text style={styles.title}>Code Sent</Text>
-          <Text style={styles.subtitle}>
-            If an account exists for {email}, a 6-digit reset code has been sent.
+          <Text style={S.title}>Code Sent</Text>
+          <Text style={S.subtitle}>
+            If an account exists for <Text style={{ color: C.white, fontWeight: "600" }}>{email}</Text>, a 6-digit reset code has been sent.
           </Text>
-          <Text style={styles.hint}>The code expires in 15 minutes.</Text>
+          <Text style={S.hint}>The code expires in 15 minutes.</Text>
 
-          <TouchableOpacity
-            style={styles.btn}
-            onPress={() => navigation.navigate("VerifyCode")}
-          >
-            <Text style={styles.btnText}>Enter Reset Code</Text>
+          <TouchableOpacity style={$btnGold} onPress={() => navigation.navigate("VerifyCode")} activeOpacity={0.85}>
+            <Text style={S.btnText}>ENTER RESET CODE</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Text style={styles.link}>Back to Login</Text>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: 16 }}>
+            <Text style={S.link}>Back to Login</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
   }
 
-  // FORGOT PASSWORD FORM
+  // FORM
   return (
-    <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={C.bg} />
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-      >
-        <View style={styles.container}>
-          <Text style={styles.title}>Forgot Password</Text>
-          <Text style={styles.subtitle}>
-            Enter your email address and we'll send you a 6-digit reset code.
-          </Text>
+    <SafeAreaView style={S.safe}>
+      <StatusBar barStyle="light-content" backgroundColor={C.black} />
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+        <View style={S.container}>
+          <Text style={S.title}>Forgot Password</Text>
+          <Text style={S.subtitle}>Enter your email and we'll send you a 6-digit reset code.</Text>
 
           {error ? (
-            <View style={styles.errorBanner}>
-              <Feather name="alert-circle" size={14} color={C.danger} />
-              <Text style={styles.errorText}>{error}</Text>
+            <View style={S.errorBanner}>
+              <Feather name="alert-circle" size={14} color={C.redLight} />
+              <Text style={S.errorText}>{error}</Text>
             </View>
           ) : null}
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email Address</Text>
+          <View style={S.inputGroup}>
+            <Text style={S.label}>EMAIL ADDRESS</Text>
             <TextInput
-              style={styles.input}
+              style={$input}
               value={email}
               onChangeText={(v) => { setEmail(v); setError(""); }}
               placeholder="you@example.com"
-              placeholderTextColor={C.textMuted}
+              placeholderTextColor="rgba(245,240,232,0.15)"
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
@@ -115,19 +109,20 @@ export default function ForgotPassword() {
           </View>
 
           <TouchableOpacity
-            style={[styles.btn, loading && { opacity: 0.6 }]}
+            style={[$btnGold, loading && { opacity: 0.6 }]}
             onPress={handleSendCode}
             disabled={loading}
+            activeOpacity={0.85}
           >
             {loading ? (
-              <ActivityIndicator color={C.white} size="small" />
+              <ActivityIndicator color={C.black} size="small" />
             ) : (
-              <Text style={styles.btnText}>Send Reset Code</Text>
+              <Text style={S.btnText}>SEND RESET CODE</Text>
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Text style={styles.link}>Back to Login</Text>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: 16 }}>
+            <Text style={S.link}>Back to Login</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -135,34 +130,33 @@ export default function ForgotPassword() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.bg },
+const S = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: C.black },
   container: { flex: 1, justifyContent: "center", padding: 24 },
-  title: { fontSize: 24, fontWeight: "800", color: C.textPrimary, marginBottom: 8 },
-  subtitle: { fontSize: 14, color: C.textSecondary, marginBottom: 24, lineHeight: 20 },
-  hint: { fontSize: 12, color: C.textMuted, marginBottom: 24 },
+
+  title: { fontSize: 22, fontWeight: "700", color: C.white, fontFamily: F.bebas, letterSpacing: 1, marginBottom: 8 },
+  subtitle: { fontSize: 13, color: "rgba(245,240,232,0.4)", fontFamily: F.dm, marginBottom: 24, lineHeight: 20 },
+  hint: { fontSize: 11, color: "rgba(245,240,232,0.25)", fontFamily: F.mono, marginBottom: 20 },
+
   successIcon: {
-    width: 64, height: 64, borderRadius: 32,
-    backgroundColor: C.successBg, borderWidth: 2, borderColor: C.success,
-    alignItems: "center", justifyContent: "center", marginBottom: 16,
+    width: 60, height: 60, borderRadius: 30,
+    backgroundColor: "rgba(26,122,74,0.08)", borderWidth: 2, borderColor: "rgba(76,186,122,0.2)",
+    alignItems: "center", justifyContent: "center", marginBottom: 16, alignSelf: "center",
   },
+
   inputGroup: { marginBottom: 16 },
-  label: { fontSize: 12, fontWeight: "600", color: C.textSecondary, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 },
-  input: {
-    backgroundColor: C.surface, borderWidth: 1, borderColor: C.border,
-    borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12,
-    fontSize: 15, color: C.textPrimary,
+  label: {
+    fontSize: 10, fontWeight: "700", color: "rgba(245,240,232,0.25)",
+    fontFamily: F.mono, letterSpacing: 1.5, marginBottom: 6,
   },
+
   errorBanner: {
     flexDirection: "row", alignItems: "center", gap: 8,
-    backgroundColor: C.dangerBg, borderRadius: 10, borderWidth: 1,
-    borderColor: C.danger, padding: 12, marginBottom: 16,
+    backgroundColor: "rgba(224,90,74,0.06)", borderRadius: 3, borderWidth: 1,
+    borderColor: "rgba(224,90,74,0.15)", padding: 10, marginBottom: 16,
   },
-  errorText: { flex: 1, fontSize: 13, color: C.danger },
-  btn: {
-    backgroundColor: C.primary, borderRadius: 14, paddingVertical: 16,
-    alignItems: "center", marginBottom: 16, marginTop: 8,
-  },
-  btnText: { color: C.white, fontSize: 16, fontWeight: "700" },
-  link: { color: C.primary, fontSize: 14, fontWeight: "600", textAlign: "center" },
+  errorText: { flex: 1, fontSize: 12, color: C.redLight, fontFamily: F.dm },
+
+  btnText: { color: C.black, fontSize: 13, fontWeight: "700", fontFamily: F.dm, letterSpacing: 1, textTransform: "uppercase" },
+  link: { color: C.gold, fontSize: 13, fontWeight: "600", fontFamily: F.mono, textAlign: "center" },
 });

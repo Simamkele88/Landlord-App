@@ -1,9 +1,15 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 // PAYMENT RECEIPT PAGE
-import { useLocation, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
+import axios from "axios";
 import useDocumentTitle from "../../../hooks/useDocumentTitle";
+import { Icon } from "../../../components/Icon";
+import { c as C, f as F } from "../../../styles/theme";
 
-// HELPER FUNCTIONS
-function format(amount) {
+const API = "http://localhost:4000";
+
+function formatAmount(amount) {
   return `R ${Number(amount).toLocaleString("en-ZA")}`;
 }
 
@@ -20,48 +26,88 @@ function formatDate(dateStr) {
   });
 }
 
-// DERIVE RECEIPT NUMBER FROM PAYMENT DATA 
-function receiptNumber(payment) {
-  const datePart = payment.paid
-    ? payment.paid.replace(/-/g, "").slice(2) 
-    : "000000";
-  return `RCP-${String(payment.id).padStart(4, "0")}-${datePart}`;
-}
-
-// ROW HELPER COMPONENT FOR DETAILS TABLE
 function Row({ label, value, mono = false, highlight = false }) {
   return (
-    <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700 last:border-0">
-      <span className="text-sm text-gray-500 dark:text-gray-400">{label}</span>
-      <span
-        className={`text-sm font-medium text-right
-          ${highlight ? "text-green-600 dark:text-green-400 text-base font-bold" : "text-gray-900 dark:text-white"}
-          ${mono ? "font-mono" : ""}
-        `}
-      >
+    <div style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      padding: '0.7rem 0', borderBottom: `1px solid ${C.border}`,
+    }}>
+      <span style={{ fontSize: '0.78rem', color: 'rgba(245,240,232,0.4)' }}>{label}</span>
+      <span style={{
+        fontSize: highlight ? '0.9rem' : '0.78rem',
+        fontWeight: highlight ? 700 : 500,
+        color: highlight ? C.gold : C.white,
+        fontFamily: mono ? F.mono : F.dm,
+        textAlign: 'right',
+      }}>
         {value}
       </span>
     </div>
   );
 }
 
-// MAIN PAGE COMPONENT
 export default function PaymentReceipt() {
   useDocumentTitle("Receipt");
 
   const { state } = useLocation();
   const navigate = useNavigate();
+  const { id } = useParams();
 
-  // IF SOMEONE LANDS ON THIS PAGE WITHOUT NAVIGATING FROM A PAYMENT SHOW A FRIENDLY MESSAGE INSTEAD OF A BROKEN PAGE
-  const payment = state?.payment;
+  const [payment, setPayment] = useState(state?.payment || null);
+  const [loading, setLoading] = useState(!payment);
+
+  useEffect(() => {
+    if (!payment && id) {
+      fetchPayment(id);
+    }
+  }, [id]);
+
+  async function fetchPayment(paymentId) {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      const { data } = await axios.get(`${API}/landlord/payments/${paymentId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setPayment(data.payment);
+    } catch (err) {
+      console.error("Fetch payment:", err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div style={{
+        minHeight: '100vh', background: C.black, display: 'flex',
+        alignItems: 'center', justifyContent: 'center',
+      }}>
+        <div style={{ textAlign: 'center', color: 'rgba(245,240,232,0.3)' }}>
+          <span style={{ width: 24, height: 24, border: '2px solid rgba(245,240,232,0.1)', borderTopColor: C.gold, borderRadius: '50%', animation: 'spin 0.6s linear infinite', display: 'inline-block', marginBottom: '0.8rem' }} />
+          <p style={{ fontSize: '0.85rem' }}>Loading receipt...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!payment) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center space-y-3">
-          <p className="text-gray-500 dark:text-gray-400 text-sm">No receipt data found.</p>
+      <div style={{
+        minHeight: '100vh', background: C.black, display: 'flex',
+        alignItems: 'center', justifyContent: 'center',
+      }}>
+        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+          <p style={{ fontSize: '0.85rem', color: 'rgba(245,240,232,0.3)' }}>No receipt data found.</p>
           <button
             onClick={() => navigate("/landlord/payments")}
-            className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+            style={{
+              fontSize: '0.78rem', color: C.gold, background: 'none',
+              border: 'none', cursor: 'pointer', fontFamily: F.mono,
+              transition: 'color 0.15s',
+            }}
+            onMouseEnter={e => e.currentTarget.style.color = C.white}
+            onMouseLeave={e => e.currentTarget.style.color = C.gold}
           >
             ← Back to Payments
           </button>
@@ -70,190 +116,288 @@ export default function PaymentReceipt() {
     );
   }
 
-  const rcpNo = receiptNumber(payment);
-  const approvedOn = new Date().toLocaleDateString("en-ZA", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
+  const tenantName = payment.tenant_name || payment.tenant || "Unknown";
+  const unitInfo = payment.unit_number || payment.unit || "—";
+  const propertyName = payment.property_name || payment.property || "—";
+  const amount = payment.amount_paid || payment.amount || 0;
+  const dueDate = payment.due_date || payment.due || null;
+  const paidDate = payment.payment_date || payment.paid || null;
+  const method = payment.payment_method || payment.method || "—";
+  const bankRef = payment.bank_reference || payment.reference || "—";
+  const invoiceNo = payment.invoice_number || "—";
+  const billingStart = payment.billing_period_start || null;
+  const billingEnd = payment.billing_period_end || null;
+  const periodLabel = billingStart && billingEnd 
+    ? `${formatDate(billingStart)} — ${formatDate(billingEnd)}`
+    : "—";
+  const hasProof = !!payment.proof_of_payment_url;
 
-  // DOWNLOAD HANDLER
+  const approvedOn = payment.approved_at 
+    ? formatDate(payment.approved_at) 
+    : new Date().toLocaleDateString("en-ZA", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+      });
+
+  const rcpNo = `RCP-${String(payment.id).slice(0, 8)}`;
+
   function handleDownload() {
     window.print();
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-10 px-4">
+  const S = {
+    container: { maxWidth: 1280, padding: '1.5rem 1rem 3rem', margin: '-1rem -1.8rem' },
+    backBtn: {
+      display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+      fontSize: '0.75rem', color: 'rgba(245,240,232,0.3)',
+      fontFamily: F.mono, background: 'none', border: 'none',
+      cursor: 'pointer', marginBottom: '1.2rem', transition: 'color 0.15s',
+    },
+    panel: {
+      maxWidth: 640, margin: '0 auto', background: C.muted2,
+      borderRadius: '8px', border: `1px solid ${C.border}`,
+      overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
+    },
+    goldHeader: {
+      background: C.gold, padding: '2rem', color: C.black,
+    },
+    receiptBand: {
+      background: 'rgba(232,160,18,0.06)', borderBottom: `1px solid rgba(232,160,18,0.2)`,
+      padding: '0.7rem 2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    },
+    body: { padding: '1.5rem 2rem', display: 'flex', flexDirection: 'column', gap: '1.2rem' },
+    tenantCard: {
+      display: 'flex', alignItems: 'center', gap: '0.8rem', padding: '0.8rem 1rem',
+      borderRadius: '4px', background: C.black, border: `1px solid ${C.border}`,
+    },
+    detailCard: {
+      borderRadius: '4px', border: `1px solid ${C.border}`, overflow: 'hidden',
+      padding: '0 1rem',
+    },
+    amountFooter: {
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      padding: '0.9rem 1rem', background: 'rgba(232,160,18,0.04)',
+      borderTop: `1px solid rgba(232,160,18,0.15)`, borderRadius: '0 0 3px 3px',
+    },
+    pill: {
+      display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+      fontSize: '0.6rem', fontWeight: 700, padding: '0.15rem 0.5rem',
+      borderRadius: '3px', fontFamily: F.mono, letterSpacing: '0.04em',
+      textTransform: 'uppercase', color: C.greenLight,
+      background: 'rgba(26,122,74,0.1)', border: '1px solid rgba(76,186,122,0.2)',
+    },
+  };
 
-      {/* BACK-NAV */}
-      <div className="max-w-2xl mx-auto mb-6">
+  return (
+    <div style={S.container}>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @media print {
+          body { background: white; }
+          .receipt-panel { max-width: 100% !important; margin: 0 !important; border-radius: 0 !important; box-shadow: none !important; }
+        }
+      `}</style>
+
+      <div style={{ maxWidth: 640, margin: '0 auto 1.2rem' }}>
         <button
           onClick={() => navigate("/landlord/payments")}
-          className="inline-flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+          style={S.backBtn}
+          onMouseEnter={e => e.currentTarget.style.color = C.white}
+          onMouseLeave={e => e.currentTarget.style.color = 'rgba(245,240,232,0.3)'}
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
-          Back to Payments
+          <Icon name="chevronLeft" size={14} /> Back to Payments
         </button>
       </div>
 
-      {/* RECEIPT PANEL */}
-      <div
-        id="receipt-panel"
-        className="max-w-2xl mx-auto bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden print:shadow-none print:border-0"
-      >
+      <div id="receipt-panel" className="receipt-panel" style={S.panel}>
 
-        {/* GREEN HEADER*/}
-        <div className="bg-green-600 px-8 py-8 text-white">
-          <div className="flex items-start justify-between">
-            {/* LEFT: BRANDING */}
+        <div style={S.goldHeader}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
             <div>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
-                  <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 00１.4１4-１.4１4l-7-7z" />
-                  </svg>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                <div style={{
+                  width: 32, height: 32, borderRadius: '6px',
+                  background: 'rgba(0,0,0,0.12)', display: 'flex',
+                  alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Icon name="home" size={18} color={C.black} />
                 </div>
-                <span className="font-semibold text-white/90 text-sm tracking-wide">
+                <span style={{
+                  fontWeight: 600, color: 'rgba(0,0,0,0.65)',
+                  fontSize: '0.8rem', fontFamily: F.dm, letterSpacing: '0.02em',
+                }}>
                   Chihwa Rentals
                 </span>
               </div>
-              <h1 className="text-2xl font-bold leading-tight">Payment Receipt</h1>
-              <p className="text-green-100 text-sm mt-1">{payment.property}</p>
+              <h1 style={{
+                fontSize: '1.6rem', fontWeight: 700, lineHeight: 1.2,
+                fontFamily: F.bebas, letterSpacing: '0.04em',
+              }}>
+                Payment Receipt
+              </h1>
+              <p style={{
+                fontSize: '0.75rem', color: 'rgba(0,0,0,0.5)',
+                marginTop: '0.2rem', fontFamily: F.mono,
+              }}>
+                {propertyName}
+              </p>
             </div>
 
-            {/* RIGHT: VERIFIED BADGE */}
-            <div className="flex flex-col items-center gap-1">
-              <div className="w-14 h-14 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center">
-                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.3rem' }}>
+              <div style={{
+                width: 52, height: 52, borderRadius: '50%',
+                background: 'rgba(0,0,0,0.12)', border: '2px solid rgba(0,0,0,0.2)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <Icon name="check" size={28} color={C.black} />
               </div>
-              <span className="text-xs text-green-100 font-medium uppercase tracking-wider">Verified</span>
+              <span style={{
+                fontSize: '0.58rem', fontWeight: 600, color: 'rgba(0,0,0,0.5)',
+                fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase',
+              }}>
+                Verified
+              </span>
             </div>
           </div>
         </div>
 
-        {/* RECEIPT NUMBER BAND */}
-        <div className="bg-green-50 dark:bg-green-900/20 border-b border-green-100 dark:border-green-800 px-8 py-3 flex items-center justify-between">
-          <span className="text-xs text-green-700 dark:text-green-400 font-medium uppercase tracking-wider">
+        <div style={S.receiptBand}>
+          <span style={{
+            fontSize: '0.6rem', fontWeight: 600, color: C.gold,
+            fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase',
+          }}>
             Receipt Number
           </span>
-          <span className="font-mono text-sm font-bold text-green-800 dark:text-green-300">
+          <span style={{
+            fontFamily: F.mono, fontSize: '0.82rem', fontWeight: 700, color: C.gold,
+          }}>
             {rcpNo}
           </span>
         </div>
 
-        {/* BODY */}
-        <div className="px-8 py-6 space-y-6">
-
-          {/* TENANT INFO */}
-          <div className="flex items-center gap-4 p-4 rounded-xl bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700">
-            <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 flex items-center justify-center text-sm font-bold flex-shrink-0">
-              {initials(payment.tenant)}
+        <div style={S.body}>
+          <div style={S.tenantCard}>
+            <div style={{
+              width: 44, height: 44, borderRadius: '50%',
+              background: 'rgba(232,160,18,0.12)', color: C.gold,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontFamily: F.bebas, fontSize: '0.8rem', flexShrink: 0,
+            }}>
+              {initials(tenantName)}
             </div>
             <div>
-              <p className="font-semibold text-gray-900 dark:text-white">{payment.tenant}</p>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                {payment.unit} &mdash; {payment.property}
+              <p style={{ fontWeight: 600, color: C.white, fontSize: '0.85rem' }}>{tenantName}</p>
+              <p style={{ fontSize: '0.68rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono }}>
+                {unitInfo} — {propertyName}
               </p>
             </div>
-            <div className="ml-auto">
-              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-green-700 dark:text-green-400 bg-green-100 dark:bg-green-900/40 border border-green-200 dark:border-green-700 px-2.5 py-1 rounded-full">
-                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
-                Paid
+            <div style={{ marginLeft: 'auto' }}>
+              <span style={S.pill}>
+                <span style={{ width: 5, height: 5, borderRadius: '50%', background: C.greenLight }} /> Paid
               </span>
             </div>
           </div>
 
-          {/* PAYMENT DETAILS */}
           <div>
-            <h2 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">
+            <p style={{
+              fontSize: '0.6rem', fontWeight: 600, color: 'rgba(245,240,232,0.3)',
+              fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase',
+              marginBottom: '0.5rem',
+            }}>
               Payment Details
-            </h2>
-            <div className="rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden px-4">
-              <Row label="Rental Period"   value="April 2026" />
-              <Row label="Due Date"        value={formatDate(payment.due)} />
-              <Row label="Date Paid"       value={formatDate(payment.paid)} />
-              <Row label="Payment Method" value={payment.method ?? "—"} />
-              <Row
-                label="Paid On Time"
-                value={
-                  payment.paid && payment.due && payment.paid <= payment.due
-                    ? "✓ Yes"
-                    : `${Math.max(0, Math.ceil((new Date(payment.paid) - new Date(payment.due)) / 86400000))} day(s) late`
-                }
-              />
-              {payment.proof && (
-                <Row label="Proof of Payment" value="Uploaded" />
+            </p>
+            <div style={S.detailCard}>
+              <Row label="Invoice Number" value={invoiceNo} mono />
+              <Row label="Rental Period" value={periodLabel} />
+              <Row label="Due Date" value={formatDate(dueDate)} />
+              <Row label="Date Paid" value={formatDate(paidDate)} />
+              <Row label="Payment Method" value={method} />
+              <Row label="Bank Reference" value={bankRef} mono />
+              {hasProof && (
+                <Row label="Proof of Payment" value="Verified" />
               )}
             </div>
           </div>
 
-          {/* AMOUNT SUMMARY */}
-          <div className="rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden">
-            <div className="px-4">
-              <Row label="Rent Amount"   value={format(payment.amount)} />
-              <Row label="Outstanding"   value={format(0)} />
-            </div>
-            <div className="bg-gray-50 dark:bg-gray-700/50 px-4 py-4 flex items-center justify-between border-t border-gray-100 dark:border-gray-700">
-              <span className="font-semibold text-gray-900 dark:text-white">Total Paid</span>
-              <span className="text-xl font-bold text-green-600 dark:text-green-400">
-                {format(payment.amount)}
+          <div style={S.detailCard}>
+            <Row label="Rent Amount" value={formatAmount(amount)} />
+            <Row label="Late Fees" value={formatAmount(0)} />
+            <Row label="Outstanding" value={formatAmount(0)} />
+            <div style={S.amountFooter}>
+              <span style={{ fontWeight: 600, color: C.white, fontSize: '0.85rem' }}>Total Paid</span>
+              <span style={{
+                fontSize: '1.2rem', fontWeight: 700, color: C.gold,
+                fontFamily: F.bebas, letterSpacing: '0.03em',
+              }}>
+                {formatAmount(amount)}
               </span>
             </div>
           </div>
 
-          {/* APPROVAL METADATA */}
-          <div className="flex items-center justify-between text-xs text-gray-400 dark:text-gray-500 pt-1">
-            <span>Approved by: <span className="font-medium text-gray-600 dark:text-gray-300">Landlord</span></span>
-            <span>Issued: <span className="font-medium text-gray-600 dark:text-gray-300">{approvedOn}</span></span>
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            fontSize: '0.65rem', color: 'rgba(245,240,232,0.2)', fontFamily: F.mono,
+            paddingTop: '0.3rem',
+          }}>
+            <span>
+              Approved by: <span style={{ color: 'rgba(245,240,232,0.4)', fontWeight: 500 }}>Landlord</span>
+            </span>
+            <span>
+              Issued: <span style={{ color: 'rgba(245,240,232,0.4)', fontWeight: 500 }}>{approvedOn}</span>
+            </span>
           </div>
 
-          {/* DASHED DIVIDER */}
-          <div className="border-t-2 border-dashed border-gray-200 dark:border-gray-700" />
+          <div style={{ borderTop: '2px dashed rgba(245,240,232,0.08)' }} />
 
-          <p className="text-center text-xs text-gray-400 dark:text-gray-500">
+          <p style={{
+            textAlign: 'center', fontSize: '0.65rem', color: 'rgba(245,240,232,0.2)',
+            fontFamily: F.mono, lineHeight: 1.6,
+          }}>
             This is an official rental payment receipt generated by Chihwa Rentals.
             <br />Keep this for your records.
           </p>
         </div>
 
-        {/* ACTION FOOTER */}
-        <div className="px-8 pb-8 flex gap-3 print:hidden">
+        <div style={{ padding: '0 2rem 1.5rem', display: 'flex', gap: '0.8rem' }}>
           <button
             onClick={() => navigate("/landlord/payments")}
-            className="flex-1 flex items-center justify-center gap-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-white text-sm font-medium py-3 px-4 rounded-xl transition-colors"
+            style={{
+              flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              gap: '0.4rem', padding: '0.7rem 1rem', borderRadius: '3px',
+              fontSize: '0.76rem', fontWeight: 500, fontFamily: F.dm,
+              letterSpacing: '0.04em', border: `1px solid ${C.border}`,
+              background: 'transparent', color: 'rgba(245,240,232,0.5)',
+              cursor: 'pointer', transition: 'all 0.15s',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = C.muted;
+              e.currentTarget.style.color = C.white;
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = 'transparent';
+              e.currentTarget.style.color = 'rgba(245,240,232,0.5)';
+            }}
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            Back to Payments
+            <Icon name="chevronLeft" size={14} /> Back to Payments
           </button>
 
           <button
             onClick={handleDownload}
-            className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-3 px-4 rounded-xl transition-colors"
+            style={{
+              flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              gap: '0.4rem', padding: '0.7rem 1rem', borderRadius: '3px',
+              fontSize: '0.76rem', fontWeight: 600, fontFamily: F.dm,
+              letterSpacing: '0.04em', border: 'none', cursor: 'pointer',
+              background: C.gold, color: C.black, transition: 'opacity 0.15s',
+            }}
+            onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
+            onMouseLeave={e => e.currentTarget.style.opacity = '1'}
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-            Download Receipt
+            <Icon name="download" size={14} /> Download Receipt
           </button>
         </div>
       </div>
-
-      {/* PRINT STYLES */}
-      <style>{`
-        @media print {
-          body { background: white; }
-          #receipt-panel { max-width: 100%; margin: 0; border-radius: 0; }
-        }
-      `}</style>
     </div>
   );
 }
-

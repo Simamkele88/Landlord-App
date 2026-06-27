@@ -4,13 +4,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import {
-  Building2, Plus, Search, MoreVertical, Edit, Trash2,
-  X, Loader2, ChevronRight, MapPin, Users,
-  CheckCircle, AlertTriangle,
-  Grid3x3, List, Eye, ArrowLeft,
-} from "lucide-react";
 import { useToast } from "../../../contexts/ToastContext";
+import { Icon } from "../../../components/Icon";
+import { c as C, f as F } from "../../../styles/theme";
 
 const API = "http://localhost:4000";
 
@@ -25,30 +21,85 @@ function unitTypeLabel(t) {
   return m[t] ?? t;
 }
 
-const UNIT_STATUS = {
-  occupied:    { label: "Occupied",    color: "text-green-600 dark:text-green-400",  bg: "bg-green-100 dark:bg-green-900/30",  border: "border-green-200 dark:border-green-800",  dot: "bg-green-500" },
-  vacant:      { label: "Vacant",      color: "text-blue-600 dark:text-blue-400",   bg: "bg-blue-100 dark:bg-blue-900/30",    border: "border-blue-200 dark:border-blue-800",    dot: "bg-blue-500"  },
-  maintenance: { label: "Maintenance", color: "text-yellow-600 dark:text-yellow-400", bg: "bg-yellow-100 dark:bg-yellow-900/30", border: "border-yellow-200 dark:border-yellow-800", dot: "bg-yellow-400" },
-  reserved:    { label: "Reserved",    color: "text-purple-600 dark:text-purple-400", bg: "bg-purple-100 dark:bg-purple-900/30", border: "border-purple-200 dark:border-purple-800", dot: "bg-purple-500" },
+const unitStatusColors = {
+  occupied:    { color: C.greenLight, bg: 'rgba(26,122,74,0.1)', border: '1px solid rgba(76,186,122,0.2)', dot: C.greenLight },
+  vacant:      { color: C.blue,       bg: 'rgba(58,143,212,0.1)',  border: '1px solid rgba(58,143,212,0.2)',  dot: C.blue },
+  maintenance: { color: C.gold,       bg: 'rgba(232,160,18,0.08)', border: '1px solid rgba(232,160,18,0.2)',  dot: C.gold },
+  reserved:    { color: C.purple,     bg: 'rgba(139,92,246,0.1)',  border: '1px solid rgba(139,92,246,0.2)',  dot: C.purple },
 };
 
-function inputCls(error) {
-  return [
-    "w-full text-sm rounded-lg px-3.5 py-2.5 border transition-all",
-    "bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500",
-    "focus:outline-none focus:ring-2 focus:ring-blue-500",
-    error ? "border-red-300 dark:border-red-700 focus:ring-red-500" : "border-gray-300 dark:border-gray-600",
-  ].join(" ");
-}
+const inputStyle = (error) => ({
+  width: '100%', fontSize: '0.82rem', padding: '0.6rem 0.9rem', borderRadius: '3px',
+  background: C.black, border: `1px solid ${error ? 'rgba(224,90,74,0.5)' : C.border}`,
+  color: C.white, fontFamily: F.dm, outline: 'none',
+  transition: 'border-color 0.2s',
+});
+
+const btnPrimary = {
+  background: C.gold, color: C.black, border: 'none',
+  padding: '0.6rem 1.4rem', fontSize: '0.76rem', fontWeight: 700,
+  fontFamily: F.dm, letterSpacing: '0.04em', borderRadius: '3px',
+  cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem',
+  transition: 'background 0.2s',
+};
+
+const btnGhost = {
+  background: 'transparent', color: 'rgba(245,240,232,0.5)',
+  border: `1px solid ${C.border}`, padding: '0.6rem 1.2rem',
+  fontSize: '0.76rem', fontWeight: 500, fontFamily: F.dm,
+  letterSpacing: '0.04em', borderRadius: '3px', cursor: 'pointer',
+  transition: 'all 0.2s',
+};
+
+const modalOverlay = {
+  position: 'fixed', inset: 0, zIndex: 50,
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  padding: '1rem', background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)',
+};
+
+const modalCard = (maxW = 480) => ({
+  width: '100%', maxWidth: maxW, background: C.muted2,
+  border: `1px solid ${C.border}`, borderRadius: '6px',
+  display: 'flex', flexDirection: 'column', maxHeight: '92vh',
+  boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+});
+
+const modalHeader = {
+  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+  padding: '1.2rem 1.5rem', borderBottom: `1px solid ${C.border}`, flexShrink: 0,
+};
+
+const modalBody = {
+  flex: 1, overflowY: 'auto', padding: '1.2rem 1.5rem',
+  display: 'flex', flexDirection: 'column', gap: '1rem',
+};
+
+const modalFooter = {
+  display: 'flex', gap: '0.8rem', padding: '1rem 1.5rem 1.5rem',
+  borderTop: `1px solid ${C.border}`, flexShrink: 0,
+};
+
+const cardStyle = {
+  background: C.muted2, border: `1px solid ${C.border}`,
+  borderRadius: '6px', overflow: 'hidden',
+  transition: 'border-color 0.2s',
+};
+
+const pillStyle = (color, bg, border) => ({
+  fontSize: '0.62rem', fontWeight: 700, padding: '0.2rem 0.6rem',
+  borderRadius: '3px', fontFamily: F.mono, letterSpacing: '0.04em',
+  textTransform: 'uppercase', color, background: bg, border,
+  display: 'flex', alignItems: 'center', gap: '0.3rem', whiteSpace: 'nowrap',
+});
 
 function Field({ label, error, children, optional }) {
   return (
-    <div className="space-y-1.5">
-      <div className="flex items-center gap-2">
-        <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{label}</label>
-        {!optional && <span className="text-red-500">*</span>}
-        {optional && <span className="text-xs text-gray-400 dark:text-gray-500">(optional)</span>}
-        {error && <span className="text-xs text-red-500 ml-auto">— {error}</span>}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+        <label style={{ fontSize: '0.65rem', fontWeight: 600, color: 'rgba(245,240,232,0.5)', fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label}</label>
+        {!optional && <span style={{ color: C.redLight, fontSize: '0.6rem' }}>*</span>}
+        {optional && <span style={{ fontSize: '0.6rem', color: 'rgba(245,240,232,0.25)' }}>(optional)</span>}
+        {error && <span style={{ fontSize: '0.6rem', color: C.redLight, marginLeft: 'auto' }}>— {error}</span>}
       </div>
       {children}
     </div>
@@ -60,29 +111,29 @@ function OccupancyRing({ total, occupied, size = 52 }) {
   const r = 20;
   const circ = 2 * Math.PI * r;
   const dash = pct * circ;
-  const color = pct >= 0.9 ? "#22C55E" : pct >= 0.6 ? "#F59E0B" : "#3B82F6";
+  const color = pct >= 0.9 ? C.greenLight : pct >= 0.6 ? C.gold : C.blue;
 
   return (
-    <svg width={size} height={size} viewBox="0 0 48 48" className="rotate-[-90deg]">
-      <circle cx="24" cy="24" r={r} fill="none" stroke="#E5E7EB" strokeWidth="4" className="dark:stroke-gray-600" />
+    <svg width={size} height={size} viewBox="0 0 48 48" style={{ transform: 'rotate(-90deg)' }}>
+      <circle cx="24" cy="24" r={r} fill="none" stroke={C.border} strokeWidth="4" />
       <circle cx="24" cy="24" r={r} fill="none" stroke={color} strokeWidth="4"
         strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
-        style={{ transition: "stroke-dasharray 0.6s ease" }} />
+        style={{ transition: 'stroke-dasharray 0.6s ease' }} />
     </svg>
   );
 }
 
 function UnitCell({ unit }) {
-  const cfg = UNIT_STATUS[unit.status] ?? UNIT_STATUS.vacant;
+  const cfg = unitStatusColors[unit.status] ?? unitStatusColors.vacant;
   return (
-    <div className={`relative rounded-xl border p-3 flex flex-col gap-1.5 ${cfg.bg} ${cfg.border}`}>
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-bold text-gray-900 dark:text-white">Unit {unit.unit_number}</span>
-        <span className={`w-2 h-2 rounded-full ${cfg.dot}`} />
+    <div style={{ borderRadius: '6px', border: cfg.border, padding: '0.7rem', background: cfg.bg, display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={{ fontSize: '0.7rem', fontWeight: 700, color: C.white }}>Unit {unit.unit_number}</span>
+        <span style={{ width: 7, height: 7, borderRadius: '50%', background: cfg.dot }} />
       </div>
-      <span className="text-xs text-gray-500 dark:text-gray-400">{unitTypeLabel(unit.unit_type)}</span>
-      <span className="text-sm font-semibold text-gray-900 dark:text-white">{fmt(unit.monthly_rent)}</span>
-      {unit.tenant_name && <span className="text-xs text-gray-500 dark:text-gray-400 truncate">{unit.tenant_name}</span>}
+      <span style={{ fontSize: '0.62rem', color: 'rgba(245,240,232,0.4)', fontFamily: F.mono }}>{unitTypeLabel(unit.unit_type)}</span>
+      <span style={{ fontSize: '0.82rem', fontWeight: 600, color: C.white }}>{fmt(unit.monthly_rent)}</span>
+      {unit.tenant_name && <span style={{ fontSize: '0.62rem', color: 'rgba(245,240,232,0.3)' }}>{unit.tenant_name}</span>}
     </div>
   );
 }
@@ -96,46 +147,50 @@ function PropertyCard({ property, onView, onEdit, onDelete }) {
   const occupiedRent = units.filter(u => u.status === "occupied").reduce((s, u) => s + (Number(u.monthly_rent) || 0), 0);
 
   return (
-    <div className="group relative bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200 shadow-sm">
-      <div className="h-1 w-full bg-gradient-to-r from-blue-500 to-blue-300" />
-      <div className="p-5">
-        <div className="flex items-start gap-3 mb-4">
-          <div className="relative flex-shrink-0">
-            <OccupancyRing total={units.length} occupied={occupied} />
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-xs font-bold text-gray-900 dark:text-white leading-none">{occupied}</span>
-              <span className="text-[10px] text-gray-400 dark:text-gray-500">/{units.length}</span>
-            </div>
+    <div style={{ ...cardStyle, position: 'relative' }}
+      onMouseEnter={e => e.currentTarget.style.borderColor = C.gold}
+      onMouseLeave={e => e.currentTarget.style.borderColor = C.border}>
+      <div style={{ height: 3, width: '100%', background: `linear-gradient(90deg, ${C.gold}, transparent)` }} />
+      <div style={{ padding: '1.2rem' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.8rem', marginBottom: '1rem' }}>
+          <OccupancyRing total={units.length} occupied={occupied} />
+          <div style={{ position: 'absolute', top: 'calc(1.2rem + 6px)', left: 'calc(1.2rem + 6px)', width: 40, height: 40, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ fontSize: '0.65rem', fontWeight: 700, color: C.white, lineHeight: 1 }}>{occupied}</span>
+            <span style={{ fontSize: '0.5rem', color: 'rgba(245,240,232,0.3)' }}>/{units.length}</span>
           </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="text-sm font-bold text-gray-900 dark:text-white truncate">{property.name}</h3>
-            <div className="flex items-center gap-1 mt-1">
-              <MapPin size={10} className="text-gray-400 flex-shrink-0" />
-              <span className="text-xs text-gray-500 dark:text-gray-400 truncate">{property.address_line1}, {property.city}</span>
+          <div style={{ flex: 1, minWidth: 0, marginLeft: '0.8rem' }}>
+            <h3 style={{ fontSize: '0.88rem', fontWeight: 600, color: C.white, fontFamily: F.bebas, letterSpacing: '0.03em' }}>{property.name}</h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: '0.2rem' }}>
+              <Icon name="mapPin" size={10} color="rgba(245,240,232,0.3)" />
+              <span style={{ fontSize: '0.68rem', color: 'rgba(245,240,232,0.4)' }}>{property.address_line1}, {property.city}</span>
             </div>
             {property.caretaker_name && (
-              <div className="flex items-center gap-1 mt-1">
-                <Users size={10} className="text-gray-400 flex-shrink-0" />
-                <span className="text-xs text-gray-500 dark:text-gray-400">{property.caretaker_name}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: '0.2rem' }}>
+                <Icon name="user" size={10} color="rgba(245,240,232,0.3)" />
+                <span style={{ fontSize: '0.68rem', color: 'rgba(245,240,232,0.4)' }}>{property.caretaker_name}</span>
               </div>
             )}
           </div>
-          <div className="relative">
+          <div style={{ position: 'relative' }}>
             <button onClick={() => setMenuOpen(o => !o)}
-              className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-              <MoreVertical size={15} />
+              style={{ padding: '0.3rem', borderRadius: '3px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.3)' }}
+              onMouseEnter={e => e.currentTarget.style.background = C.muted}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+              <Icon name="moreVertical" size={14} />
             </button>
             {menuOpen && (
-              <div className="absolute right-0 top-7 z-20 w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg overflow-hidden"
+              <div style={{ position: 'absolute', right: 0, top: 28, zIndex: 20, width: 160, background: C.muted2, border: `1px solid ${C.border}`, borderRadius: '6px', overflow: 'hidden', boxShadow: '0 8px 30px rgba(0,0,0,0.4)' }}
                 onMouseLeave={() => setMenuOpen(false)}>
                 {[
-                  { icon: Eye, label: "View Units", action: () => { setMenuOpen(false); onView(property); }, cls: "text-gray-700 dark:text-gray-300" },
-                  { icon: Edit, label: "Edit Property", action: () => { setMenuOpen(false); onEdit(property); }, cls: "text-gray-700 dark:text-gray-300" },
-                  { icon: Trash2, label: "Delete", action: () => { setMenuOpen(false); onDelete(property); }, cls: "text-red-600" },
+                  { icon: 'eye', label: "View Units", action: () => { setMenuOpen(false); onView(property); }, color: 'rgba(245,240,232,0.5)' },
+                  { icon: 'edit', label: "Edit Property", action: () => { setMenuOpen(false); onEdit(property); }, color: 'rgba(245,240,232,0.5)' },
+                  { icon: 'trash', label: "Delete", action: () => { setMenuOpen(false); onDelete(property); }, color: C.redLight },
                 ].map(item => (
                   <button key={item.label} onClick={item.action}
-                    className={`flex items-center gap-2.5 w-full px-3 py-2.5 text-xs font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${item.cls}`}>
-                    <item.icon size={13} />{item.label}
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', width: '100%', padding: '0.6rem 0.8rem', background: 'transparent', border: 'none', cursor: 'pointer', color: item.color, fontSize: '0.7rem', fontFamily: F.mono, letterSpacing: '0.04em', transition: 'background 0.15s' }}
+                    onMouseEnter={e => e.currentTarget.style.background = C.muted}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                    <Icon name={item.icon} size={12} /> {item.label}
                   </button>
                 ))}
               </div>
@@ -143,26 +198,28 @@ function PropertyCard({ property, onView, onEdit, onDelete }) {
           </div>
         </div>
 
-        <div className="flex gap-2 mb-4">
+        <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '0.8rem' }}>
           {[
-            { label: `${occupied} Occupied`, color: "text-green-600 dark:text-green-400", bg: "bg-green-50 dark:bg-green-900/20", border: "border-green-100 dark:border-green-800" },
-            { label: `${vacant} Vacant`, color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-50 dark:bg-blue-900/20", border: "border-blue-100 dark:border-blue-800" },
-            ...(maintenance > 0 ? [{ label: `${maintenance} Maintenance`, color: "text-yellow-600 dark:text-yellow-400", bg: "bg-yellow-50 dark:bg-yellow-900/20", border: "border-yellow-100 dark:border-yellow-800" }] : []),
+            { label: `${occupied} Occ.`, color: C.greenLight, bg: 'rgba(26,122,74,0.08)', border: '1px solid rgba(76,186,122,0.15)' },
+            { label: `${vacant} Vac.`, color: C.blue, bg: 'rgba(58,143,212,0.08)', border: '1px solid rgba(58,143,212,0.15)' },
+            ...(maintenance > 0 ? [{ label: `${maintenance} Mnt.`, color: C.gold, bg: 'rgba(232,160,18,0.06)', border: '1px solid rgba(232,160,18,0.12)' }] : []),
           ].map(b => (
-            <span key={b.label} className={`flex-1 text-center text-[10px] font-bold py-1.5 rounded-lg border ${b.color} ${b.bg} ${b.border}`}>
+            <span key={b.label} style={{ flex: 1, textAlign: 'center', fontSize: '0.58rem', fontWeight: 700, padding: '0.3rem', borderRadius: '3px', color: b.color, background: b.bg, border: b.border, fontFamily: F.mono, letterSpacing: '0.03em', textTransform: 'uppercase' }}>
               {b.label}
             </span>
           ))}
         </div>
 
-        <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-700">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '0.8rem', borderTop: `1px solid ${C.border}` }}>
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">Monthly Income</p>
-            <p className="text-base font-bold text-gray-900 dark:text-white mt-0.5">{fmt(occupiedRent)}</p>
+            <p style={{ fontSize: '0.55rem', fontWeight: 600, color: 'rgba(245,240,232,0.25)', fontFamily: F.mono, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Monthly Income</p>
+            <p style={{ fontSize: '1.1rem', fontWeight: 700, color: C.white, fontFamily: F.bebas, letterSpacing: '0.03em', marginTop: '0.2rem' }}>{fmt(occupiedRent)}</p>
           </div>
           <button onClick={() => onView(property)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-xs font-semibold hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors">
-            View Units <ChevronRight size={12} />
+            style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.5rem 0.8rem', borderRadius: '3px', background: 'rgba(232,160,18,0.08)', border: '1px solid rgba(232,160,18,0.15)', color: C.gold, fontSize: '0.68rem', fontWeight: 600, fontFamily: F.mono, letterSpacing: '0.04em', cursor: 'pointer', transition: 'background 0.2s' }}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(232,160,18,0.15)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'rgba(232,160,18,0.08)'}>
+            View Units <Icon name="chevronRight" size={10} />
           </button>
         </div>
       </div>
@@ -188,78 +245,64 @@ function PropertyFormModal({ property, onClose, onSave }) {
 
   function set(key, val) { setForm(f => ({ ...f, [key]: val })); setErrors(e => ({ ...e, [key]: undefined })); }
 
-  function validate() {
-    const e = {};
-    if (!form.name.trim()) e.name = "Required";
-    if (!form.address_line1.trim()) e.address_line1 = "Required";
-    if (!form.city.trim()) e.city = "Required";
-    return e;
-  }
+  function validate() { const e = {}; if (!form.name.trim()) e.name = "Required"; if (!form.address_line1.trim()) e.address_line1 = "Required"; if (!form.city.trim()) e.city = "Required"; return e; }
 
   async function handleSave() {
     const e = validate();
-    if (Object.keys(e).length) { 
-      setErrors(e); 
-      toast.warning("Please fill in all required fields.");
-      return; 
-    }
+    if (Object.keys(e).length) { setErrors(e); toast.warning("Please fill in all required fields."); return; }
     setLoading(true);
     try {
       const token = localStorage.getItem("token");
-      const payload = {
-        ...form,
-        total_floors: form.total_floors ? Number(form.total_floors) : null,
-        total_units: form.total_units ? Number(form.total_units) : null,
-      };
+      const payload = { ...form, total_floors: form.total_floors ? Number(form.total_floors) : null, total_units: form.total_units ? Number(form.total_units) : null };
       const { data } = isEdit
         ? await axios.put(`${API}/properties/${property.id}`, payload, { headers: { Authorization: `Bearer ${token}` } })
         : await axios.post(`${API}/properties`, payload, { headers: { Authorization: `Bearer ${token}` } });
       toast.success(isEdit ? "Property updated successfully!" : "Property added successfully!");
       onSave(data.property ?? data);
-    } catch (err) {
-      toast.error(err.response?.data?.error || "Failed to save property.");
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { toast.error(err.response?.data?.error || "Failed to save property."); }
+    finally { setLoading(false); }
   }
 
   const AMENITIES = [
     { key: "has_elevator", label: "Elevator" }, { key: "has_parking", label: "Parking" },
-    { key: "has_security", label: "Security" }, { key: "has_pool", label: "Pool" },
-    { key: "pet_friendly", label: "Pet-friendly" },
+    { key: "has_security", label: "Security" }, { key: "has_pool", label: "Pool" }, { key: "pet_friendly", label: "Pet-friendly" },
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="w-full max-w-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl flex flex-col shadow-xl max-h-[92vh]">
-        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-200 dark:border-gray-700">
+    <div style={modalOverlay}>
+      <div style={modalCard(520)}>
+        <div style={modalHeader}>
           <div>
-            <h2 className="text-base font-semibold text-gray-900 dark:text-white">{isEdit ? "Edit Property" : "Add Property"}</h2>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{isEdit ? "Update property details" : "Register a new property"}</p>
+            <h2 style={{ fontSize: '0.95rem', fontWeight: 600, color: C.white, fontFamily: F.bebas, letterSpacing: '0.04em' }}>{isEdit ? "Edit Property" : "Add Property"}</h2>
+            <p style={{ fontSize: '0.65rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono, marginTop: '0.2rem' }}>{isEdit ? "Update property details" : "Register a new property"}</p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"><X size={18} /></button>
+          <button onClick={onClose} style={{ padding: '0.3rem', borderRadius: '3px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.3)' }}
+            onMouseEnter={e => e.currentTarget.style.color = C.white}
+            onMouseLeave={e => e.currentTarget.style.color = 'rgba(245,240,232,0.3)'}>
+            <Icon name="x" size={16} />
+          </button>
         </div>
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
-          <Field label="Property Name" error={errors.name}><input className={inputCls(errors.name)} value={form.name} onChange={e => set("name", e.target.value)} placeholder="e.g. Hillbrow Heights" /></Field>
-          <Field label="Property Type"><select className={inputCls(false)} value={form.property_type} onChange={e => set("property_type", e.target.value)}>{PROPERTY_TYPES.map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1).replace("_", " ")}</option>)}</select></Field>
-          <Field label="Street Address" error={errors.address_line1}><input className={inputCls(errors.address_line1)} value={form.address_line1} onChange={e => set("address_line1", e.target.value)} placeholder="45 Claim Street" /></Field>
-          <Field label="Address Line 2" optional><input className={inputCls(false)} value={form.address_line2} onChange={e => set("address_line2", e.target.value)} placeholder="Complex, building name…" /></Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="City" error={errors.city}><input className={inputCls(errors.city)} value={form.city} onChange={e => set("city", e.target.value)} placeholder="Johannesburg" /></Field>
-            <Field label="Province" optional><input className={inputCls(false)} value={form.province} onChange={e => set("province", e.target.value)} placeholder="Gauteng" /></Field>
+        <div style={modalBody}>
+          <Field label="Property Name" error={errors.name}><input style={inputStyle(errors.name)} value={form.name} onChange={e => set("name", e.target.value)} /></Field>
+          <Field label="Property Type"><select style={inputStyle(false)} value={form.property_type} onChange={e => set("property_type", e.target.value)}>{PROPERTY_TYPES.map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1).replace("_", " ")}</option>)}</select></Field>
+          <Field label="Street Address" error={errors.address_line1}><input style={inputStyle(errors.address_line1)} value={form.address_line1} onChange={e => set("address_line1", e.target.value)} /></Field>
+          <Field label="Address Line 2" optional><input style={inputStyle(false)} value={form.address_line2} onChange={e => set("address_line2", e.target.value)} /></Field>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem' }}>
+            <Field label="City" error={errors.city}><input style={inputStyle(errors.city)} value={form.city} onChange={e => set("city", e.target.value)} /></Field>
+            <Field label="Province" optional><input style={inputStyle(false)} value={form.province} onChange={e => set("province", e.target.value)}  /></Field>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Postal Code" optional><input className={inputCls(false)} value={form.postal_code} onChange={e => set("postal_code", e.target.value)} placeholder="2001" /></Field>
-            <Field label="Total Floors" optional><input type="number" min="1" className={inputCls(false)} value={form.total_floors} onChange={e => set("total_floors", e.target.value)} placeholder="e.g. 4" /></Field>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem' }}>
+            <Field label="Postal Code" optional><input style={inputStyle(false)} value={form.postal_code} onChange={e => set("postal_code", e.target.value)}  /></Field>
+            <Field label="Total Floors" optional><input type="number" min="1" style={inputStyle(false)} value={form.total_floors} onChange={e => set("total_floors", e.target.value)}  /></Field>
           </div>
           <div>
-            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Amenities</p>
-            <div className="flex flex-wrap gap-2">
+            <p style={{ fontSize: '0.65rem', fontWeight: 600, color: 'rgba(245,240,232,0.5)', fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Amenities</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
               {AMENITIES.map(a => {
                 const on = form[a.key];
                 return (
                   <button key={a.key} type="button" onClick={() => set(a.key, !on)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${on ? "bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700 text-blue-600 dark:text-blue-400" : "bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600"}`}>
+                    style={{ padding: '0.4rem 0.8rem', borderRadius: '3px', fontSize: '0.68rem', fontWeight: 600, fontFamily: F.mono, letterSpacing: '0.04em', border: `1px solid ${on ? C.gold : C.border}`, background: on ? 'rgba(232,160,18,0.1)' : 'transparent', color: on ? C.gold : 'rgba(245,240,232,0.4)', cursor: 'pointer', transition: 'all 0.2s' }}>
                     {on ? "✓ " : ""}{a.label}
                   </button>
                 );
@@ -267,10 +310,11 @@ function PropertyFormModal({ property, onClose, onSave }) {
             </div>
           </div>
         </div>
-        <div className="flex gap-3 px-6 pb-6 pt-4 border-t border-gray-200 dark:border-gray-700">
-          <button onClick={onClose} disabled={loading} className="flex-1 py-2.5 rounded-xl text-sm font-medium border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-40">Cancel</button>
-          <button onClick={handleSave} disabled={loading} className="flex-[2] flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50">
-            {loading ? <><Loader2 size={15} className="animate-spin" />Saving…</> : <>{isEdit ? "Save Changes" : "Add Property"}</>}
+        <div style={modalFooter}>
+          <button onClick={onClose} disabled={loading} style={{ ...btnGhost, flex: 1, display: 'flex', justifyContent: 'center' }}>Cancel</button>
+          <button onClick={handleSave} disabled={loading} style={{ ...btnPrimary, flex: 2, display: 'flex', justifyContent: 'center' }}>
+            {loading ? <span style={{ width: 14, height: 14, border: '2px solid rgba(0,0,0,0.2)', borderTopColor: C.black, borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} /> : null}
+            {isEdit ? "Save Changes" : "Add Property"}
           </button>
         </div>
       </div>
@@ -293,33 +337,15 @@ function UnitFormModal({ unit, propertyId, onClose, onSave }) {
   const [loading, setLoading] = useState(false);
 
   function set(key, val) { setForm(f => ({ ...f, [key]: val })); setErrors(e => ({ ...e, [key]: undefined })); }
-
-  function validate() {
-    const e = {};
-    if (!form.unit_number.trim()) e.unit_number = "Required";
-    if (!form.monthly_rent) e.monthly_rent = "Required";
-    return e;
-  }
+  function validate() { const e = {}; if (!form.unit_number.trim()) e.unit_number = "Required"; if (!form.monthly_rent) e.monthly_rent = "Required"; return e; }
 
   async function handleSave() {
     const e = validate();
-    if (Object.keys(e).length) { 
-      setErrors(e); 
-      toast.warning("Please fill in all required fields.");
-      return; 
-    }
+    if (Object.keys(e).length) { setErrors(e); toast.warning("Please fill in all required fields."); return; }
     setLoading(true);
     try {
       const token = localStorage.getItem("token");
-      const payload = {
-        ...form,
-        floor_number: form.floor_number ? Number(form.floor_number) : null,
-        bedrooms: form.bedrooms ? Number(form.bedrooms) : null,
-        bathrooms: form.bathrooms ? Number(form.bathrooms) : null,
-        square_meters: form.square_meters ? Number(form.square_meters) : null,
-        monthly_rent: Number(form.monthly_rent),
-        deposit_amount: form.deposit_amount ? Number(form.deposit_amount) : null,
-      };
+      const payload = { ...form, floor_number: form.floor_number ? Number(form.floor_number) : null, bedrooms: form.bedrooms ? Number(form.bedrooms) : null, bathrooms: form.bathrooms ? Number(form.bathrooms) : null, square_meters: form.square_meters ? Number(form.square_meters) : null, monthly_rent: Number(form.monthly_rent), deposit_amount: form.deposit_amount ? Number(form.deposit_amount) : null };
       const { data } = isEdit
         ? await axios.put(`${API}/units/${unit.id}`, payload, { headers: { Authorization: `Bearer ${token}` } })
         : await axios.post(`${API}/properties/${propertyId}/units`, payload, { headers: { Authorization: `Bearer ${token}` } });
@@ -328,48 +354,48 @@ function UnitFormModal({ unit, propertyId, onClose, onSave }) {
     } catch (err) {
       toast.error(err.response?.data?.error || "Failed to save unit.");
       onSave({ ...form, id: unit?.id ?? Date.now().toString(), monthly_rent: Number(form.monthly_rent) });
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   }
 
-  const EXTRAS = [
-    { key: "furnished", label: "Furnished" }, { key: "parking_bay", label: "Parking Bay" }, { key: "has_balcony", label: "Balcony" },
-  ];
+  const EXTRAS = [{ key: "furnished", label: "Furnished" }, { key: "parking_bay", label: "Parking Bay" }, { key: "has_balcony", label: "Balcony" }];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="w-full max-w-md bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl flex flex-col shadow-xl max-h-[92vh]">
-        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-200 dark:border-gray-700">
+    <div style={modalOverlay}>
+      <div style={modalCard(440)}>
+        <div style={modalHeader}>
           <div>
-            <h2 className="text-base font-semibold text-gray-900 dark:text-white">{isEdit ? "Edit Unit" : "Add Unit"}</h2>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{isEdit ? `Editing Unit ${unit.unit_number}` : "Add a new unit"}</p>
+            <h2 style={{ fontSize: '0.95rem', fontWeight: 600, color: C.white, fontFamily: F.bebas, letterSpacing: '0.04em' }}>{isEdit ? "Edit Unit" : "Add Unit"}</h2>
+            <p style={{ fontSize: '0.65rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono, marginTop: '0.2rem' }}>{isEdit ? `Editing Unit ${unit.unit_number}` : "Add a new unit"}</p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"><X size={18} /></button>
+          <button onClick={onClose} style={{ padding: '0.3rem', borderRadius: '3px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.3)' }}
+            onMouseEnter={e => e.currentTarget.style.color = C.white}
+            onMouseLeave={e => e.currentTarget.style.color = 'rgba(245,240,232,0.3)'}>
+            <Icon name="x" size={16} />
+          </button>
         </div>
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Unit Number" error={errors.unit_number}><input className={inputCls(errors.unit_number)} value={form.unit_number} onChange={e => set("unit_number", e.target.value)} placeholder="e.g. 101" /></Field>
-            <Field label="Floor" optional><input type="number" min="0" className={inputCls(false)} value={form.floor_number} onChange={e => set("floor_number", e.target.value)} placeholder="e.g. 1" /></Field>
+        <div style={modalBody}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem' }}>
+            <Field label="Unit Number" error={errors.unit_number}><input style={inputStyle(errors.unit_number)} value={form.unit_number} onChange={e => set("unit_number", e.target.value)} /></Field>
+            <Field label="Floor" optional><input type="number" min="0" style={inputStyle(false)} value={form.floor_number} onChange={e => set("floor_number", e.target.value)}  /></Field>
           </div>
-          <Field label="Unit Type"><select className={inputCls(false)} value={form.unit_type} onChange={e => set("unit_type", e.target.value)}>{UNIT_TYPES.map(t => <option key={t} value={t}>{unitTypeLabel(t)}</option>)}</select></Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Bedrooms" optional><input type="number" min="0" className={inputCls(false)} value={form.bedrooms} onChange={e => set("bedrooms", e.target.value)} placeholder="e.g. 2" /></Field>
-            <Field label="Bathrooms" optional><input type="number" min="0" className={inputCls(false)} value={form.bathrooms} onChange={e => set("bathrooms", e.target.value)} placeholder="e.g. 1" /></Field>
+          <Field label="Unit Type"><select style={inputStyle(false)} value={form.unit_type} onChange={e => set("unit_type", e.target.value)}>{UNIT_TYPES.map(t => <option key={t} value={t}>{unitTypeLabel(t)}</option>)}</select></Field>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem' }}>
+            <Field label="Bedrooms" optional><input type="number" min="0" style={inputStyle(false)} value={form.bedrooms} onChange={e => set("bedrooms", e.target.value)} /></Field>
+            <Field label="Bathrooms" optional><input type="number" min="0" style={inputStyle(false)} value={form.bathrooms} onChange={e => set("bathrooms", e.target.value)}  /></Field>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Monthly Rent (R)" error={errors.monthly_rent}><input type="number" min="0" className={inputCls(errors.monthly_rent)} value={form.monthly_rent} onChange={e => set("monthly_rent", e.target.value)} placeholder="e.g. 5800" /></Field>
-            <Field label="Deposit (R)" optional><input type="number" min="0" className={inputCls(false)} value={form.deposit_amount} onChange={e => set("deposit_amount", e.target.value)} placeholder="e.g. 5800" /></Field>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem' }}>
+            <Field label="Monthly Rent (R)" error={errors.monthly_rent}><input type="number" min="0" style={inputStyle(errors.monthly_rent)} value={form.monthly_rent} onChange={e => set("monthly_rent", e.target.value)} /></Field>
+            <Field label="Deposit (R)" optional><input type="number" min="0" style={inputStyle(false)} value={form.deposit_amount} onChange={e => set("deposit_amount", e.target.value)} /></Field>
           </div>
-          <Field label="Status"><select className={inputCls(false)} value={form.status} onChange={e => set("status", e.target.value)}>{UNIT_STATUSES.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}</select></Field>
+          <Field label="Status"><select style={inputStyle(false)} value={form.status} onChange={e => set("status", e.target.value)}>{UNIT_STATUSES.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}</select></Field>
           <div>
-            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Features</p>
-            <div className="flex gap-2">
+            <p style={{ fontSize: '0.65rem', fontWeight: 600, color: 'rgba(245,240,232,0.5)', fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Features</p>
+            <div style={{ display: 'flex', gap: '0.4rem' }}>
               {EXTRAS.map(a => {
                 const on = form[a.key];
                 return (
                   <button key={a.key} type="button" onClick={() => set(a.key, !on)}
-                    className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition-all ${on ? "bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700 text-blue-600 dark:text-blue-400" : "bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600"}`}>
+                    style={{ flex: 1, padding: '0.5rem', borderRadius: '3px', fontSize: '0.68rem', fontWeight: 600, fontFamily: F.mono, letterSpacing: '0.04em', border: `1px solid ${on ? C.gold : C.border}`, background: on ? 'rgba(232,160,18,0.1)' : 'transparent', color: on ? C.gold : 'rgba(245,240,232,0.4)', cursor: 'pointer', transition: 'all 0.2s' }}>
                     {on ? "✓ " : ""}{a.label}
                   </button>
                 );
@@ -377,10 +403,11 @@ function UnitFormModal({ unit, propertyId, onClose, onSave }) {
             </div>
           </div>
         </div>
-        <div className="flex gap-3 px-6 pb-6 pt-4 border-t border-gray-200 dark:border-gray-700">
-          <button onClick={onClose} disabled={loading} className="flex-1 py-2.5 rounded-xl text-sm font-medium border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-40">Cancel</button>
-          <button onClick={handleSave} disabled={loading} className="flex-[2] flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50">
-            {loading ? <><Loader2 size={15} className="animate-spin" />Saving…</> : <>{isEdit ? "Save Changes" : "Add Unit"}</>}
+        <div style={modalFooter}>
+          <button onClick={onClose} disabled={loading} style={{ ...btnGhost, flex: 1, display: 'flex', justifyContent: 'center' }}>Cancel</button>
+          <button onClick={handleSave} disabled={loading} style={{ ...btnPrimary, flex: 2, display: 'flex', justifyContent: 'center' }}>
+            {loading ? <span style={{ width: 14, height: 14, border: '2px solid rgba(0,0,0,0.2)', borderTopColor: C.black, borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} /> : null}
+            {isEdit ? "Save Changes" : "Add Unit"}
           </button>
         </div>
       </div>
@@ -391,30 +418,25 @@ function UnitFormModal({ unit, propertyId, onClose, onSave }) {
 function DeleteModal({ title, sub, onClose, onConfirm }) {
   const toast = useToast();
   const [loading, setLoading] = useState(false);
-  
-  function go() { 
-    setLoading(true); 
-    onConfirm(); 
-    setLoading(false);
-    toast.success(`${title} completed.`);
-  }
+  function go() { setLoading(true); onConfirm(); setLoading(false); toast.success(`${title} completed.`); }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="w-full max-w-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 shadow-xl">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">
-            <Trash2 size={18} className="text-red-500" />
+    <div style={modalOverlay}>
+      <div style={{ ...modalCard(380), padding: '1.5rem', maxHeight: 'auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '1rem' }}>
+          <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(224,90,74,0.1)', border: '1px solid rgba(224,90,74,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Icon name="trash" size={18} color={C.redLight} />
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{title}</h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400">{sub}</p>
+            <h3 style={{ fontSize: '0.85rem', fontWeight: 600, color: C.white }}>{title}</h3>
+            <p style={{ fontSize: '0.65rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono }}>{sub}</p>
           </div>
         </div>
-        <div className="flex gap-3 mt-5">
-          <button onClick={onClose} className="flex-1 py-2.5 rounded-lg text-sm font-medium border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">Cancel</button>
-          <button onClick={go} disabled={loading} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold bg-red-600 hover:bg-red-700 text-white disabled:opacity-50">
-            {loading ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}Delete
+        <div style={{ display: 'flex', gap: '0.8rem', marginTop: '1rem' }}>
+          <button onClick={onClose} style={{ ...btnGhost, flex: 1, display: 'flex', justifyContent: 'center' }}>Cancel</button>
+          <button onClick={go} disabled={loading} style={{ flex: 1, padding: '0.6rem 1.2rem', borderRadius: '3px', fontSize: '0.76rem', fontWeight: 600, fontFamily: F.dm, letterSpacing: '0.04em', border: 'none', cursor: 'pointer', background: C.red, color: C.white, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}>
+            {loading ? <span style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.2)', borderTopColor: C.white, borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} /> : <Icon name="trash" size={14} />}
+            Delete
           </button>
         </div>
       </div>
@@ -438,70 +460,67 @@ function UnitsView({ property, onBack, onAddUnit, onEditUnit, onDeleteUnit }) {
   ];
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center gap-3">
-        <button onClick={onBack} className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
-          <ArrowLeft size={16} />Properties
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <button onClick={onBack} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.4)', fontSize: '0.78rem', fontFamily: F.mono, letterSpacing: '0.04em' }}
+          onMouseEnter={e => e.currentTarget.style.color = C.white}
+          onMouseLeave={e => e.currentTarget.style.color = 'rgba(245,240,232,0.4)'}>
+          <Icon name="arrowLeft" size={14} /> Properties
         </button>
-        <span className="text-gray-300 dark:text-gray-600">/</span>
-        <span className="text-sm font-semibold text-gray-900 dark:text-white">{property.name}</span>
+        <span style={{ color: 'rgba(245,240,232,0.2)' }}>/</span>
+        <span style={{ fontSize: '0.82rem', fontWeight: 600, color: C.white }}>{property.name}</span>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
+      <div style={{ ...cardStyle, padding: '1.2rem' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
           <div>
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white">{property.name}</h2>
-            <div className="flex items-center gap-1 mt-1">
-              <MapPin size={12} className="text-gray-400" />
-              <span className="text-xs text-gray-500 dark:text-gray-400">{property.address_line1}, {property.city}</span>
+            <h2 style={{ fontSize: '1.2rem', fontWeight: 600, color: C.white, fontFamily: F.bebas, letterSpacing: '0.04em' }}>{property.name}</h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: '0.2rem' }}>
+              <Icon name="mapPin" size={12} color="rgba(245,240,232,0.3)" />
+              <span style={{ fontSize: '0.68rem', color: 'rgba(245,240,232,0.4)' }}>{property.address_line1}, {property.city}</span>
             </div>
           </div>
-          <div className="flex items-center gap-6">
-            {[
-              { label: "Units", value: units.length },
-              { label: "Occupied", value: occupied },
-              { label: "Vacant", value: vacant },
-              { label: "Monthly", value: fmt(totalRent) },
-            ].map(s => (
-              <div key={s.label} className="text-center">
-                <p className="text-base font-bold text-gray-900 dark:text-white">{s.value}</p>
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">{s.label}</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
+            {[{ label: "Units", value: units.length }, { label: "Occupied", value: occupied }, { label: "Vacant", value: vacant }, { label: "Monthly", value: fmt(totalRent) }].map(s => (
+              <div key={s.label} style={{ textAlign: 'center' }}>
+                <p style={{ fontSize: '1rem', fontWeight: 700, color: C.white, fontFamily: F.bebas }}>{s.value}</p>
+                <p style={{ fontSize: '0.5rem', fontWeight: 600, color: 'rgba(245,240,232,0.25)', fontFamily: F.mono, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{s.label}</p>
               </div>
             ))}
-            <button onClick={onAddUnit} className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-colors">
-              Add Unit
-            </button>
+            <button onClick={onAddUnit} style={{ ...btnPrimary, fontSize: '0.68rem', padding: '0.5rem 1rem' }}>Add Unit</button>
           </div>
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex gap-2">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.8rem' }}>
+        <div style={{ display: 'flex', gap: '0.4rem' }}>
           {FILTERS.map(f => (
             <button key={f.id} onClick={() => setFilter(f.id)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${filter === f.id ? "bg-blue-600 text-white border-blue-600" : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"}`}>
+              style={{ padding: '0.4rem 0.8rem', borderRadius: '3px', fontSize: '0.68rem', fontWeight: 600, fontFamily: F.mono, letterSpacing: '0.04em', border: `1px solid ${filter === f.id ? C.gold : C.border}`, background: filter === f.id ? 'rgba(232,160,18,0.12)' : 'transparent', color: filter === f.id ? C.gold : 'rgba(245,240,232,0.4)', cursor: 'pointer', transition: 'all 0.2s' }}>
               {f.label}
             </button>
           ))}
         </div>
-        <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5">
-          {[{ id: "grid", Icon: Grid3x3 }, { id: "list", Icon: List }].map(({ id, Icon }) => (
+        <div style={{ display: 'flex', background: C.muted, borderRadius: '3px', padding: '2px' }}>
+          {[{ id: "grid", icon: 'grid' }, { id: "list", icon: 'list' }].map(({ id, icon }) => (
             <button key={id} onClick={() => setUnitView(id)}
-              className={`p-2 rounded-lg transition-colors ${unitView === id ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"}`}>
-              <Icon size={14} />
+              style={{ padding: '0.4rem 0.6rem', borderRadius: '2px', background: unitView === id ? C.muted2 : 'transparent', border: 'none', cursor: 'pointer', color: unitView === id ? C.gold : 'rgba(245,240,232,0.3)', transition: 'all 0.2s', display: 'flex' }}>
+              <Icon name={icon} size={14} />
             </button>
           ))}
         </div>
       </div>
 
       {unitView === "grid" && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '0.8rem' }}>
           {filtered.map(unit => (
-            <div key={unit.id} className="group relative">
+            <div key={unit.id} style={{ position: 'relative' }}>
               <UnitCell unit={unit} />
-              <div className="absolute inset-0 rounded-xl bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                <button onClick={() => onEditUnit(unit)} className="p-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"><Edit size={12} /></button>
-                <button onClick={() => onDeleteUnit(unit)} className="p-2 rounded-lg bg-red-600 text-white hover:bg-red-700"><Trash2 size={12} /></button>
+              <div style={{ position: 'absolute', inset: 0, borderRadius: '6px', background: 'rgba(0,0,0,0.6)', opacity: 0, transition: 'opacity 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                onMouseEnter={e => e.currentTarget.style.opacity = 1}
+                onMouseLeave={e => e.currentTarget.style.opacity = 0}>
+                <button onClick={() => onEditUnit(unit)} style={{ padding: '0.5rem', borderRadius: '3px', background: C.gold, border: 'none', cursor: 'pointer', color: C.black, display: 'flex' }}><Icon name="edit" size={12} /></button>
+                <button onClick={() => onDeleteUnit(unit)} style={{ padding: '0.5rem', borderRadius: '3px', background: C.red, border: 'none', cursor: 'pointer', color: C.white, display: 'flex' }}><Icon name="trash" size={12} /></button>
               </div>
             </div>
           ))}
@@ -509,38 +528,50 @@ function UnitsView({ property, onBack, onAddUnit, onEditUnit, onDeleteUnit }) {
       )}
 
       {unitView === "list" && (
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400 border-b border-gray-200 dark:border-gray-600">
-              <tr>{["Unit","Type","Floor","Rent","Status","Tenant",""].map(h => <th key={h} className="px-4 py-3 text-left">{h}</th>)}</tr>
+        <div style={{ ...cardStyle, overflow: 'hidden' }}>
+          <table style={{ width: '100%', fontSize: '0.75rem', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ fontSize: '0.6rem', fontWeight: 600, color: 'rgba(245,240,232,0.3)', fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase', borderBottom: `1px solid ${C.border}` }}>
+                {["Unit","Type","Floor","Rent","Status","Tenant",""].map(h => <th key={h} style={{ padding: '0.7rem 1rem', textAlign: 'left' }}>{h}</th>)}
+              </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody>
               {filtered.map(unit => {
-                const cfg = UNIT_STATUS[unit.status] ?? UNIT_STATUS.vacant;
+                const cfg = unitStatusColors[unit.status] ?? unitStatusColors.vacant;
                 return (
-                  <tr key={unit.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors group">
-                    <td className="px-4 py-3 font-semibold text-gray-900 dark:text-white">#{unit.unit_number}</td>
-                    <td className="px-4 py-3 text-gray-500 dark:text-gray-400">{unitTypeLabel(unit.unit_type)}</td>
-                    <td className="px-4 py-3 text-gray-500 dark:text-gray-400">{unit.floor_number ?? "—"}</td>
-                    <td className="px-4 py-3 font-semibold text-gray-900 dark:text-white">{fmt(unit.monthly_rent)}</td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-lg border ${cfg.color} ${cfg.bg} ${cfg.border}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />{cfg.label}
+                  <tr key={unit.id} style={{ borderBottom: `1px solid ${C.border}`, transition: 'background 0.15s' }}
+                    onMouseEnter={e => e.currentTarget.style.background = C.muted}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                    <td style={{ padding: '0.7rem 1rem', fontWeight: 600, color: C.white }}>#{unit.unit_number}</td>
+                    <td style={{ padding: '0.7rem 1rem', color: 'rgba(245,240,232,0.4)' }}>{unitTypeLabel(unit.unit_type)}</td>
+                    <td style={{ padding: '0.7rem 1rem', color: 'rgba(245,240,232,0.4)' }}>{unit.floor_number ?? "—"}</td>
+                    <td style={{ padding: '0.7rem 1rem', fontWeight: 600, color: C.white }}>{fmt(unit.monthly_rent)}</td>
+                    <td style={{ padding: '0.7rem 1rem' }}>
+                      <span style={pillStyle(cfg.color, cfg.bg, cfg.border)}>
+                        <span style={{ width: 5, height: 5, borderRadius: '50%', background: cfg.dot }} />
+                        {unit.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-gray-500 dark:text-gray-400 text-xs">{unit.tenant_name ?? "—"}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => onEditUnit(unit)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-400 hover:text-blue-600"><Edit size={13} /></button>
-                        <button onClick={() => onDeleteUnit(unit)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-400 hover:text-red-500"><Trash2 size={13} /></button>
+                    <td style={{ padding: '0.7rem 1rem', color: 'rgba(245,240,232,0.3)', fontSize: '0.68rem' }}>{unit.tenant_name ?? "—"}</td>
+                    <td style={{ padding: '0.7rem 1rem' }}>
+                      <div style={{ display: 'flex', gap: '0.4rem', opacity: 0, transition: 'opacity 0.15s' }}
+                        onMouseEnter={e => e.currentTarget.style.opacity = 1}
+                        onMouseLeave={e => e.currentTarget.style.opacity = 0}>
+                        <button onClick={() => onEditUnit(unit)} style={{ padding: '0.3rem', borderRadius: '3px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.3)' }}
+                          onMouseEnter={e => e.currentTarget.style.color = C.gold}
+                          onMouseLeave={e => e.currentTarget.style.color = 'rgba(245,240,232,0.3)'}>
+                          <Icon name="edit" size={13} />
+                        </button>
+                        <button onClick={() => onDeleteUnit(unit)} style={{ padding: '0.3rem', borderRadius: '3px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.3)' }}
+                          onMouseEnter={e => e.currentTarget.style.color = C.redLight}
+                          onMouseLeave={e => e.currentTarget.style.color = 'rgba(245,240,232,0.3)'}>
+                          <Icon name="trash" size={13} />
+                        </button>
                       </div>
                     </td>
                   </tr>
                 );
               })}
-              {filtered.length === 0 && (
-                <tr><td colSpan={7} className="px-4 py-10 text-center text-sm text-gray-400">No units match this filter</td></tr>
-              )}
             </tbody>
           </table>
         </div>
@@ -564,8 +595,7 @@ export default function PropertiesPage() {
   const [deleteUnit, setDeleteUnit] = useState(null);
 
   const fetchProperties = useCallback(async () => {
-    setLoading(true); 
-    setError("");
+    setLoading(true); setError("");
     try {
       const token = localStorage.getItem("token");
       const { data } = await axios.get(`${API}/properties`, { headers: { Authorization: `Bearer ${token}` } });
@@ -573,9 +603,7 @@ export default function PropertiesPage() {
     } catch (err) {
       setError(err.response?.data?.error || "Failed to load properties");
       toast.error("Failed to load properties. Please try again.");
-    } finally { 
-      setLoading(false); 
-    }
+    } finally { setLoading(false); }
   }, [toast]);
 
   useEffect(() => { fetchProperties(); }, [fetchProperties]);
@@ -586,107 +614,107 @@ export default function PropertiesPage() {
   );
 
   function handleSaveProperty(saved) {
-    setProperties(prev => {
-      const exists = prev.find(p => p.id === saved.id);
-      if (exists) return prev.map(p => p.id === saved.id ? { ...p, ...saved } : p);
-      return [...prev, saved];
-    });
-    setEditProperty(null); 
-    setShowAddProp(false);
+    setProperties(prev => { const exists = prev.find(p => p.id === saved.id); if (exists) return prev.map(p => p.id === saved.id ? { ...p, ...saved } : p); return [...prev, saved]; });
+    setEditProperty(null); setShowAddProp(false);
   }
 
   async function handleDeleteProperty(id) {
-    try { 
-      const token = localStorage.getItem("token"); 
-      await axios.delete(`${API}/properties/${id}`, { headers: { Authorization: `Bearer ${token}` } }); 
-      toast.success("Property deleted successfully!");
-    } catch { 
-      toast.error("Failed to delete property. It may have active units.");
-    }
+    try { const token = localStorage.getItem("token"); await axios.delete(`${API}/properties/${id}`, { headers: { Authorization: `Bearer ${token}` } }); toast.success("Property deleted successfully!"); }
+    catch { toast.error("Failed to delete property. It may have active units."); }
     setProperties(prev => prev.filter(p => p.id !== id));
     if (viewProperty?.id === id) setViewProperty(null);
     setDeleteProp(null);
   }
 
   function handleSaveUnit(saved) {
-    setProperties(prev => prev.map(p => {
-      if (p.id !== viewProperty.id) return p;
-      const exists = (p.units || []).find(u => u.id === saved.id);
-      const units = exists ? (p.units || []).map(u => u.id === saved.id ? { ...u, ...saved } : u) : [...(p.units || []), saved];
-      return { ...p, units };
-    }));
+    setProperties(prev => prev.map(p => { if (p.id !== viewProperty.id) return p; const exists = (p.units || []).find(u => u.id === saved.id); const units = exists ? (p.units || []).map(u => u.id === saved.id ? { ...u, ...saved } : u) : [...(p.units || []), saved]; return { ...p, units }; }));
     setViewProperty(prev => prev ? { ...prev, units: prev.units ? prev.units.map(u => u.id === saved.id ? { ...u, ...saved } : u) : [saved] } : prev);
-    setEditUnit(null); 
-    setShowAddUnit(false);
+    setEditUnit(null); setShowAddUnit(false);
   }
 
   async function handleDeleteUnit(unitId) {
-    try { 
-      const token = localStorage.getItem("token"); 
-      await axios.delete(`${API}/units/${unitId}`, { headers: { Authorization: `Bearer ${token}` } }); 
-      toast.success("Unit deleted successfully!");
-    } catch { 
-      toast.error("Failed to delete unit. It may have an active lease.");
-    }
+    try { const token = localStorage.getItem("token"); await axios.delete(`${API}/units/${unitId}`, { headers: { Authorization: `Bearer ${token}` } }); toast.success("Unit deleted successfully!"); }
+    catch { toast.error("Failed to delete unit. It may have an active lease."); }
     setProperties(prev => prev.map(p => p.id !== viewProperty.id ? p : { ...p, units: (p.units || []).filter(u => u.id !== unitId) }));
     setViewProperty(prev => prev ? { ...prev, units: (prev.units || []).filter(u => u.id !== unitId) } : prev);
     setDeleteUnit(null);
   }
 
+  const S = {
+    container: { maxWidth: 1280, margin: '-1rem -1.6rem', padding: '1.5rem 1rem 3rem' },
+    headerRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem', gap: '1rem' },
+    title: { fontSize: '1.8rem', fontWeight: 700, color: C.white, fontFamily: F.bebas, letterSpacing: '0.04em' },
+    subtitle: { fontSize: '0.75rem', color: 'rgba(245,240,232,0.35)', marginTop: '0.3rem', fontFamily: F.mono },
+    searchWrap: { position: 'relative', marginBottom: '1.5rem' },
+    searchIcon: { position: 'absolute', left: '0.9rem', top: '50%', transform: 'translateY(-50%)', color: 'rgba(245,240,232,0.25)' },
+    searchInput: { width: '100%', padding: '0.6rem 1rem 0.6rem 2.5rem', borderRadius: '3px', background: C.muted2, border: `1px solid ${C.border}`, color: C.white, fontFamily: F.dm, fontSize: '0.82rem', outline: 'none' },
+    loading: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '5rem 0', color: 'rgba(245,240,232,0.3)', gap: '0.8rem' },
+    error: { display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '5rem 0', gap: '1rem' },
+    errorText: { fontSize: '0.82rem', color: C.redLight },
+    retryBtn: { background: 'none', border: 'none', color: C.gold, cursor: 'pointer', fontSize: '0.75rem', fontFamily: F.mono, letterSpacing: '0.04em', textDecoration: 'underline' },
+    empty: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '6rem 0', gap: '1rem' },
+    emptyIcon: { width: 60, height: 60, borderRadius: '12px', background: C.muted2, border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+    emptyText: { fontSize: '0.85rem', fontWeight: 500, color: 'rgba(245,240,232,0.4)' },
+    grid: { display: 'grid', gridTemplateColumns: '1fr', gap: '1.2rem' },
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div style={S.container}>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @media (min-width: 640px) { .props-grid { grid-template-columns: repeat(2, 1fr) !important; } }
+        @media (min-width: 1280px) { .props-grid { grid-template-columns: repeat(3, 1fr) !important; } }
+        input:focus { border-color: ${C.borderFocus} !important; }
+      `}</style>
+
       {(showAddProp || editProperty) && <PropertyFormModal property={editProperty} onClose={() => { setShowAddProp(false); setEditProperty(null); }} onSave={handleSaveProperty} />}
       {deleteProp && <DeleteModal title="Delete Property" sub={`Remove ${deleteProp.name}? This cannot be undone.`} onClose={() => setDeleteProp(null)} onConfirm={() => handleDeleteProperty(deleteProp.id)} />}
       {(showAddUnit || editUnit) && viewProperty && <UnitFormModal unit={editUnit} propertyId={viewProperty.id} onClose={() => { setShowAddUnit(false); setEditUnit(null); }} onSave={handleSaveUnit} />}
       {deleteUnit && <DeleteModal title="Delete Unit" sub={`Remove Unit ${deleteUnit.unit_number}?`} onClose={() => setDeleteUnit(null)} onConfirm={() => handleDeleteUnit(deleteUnit.id)} />}
 
-      <div className="max-w-screen-xl mx-auto px-4 pt-6 pb-12">
-        {viewProperty ? (
-          <UnitsView property={viewProperty} onBack={() => setViewProperty(null)}
-            onAddUnit={() => setShowAddUnit(true)} onEditUnit={unit => setEditUnit(unit)} onDeleteUnit={unit => setDeleteUnit(unit)} />
-        ) : (
-          <>
-            <div className="flex items-center justify-between mb-6 gap-4">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Properties</h1>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{properties.length} propert{properties.length !== 1 ? "ies" : "y"} · {properties.reduce((s, p) => s + (p.units || []).length, 0)} units in total</p>
-              </div>
-              <button onClick={() => setShowAddProp(true)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors">
-                Add Property
-              </button>
+      {viewProperty ? (
+        <UnitsView property={viewProperty} onBack={() => setViewProperty(null)} onAddUnit={() => setShowAddUnit(true)} onEditUnit={unit => setEditUnit(unit)} onDeleteUnit={unit => setDeleteUnit(unit)} />
+      ) : (
+        <>
+          <div style={S.headerRow}>
+            <div>
+              <h1 style={S.title}>Properties</h1>
+              <p style={S.subtitle}>{properties.length} propert{properties.length !== 1 ? "ies" : "y"} · {properties.reduce((s, p) => s + (p.units || []).length, 0)} units in total</p>
             </div>
+            <button onClick={() => setShowAddProp(true)} style={btnPrimary}>Add Property</button>
+          </div>
 
-            <div className="relative mb-6">
-              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input type="text" placeholder="Search properties..." value={search} onChange={e => setSearch(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <div style={S.searchWrap}>
+            <Icon name="search" size={14} style={S.searchIcon} />
+            <input type="text" placeholder="Search properties..." value={search} onChange={e => setSearch(e.target.value)} style={S.searchInput} />
+          </div>
+
+          {loading ? (
+            <div style={S.loading}>
+              <span style={{ width: 20, height: 20, border: '2px solid rgba(245,240,232,0.1)', borderTopColor: C.gold, borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+              Loading properties...
             </div>
-
-            {loading ? (
-              <div className="flex items-center justify-center py-20"><Loader2 size={32} className="animate-spin text-blue-500" /><span className="ml-3 text-gray-500 dark:text-gray-400">Loading properties...</span></div>
-            ) : error ? (
-              <div className="flex flex-col items-center py-20 gap-4">
-                <AlertTriangle size={32} className="text-red-400" />
-                <p className="text-sm text-red-500">{error}</p>
-                <button onClick={fetchProperties} className="text-sm text-blue-600 hover:underline">Try again</button>
-              </div>
-            ) : filtered.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-24 gap-4">
-                <div className="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center"><Building2 size={28} className="text-gray-400" /></div>
-                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{search ? "No properties match" : "No properties yet"}</p>
-                {!search && <button onClick={() => setShowAddProp(true)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold"><Plus size={14} />Add your first property</button>}
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
-                {filtered.map(property => (
-                  <PropertyCard key={property.id} property={property}
-                    onView={p => setViewProperty(p)} onEdit={p => setEditProperty(p)} onDelete={p => setDeleteProp(p)} />
-                ))}
-              </div>
-            )}
-          </>
-        )}
-      </div>
+          ) : error ? (
+            <div style={S.error}>
+              <Icon name="alertCircle" size={28} color={C.redLight} />
+              <p style={S.errorText}>{error}</p>
+              <button onClick={fetchProperties} style={S.retryBtn}>Try again</button>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div style={S.empty}>
+              <div style={S.emptyIcon}><Icon name="properties" size={24} color="rgba(245,240,232,0.2)" /></div>
+              <p style={S.emptyText}>{search ? "No properties match" : "No properties yet"}</p>
+              {!search && <button onClick={() => setShowAddProp(true)} style={btnPrimary}>Add your first property</button>}
+            </div>
+          ) : (
+            <div className="props-grid" style={S.grid}>
+              {filtered.map(property => (
+                <PropertyCard key={property.id} property={property} onView={p => setViewProperty(p)} onEdit={p => setEditProperty(p)} onDelete={p => setDeleteProp(p)} />
+              ))}
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

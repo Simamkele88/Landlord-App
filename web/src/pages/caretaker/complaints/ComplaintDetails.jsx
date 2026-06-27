@@ -1,214 +1,94 @@
-/* eslint-disable no-unused-vars */
+// CARETAKER COMPLAINT DETAIL PAGE 
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
-import {
-  ArrowLeft, Loader2, AlertTriangle,
-  CheckCircle, XCircle, Eye, Image, ArrowUpCircle
-} from "lucide-react";
 import useDocumentTitle from "../../../hooks/useDocumentTitle";
 import { useToast } from "../../../contexts/ToastContext";
+import { Icon } from "../../../components/Icon";
+import { c as C, f as F } from "../../../styles/theme";
 
-const API = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
+const API = "http://localhost:4000";
 
 const STATUS_CONFIG = {
-  "open":          { label: "Open",         color: "text-red-600",    bg: "bg-red-100 dark:bg-red-900/30",     dot: "bg-red-500"      },
-  "under_review":  { label: "Under Review", color: "text-yellow-600", bg: "bg-yellow-100 dark:bg-yellow-900/30", dot: "bg-yellow-400"   },
-  "awaiting_clarification": { label: "Needs Clarification", color: "text-orange-600", bg: "bg-orange-100 dark:bg-orange-900/30", dot: "bg-orange-500" },
-  "approved":      { label: "Approved",     color: "text-blue-600",   bg: "bg-blue-100 dark:bg-blue-900/30",    dot: "bg-blue-500"    },
-  "resolved":      { label: "Resolved",     color: "text-green-600",  bg: "bg-green-100 dark:bg-green-900/30",  dot: "bg-green-500"    },
-  "dismissed":     { label: "Dismissed",    color: "text-gray-600",   bg: "bg-gray-100 dark:bg-gray-700/50",    dot: "bg-gray-400"     },
-  "escalated":     { label: "Escalated",    color: "text-purple-600", bg: "bg-purple-100 dark:bg-purple-900/30",dot: "bg-purple-500"   },
+  "open":                   { label: "Open",               color: C.redLight,   bg: 'rgba(224,90,74,0.06)',  border: '1px solid rgba(224,90,74,0.12)',  dot: C.redLight   },
+  "under_review":           { label: "Under Review",       color: C.gold,       bg: 'rgba(232,160,18,0.04)',  border: '1px solid rgba(232,160,18,0.1)',   dot: C.gold       },
+  "awaiting_clarification": { label: "Needs Clarification",color: '#f97316',    bg: 'rgba(249,115,22,0.06)',  border: '1px solid rgba(249,115,22,0.12)',  dot: '#f97316'    },
+  "approved":               { label: "Approved",           color: C.blue,       bg: 'rgba(58,143,212,0.06)',  border: '1px solid rgba(58,143,212,0.12)',  dot: C.blue       },
+  "resolved":               { label: "Resolved",           color: C.greenLight, bg: 'rgba(26,122,74,0.04)',   border: '1px solid rgba(76,186,122,0.1)',   dot: C.greenLight },
+  "dismissed":              { label: "Dismissed",          color: 'rgba(245,240,232,0.4)', bg: 'rgba(245,240,232,0.03)', border: '1px solid rgba(245,240,232,0.08)', dot: 'rgba(245,240,232,0.3)' },
+  "escalated":              { label: "Escalated",          color: C.purple,     bg: 'rgba(139,92,246,0.06)',  border: '1px solid rgba(139,92,246,0.12)',  dot: C.purple     },
 };
 
-const SCOPE_LABELS = {
-  specific_tenant: "Specific Unit / Tenant",
-  common_area: "Common Area",
-  unknown: "Unknown / General",
-  property_wide: "Property-Wide Issue",
-};
+const SCOPE_LABELS = { specific_tenant: "Specific Unit / Tenant", common_area: "Common Area", unknown: "Unknown / General", property_wide: "Property-Wide Issue" };
 
 function StatusBadge({ status }) {
   const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG["open"];
-  return (
-    <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-0.5 rounded-md ${cfg.bg} ${cfg.color} border`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
-      {cfg.label}
-    </span>
-  );
+  return <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.58rem', fontWeight: 600, padding: '0.12rem 0.45rem', borderRadius: '3px', fontFamily: F.mono, letterSpacing: '0.04em', textTransform: 'uppercase', color: cfg.color, background: cfg.bg, border: cfg.border }}><span style={{ width: 5, height: 5, borderRadius: '50%', background: cfg.dot }} />{cfg.label}</span>;
 }
 
 function fmtDate(d) { return d ? new Date(d).toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" }) : ""; }
-function timeAgo(d) {
-  if (!d) return "";
-  const s = (Date.now() - new Date(d).getTime()) / 1000;
-  if (s < 60) return "Just now";
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  return `${Math.floor(s / 86400)}d ago`;
+
+const cardStyle = { background: C.muted2, border: `1px solid ${C.border}`, borderRadius: '6px', padding: '1.3rem' };
+const inputStyle = { width: '100%', fontSize: '0.8rem', padding: '0.55rem 0.8rem', borderRadius: '3px', background: C.black, border: `1px solid ${C.border}`, color: C.white, fontFamily: F.dm, outline: 'none', resize: 'none' };
+const btnStyle = (bg, color) => ({ width: '100%', padding: '0.65rem', borderRadius: '3px', background: bg, color, border: 'none', cursor: 'pointer', fontFamily: F.dm, fontWeight: 600, fontSize: '0.74rem', textAlign: 'center' });
+
+
+function ModalShell({ title, sub, icon, iconBg, onClose, children, footer }) {
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}>
+      <div style={{ width: '100%', maxWidth: 440, background: C.muted2, border: `1px solid ${C.border}`, borderRadius: '6px', boxShadow: '0 20px 60px rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.5rem', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem' }}>
+            <div style={{ width: 34, height: 34, borderRadius: '6px', ...iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon name={icon} size={16} /></div>
+            <div><h3 style={{ fontSize: '0.9rem', fontWeight: 600, color: C.white, fontFamily: F.bebas, letterSpacing: '0.04em' }}>{title}</h3>{sub && <p style={{ fontSize: '0.62rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono }}>{sub}</p>}</div>
+          </div>
+          <button onClick={onClose} style={{ padding: '0.2rem', borderRadius: '3px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.3)' }} onMouseEnter={e => e.currentTarget.style.color = C.white} onMouseLeave={e => e.currentTarget.style.color = 'rgba(245,240,232,0.3)'}><Icon name="x" size={17} /></button>
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '1.2rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>{children}</div>
+        {footer && <div style={{ display: 'flex', gap: '0.7rem', padding: '1rem 1.5rem 1.5rem', borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>{footer}</div>}
+      </div>
+    </div>
+  );
 }
+
+
+function TextActionModal({ title, sub, icon, iconBg, label, placeholder, btnLabel, btnBg, onClose, onSubmit }) {
+  const [value, setValue] = useState("");
+  const [error, setError] = useState("");
+  function handleSubmit() { if (!value.trim()) { setError("Required"); return; } onSubmit(value.trim()); onClose(); }
+  return (
+    <ModalShell title={title} sub={sub} icon={icon} iconBg={iconBg} onClose={onClose}
+      footer={<><button onClick={onClose} style={{ flex: 1, padding: '0.55rem', borderRadius: '3px', background: 'transparent', border: `1px solid ${C.border}`, color: 'rgba(245,240,232,0.4)', cursor: 'pointer', fontFamily: F.dm, fontSize: '0.74rem' }}>Cancel</button>
+        <button onClick={handleSubmit} style={{ flex: 1, padding: '0.55rem', borderRadius: '3px', background: btnBg, color: C.white, border: 'none', cursor: 'pointer', fontFamily: F.dm, fontWeight: 600, fontSize: '0.74rem' }}>{btnLabel}</button></>}>
+      {error && <div style={{ padding: '0.5rem 0.7rem', borderRadius: '3px', background: 'rgba(224,90,74,0.06)', border: '1px solid rgba(224,90,74,0.12)', fontSize: '0.7rem', color: C.redLight }}>{error}</div>}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}><label style={{ fontSize: '0.62rem', fontWeight: 600, color: 'rgba(245,240,232,0.35)', fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label} *</label><textarea rows={4} value={value} onChange={e => { setValue(e.target.value); setError(""); }} placeholder={placeholder} style={{ ...inputStyle, minHeight: 80 }} /></div>
+    </ModalShell>
+  );
+}
+
 
 function VerdictModal({ complaint, onClose, onSubmit }) {
-  const [verdictType, setVerdictType] = useState("warning");
-  const [fineAmount, setFineAmount] = useState("");
+  const [type, setType] = useState("warning");
+  const [fine, setFine] = useState("");
   const [notes, setNotes] = useState("");
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
-  function handleSubmit() {
-    if (!verdictType) { setError("Please select a verdict type"); return; }
-    if (verdictType === "fine" && (!fineAmount || Number(fineAmount) <= 0)) { setError("Please enter a valid fine amount"); return; }
-    setLoading(true);
-    onSubmit({ verdict_type: verdictType, fine_amount: verdictType === "fine" ? Number(fineAmount) : null, notes: notes.trim() || null });
-    setLoading(false);
-    onClose();
-  }
-
+  function handleSubmit() { if (type === "fine" && (!fine || Number(fine) <= 0)) { setError("Enter valid fine amount"); return; } onSubmit({ verdict_type: type, fine_amount: type === "fine" ? Number(fine) : null, notes: notes.trim() || null }); onClose(); }
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg border border-gray-200 dark:border-gray-700">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-orange-100 dark:bg-orange-900/40 flex items-center justify-center"><AlertTriangle size={18} className="text-orange-600 dark:text-orange-400" /></div>
-            <div><h3 className="text-base font-semibold text-gray-900 dark:text-white">Issue Verdict</h3><p className="text-xs text-gray-500 dark:text-gray-400">{complaint.subject}</p></div>
-          </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1">✕</button>
-        </div>
-        <div className="px-6 py-5 space-y-4">
-          {error && <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 text-sm text-red-700">{error}</div>}
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Verdict Type</label>
-            <div className="grid grid-cols-2 gap-3">
-              {[{ id: "warning", label: "Warning", desc: "Formal written warning" }, { id: "fine", label: "Fine", desc: "Monetary penalty" }].map(type => (
-                <button key={type.id} onClick={() => { setVerdictType(type.id); setError(""); }}
-                  className={`p-3 rounded-lg border text-left transition-colors ${verdictType === type.id ? "border-orange-400 bg-orange-50 dark:bg-orange-900/20" : "border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"}`}>
-                  <p className="text-sm font-semibold text-gray-900 dark:text-white">{type.label}</p><p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{type.desc}</p>
-                </button>
-              ))}
-            </div>
-          </div>
-          {verdictType === "fine" && (
-            <div><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Fine Amount (R) *</label>
-              <input type="number" min="0" value={fineAmount} onChange={e => { setFineAmount(e.target.value); setError(""); }} placeholder="e.g. 500" className="w-full text-sm rounded-lg px-3 py-2.5 border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500" />
-            </div>
-          )}
-          <div><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Notes</label>
-            <textarea rows={4} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Details about the verdict..." className="w-full text-sm rounded-lg px-3 py-2.5 border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none" />
-          </div>
-        </div>
-        <div className="px-6 pb-6 flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-          <button onClick={onClose} className="flex-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-white text-sm font-medium py-2.5 px-4 rounded-xl">Cancel</button>
-          <button onClick={handleSubmit} disabled={loading} className="flex-1 flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium py-2.5 px-4 rounded-xl disabled:opacity-50">{loading ? <Loader2 size={15} className="animate-spin" /> : "Issue Verdict"}</button>
-        </div>
+    <ModalShell title="Issue Verdict" sub={complaint.subject} icon="warning" iconBg={{ background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.15)', color: '#f97316' }} onClose={onClose}
+      footer={<><button onClick={onClose} style={{ flex: 1, padding: '0.55rem', borderRadius: '3px', background: 'transparent', border: `1px solid ${C.border}`, color: 'rgba(245,240,232,0.4)', cursor: 'pointer', fontFamily: F.dm, fontSize: '0.74rem' }}>Cancel</button><button onClick={handleSubmit} style={{ flex: 1, padding: '0.55rem', borderRadius: '3px', background: '#f97316', color: C.white, border: 'none', cursor: 'pointer', fontFamily: F.dm, fontWeight: 600, fontSize: '0.74rem' }}>Issue Verdict</button></>}>
+      {error && <div style={{ padding: '0.5rem 0.7rem', borderRadius: '3px', background: 'rgba(224,90,74,0.06)', border: '1px solid rgba(224,90,74,0.12)', fontSize: '0.7rem', color: C.redLight }}>{error}</div>}
+      <p style={{ fontSize: '0.6rem', fontWeight: 600, color: 'rgba(245,240,232,0.25)', fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Verdict Type</p>
+      <div style={{ display: 'flex', gap: '0.5rem' }}>
+        {[{ id: "warning", label: "Warning" }, { id: "fine", label: "Fine" }].map(t => (
+          <button key={t.id} onClick={() => { setType(t.id); setError(""); }} style={{ flex: 1, padding: '0.6rem', borderRadius: '3px', border: `1px solid ${type === t.id ? '#f97316' : C.border}`, background: type === t.id ? 'rgba(249,115,22,0.06)' : 'transparent', color: type === t.id ? '#f97316' : 'rgba(245,240,232,0.4)', cursor: 'pointer', fontFamily: F.dm, fontSize: '0.78rem', fontWeight: 500 }}>{t.label}</button>
+        ))}
       </div>
-    </div>
+      {type === "fine" && <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}><label style={{ fontSize: '0.62rem', fontWeight: 600, color: 'rgba(245,240,232,0.35)', fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Fine Amount (R) *</label><input type="number" value={fine} onChange={e => { setFine(e.target.value); setError(""); }} placeholder="e.g. 500" style={inputStyle} /></div>}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}><label style={{ fontSize: '0.62rem', fontWeight: 600, color: 'rgba(245,240,232,0.35)', fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Notes</label><textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Details..." style={{ ...inputStyle, minHeight: 60 }} /></div>
+    </ModalShell>
   );
 }
 
-function DismissModal({ complaint, onClose, onSubmit }) {
-  const [reason, setReason] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  function handleSubmit() { if (!reason.trim()) { setError("Please provide a reason for dismissal"); return; } setLoading(true); onSubmit({ reason: reason.trim() }); setLoading(false); onClose(); }
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg border border-gray-200 dark:border-gray-700">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center gap-3"><div className="w-9 h-9 rounded-lg bg-red-100 dark:bg-red-900/40 flex items-center justify-center"><XCircle size={18} className="text-red-600 dark:text-red-400" /></div><div><h3 className="text-base font-semibold text-gray-900 dark:text-white">Dismiss Complaint</h3><p className="text-xs text-gray-500 dark:text-gray-400">{complaint.subject}</p></div></div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1">✕</button>
-        </div>
-        <div className="px-6 py-5 space-y-4">
-          {error && <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 text-sm text-red-700">{error}</div>}
-          <div><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Reason for Dismissal *</label><textarea rows={4} value={reason} onChange={e => { setReason(e.target.value); setError(""); }} placeholder="Explain why..." className="w-full text-sm rounded-lg px-3 py-2.5 border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 resize-none" /></div>
-        </div>
-        <div className="px-6 pb-6 flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-          <button onClick={onClose} className="flex-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-white text-sm font-medium py-2.5 px-4 rounded-xl">Cancel</button>
-          <button onClick={handleSubmit} disabled={loading} className="flex-1 flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium py-2.5 px-4 rounded-xl disabled:opacity-50">{loading ? <Loader2 size={15} className="animate-spin" /> : "Dismiss Complaint"}</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function EscalateModal({ complaint, onClose, onSubmit }) {
-  const [reason, setReason] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  function handleSubmit() { if (!reason.trim()) { setError("Please provide a reason for escalation"); return; } setLoading(true); onSubmit({ reason: reason.trim() }); setLoading(false); onClose(); }
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg border border-gray-200 dark:border-gray-700">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center gap-3"><div className="w-9 h-9 rounded-lg bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center"><ArrowUpCircle size={18} className="text-purple-600 dark:text-purple-400" /></div><div><h3 className="text-base font-semibold text-gray-900 dark:text-white">Escalate to Landlord</h3><p className="text-xs text-gray-500 dark:text-gray-400">{complaint.subject}</p></div></div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1">✕</button>
-        </div>
-        <div className="px-6 py-5 space-y-4">
-          {error && <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 text-sm text-red-700">{error}</div>}
-          <div><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Reason for Escalation *</label><textarea rows={4} value={reason} onChange={e => { setReason(e.target.value); setError(""); }} placeholder="Explain why..." className="w-full text-sm rounded-lg px-3 py-2.5 border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none" /></div>
-        </div>
-        <div className="px-6 pb-6 flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-          <button onClick={onClose} className="flex-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-white text-sm font-medium py-2.5 px-4 rounded-xl">Cancel</button>
-          <button onClick={handleSubmit} disabled={loading} className="flex-1 flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium py-2.5 px-4 rounded-xl disabled:opacity-50">{loading ? <Loader2 size={15} className="animate-spin" /> : "Escalate to Landlord"}</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ResolveModal({ complaint, onClose, onSubmit }) {
-  const [notes, setNotes] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  function handleSubmit() {
-    if (!notes.trim()) { setError("Please provide resolution notes"); return; }
-    setLoading(true);
-    onSubmit({ notes: notes.trim() });
-    setLoading(false);
-    onClose();
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg border border-gray-200 dark:border-gray-700">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-green-100 dark:bg-green-900/40 flex items-center justify-center"><CheckCircle size={18} className="text-green-600 dark:text-green-400" /></div>
-            <div><h3 className="text-base font-semibold text-gray-900 dark:text-white">Resolve Complaint</h3><p className="text-xs text-gray-500 dark:text-gray-400">{complaint.subject}</p></div>
-          </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1">✕</button>
-        </div>
-        <div className="px-6 py-5 space-y-4">
-          {error && <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 text-sm text-red-700">{error}</div>}
-          <div className="flex items-start gap-3 p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700">
-            <AlertTriangle size={14} className="text-green-500 flex-shrink-0 mt-0.5" />
-            <p className="text-xs text-green-700 dark:text-green-300">This complaint is not against a specific tenant. Provide details on how the issue was resolved.</p>
-          </div>
-          <div><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Resolution Notes *</label><textarea rows={5} value={notes} onChange={e => { setNotes(e.target.value); setError(""); }} placeholder="Describe how this issue was resolved..." className="w-full text-sm rounded-lg px-3 py-2.5 border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 resize-none" /></div>
-        </div>
-        <div className="px-6 pb-6 flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-          <button onClick={onClose} className="flex-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-white text-sm font-medium py-2.5 px-4 rounded-xl">Cancel</button>
-          <button onClick={handleSubmit} disabled={loading} className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-2.5 px-4 rounded-xl disabled:opacity-50">{loading ? <Loader2 size={15} className="animate-spin" /> : "Mark Resolved"}</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ImageViewerModal({ images, currentIndex, onClose, onPrev, onNext }) {
-  const img = images[currentIndex];
-  if (!img) return null;
-  const imageUrl = img.document_url?.startsWith('http') ? img.document_url : `${API}${img.document_url || img.url || ''}`;
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 p-4" onClick={onClose}>
-      <button onClick={onClose} className="absolute top-4 right-4 text-white/70 hover:text-white p-2">✕</button>
-      {currentIndex > 0 && <button onClick={(e) => { e.stopPropagation(); onPrev(); }} className="absolute left-4 text-white/70 hover:text-white p-2">←</button>}
-      {currentIndex < images.length - 1 && <button onClick={(e) => { e.stopPropagation(); onNext(); }} className="absolute right-4 text-white/70 hover:text-white p-2">→</button>}
-      <img src={imageUrl} alt={`Evidence ${currentIndex + 1}`} className="max-w-full max-h-[85vh] object-contain rounded-lg" onClick={e => e.stopPropagation()} onError={(e) => { console.error("Viewer failed to load:", imageUrl); }} />
-      <div className="absolute bottom-4 text-white/70 text-sm">{currentIndex + 1} / {images.length}</div>
-    </div>
-  );
-}
 
 export default function CaretakerComplaintDetail() {
   useDocumentTitle("Complaint Detail");
@@ -231,11 +111,10 @@ export default function CaretakerComplaintDetail() {
     setLoading(true); setError("");
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.get(`${API}/complaints/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-      setComplaint(response.data.complaint);
-    } catch (err) {
-      setError(err.response?.data?.error || "Failed to load complaint");
-    } finally { setLoading(false); }
+      const { data } = await axios.get(`${API}/complaints/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      setComplaint(data.complaint);
+    } catch (err) { setError(err.response?.data?.error || "Failed to load"); }
+    finally { setLoading(false); }
   }, [id]);
 
   useEffect(() => { fetchComplaint(); }, [fetchComplaint]);
@@ -247,110 +126,116 @@ export default function CaretakerComplaintDetail() {
       await axios.put(`${API}${endpoint}`, payload, { headers: { Authorization: `Bearer ${token}` } });
       await fetchComplaint();
       setShowVerdict(false); setShowDismiss(false); setShowEscalate(false); setShowResolve(false);
-      toast.success("Action completed successfully!");
-    } catch (err) {
-      toast.error(err.response?.data?.error || "Action failed");
-    } finally { setSaving(false); }
+      toast.success("Done!");
+    } catch (err) { toast.error(err.response?.data?.error || "Failed"); }
+    finally { setSaving(false); }
   }
 
-  if (loading) return <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center"><Loader2 size={32} className="animate-spin text-blue-500" /></div>;
-  if (error || !complaint) return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-      <div className="text-center"><AlertTriangle size={32} className="text-red-400 mx-auto mb-3" /><p className="text-gray-500">{error || "Complaint not found"}</p><button onClick={() => navigate("/caretaker/complaints")} className="text-blue-600 hover:underline mt-2">Back to Complaints</button></div>
-    </div>
-  );
+  if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}><span style={{ width: 24, height: 24, border: '3px solid rgba(245,240,232,0.06)', borderTopColor: C.blue, borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} /></div>;
+  if (error || !complaint) return <div style={{ textAlign: 'center', padding: '4rem' }}><p style={{ color: 'rgba(245,240,232,0.4)', marginBottom: '1rem' }}>{error || "Not found"}</p><button onClick={() => navigate("/caretaker/complaints")} style={{ color: C.blue, background: 'none', border: 'none', cursor: 'pointer', fontFamily: F.mono }}>← Back</button></div>;
 
   const isSpecificTenant = complaint.complaint_scope === "specific_tenant";
-  const isCommonArea = complaint.complaint_scope === "common_area";
   const scopeLabel = SCOPE_LABELS[complaint.complaint_scope] || "Unknown";
   const hasAgainstParty = isSpecificTenant && complaint.against_name;
   const canMarkUnderReview = complaint.status === "open";
-  const canIssueVerdict = ["under_review"].includes(complaint.status);
+  const canIssueVerdict = complaint.status === "under_review" && hasAgainstParty;
   const canMarkResolved = complaint.status === "under_review" && !hasAgainstParty;
   const canDismiss = ["open", "under_review"].includes(complaint.status);
   const canEscalate = ["open", "under_review"].includes(complaint.status);
   const canReopen = ["resolved", "dismissed"].includes(complaint.status);
 
+  const S = { container: { maxWidth: 1200, padding: '1.5rem 1rem 3rem', margin: '-1rem -1.8rem' }, backBtn: { display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.72rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono, background: 'none', border: 'none', cursor: 'pointer', marginBottom: '1.2rem' }, sectionTitle: { fontSize: '0.68rem', fontWeight: 600, color: C.white, fontFamily: F.bebas, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: '0.7rem' } };
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {saving && <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center"><div className="bg-white dark:bg-gray-800 rounded-xl p-6 flex items-center gap-3 shadow-xl"><Loader2 size={20} className="animate-spin text-blue-500" /><span className="text-sm font-medium text-gray-900 dark:text-white">Saving...</span></div></div>}
+    <div style={S.container}>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
-      {showVerdict && <VerdictModal complaint={complaint} onClose={() => setShowVerdict(false)} onSubmit={(data) => handleAction(`/caretaker/complaints/${id}/verdict`, data)} />}
-      {showDismiss && <DismissModal complaint={complaint} onClose={() => setShowDismiss(false)} onSubmit={(data) => handleAction(`/caretaker/complaints/${id}/dismiss`, data)} />}
-      {showEscalate && <EscalateModal complaint={complaint} onClose={() => setShowEscalate(false)} onSubmit={(data) => handleAction(`/caretaker/complaints/${id}/escalate`, data)} />}
-      {showResolve && <ResolveModal complaint={complaint} onClose={() => setShowResolve(false)} onSubmit={(data) => handleAction(`/caretaker/complaints/${id}/resolve`, data)} />}
-      {viewerOpen && complaint.evidence?.length > 0 && <ImageViewerModal images={complaint.evidence} currentIndex={viewerIndex} onClose={() => setViewerOpen(false)} onPrev={() => setViewerIndex(prev => Math.max(0, prev - 1))} onNext={() => setViewerIndex(prev => Math.min(complaint.evidence.length - 1, prev + 1))} />}
+      {saving && <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div style={{ background: C.muted2, padding: '1rem 1.5rem', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '0.6rem' }}><span style={{ width: 16, height: 16, border: '2px solid rgba(245,240,232,0.06)', borderTopColor: C.blue, borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} /><span style={{ color: C.white, fontFamily: F.dm }}>Saving...</span></div></div>}
 
-      <div className="px-4 pt-6 max-w-screen-xl mx-auto pb-12">
-        <button onClick={() => navigate("/caretaker/complaints")} className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-6 transition-colors"><ArrowLeft size={16} />Back to Complaints</button>
+      {showVerdict && <VerdictModal complaint={complaint} onClose={() => setShowVerdict(false)} onSubmit={d => handleAction(`/caretaker/complaints/${id}/verdict`, d)} />}
+      {showDismiss && <TextActionModal title="Dismiss Complaint" sub={complaint.subject} icon="x-circle" iconBg={{ background: 'rgba(224,90,74,0.08)', border: '1px solid rgba(224,90,74,0.15)', color: C.redLight }} label="Reason for Dismissal" placeholder="Explain why..." btnLabel="Dismiss" btnBg={C.redLight} onClose={() => setShowDismiss(false)} onSubmit={v => handleAction(`/caretaker/complaints/${id}/dismiss`, { reason: v })} />}
+      {showEscalate && <TextActionModal title="Escalate to Landlord" sub={complaint.subject} icon="arrow-up" iconBg={{ background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.15)', color: C.purple }} label="Reason for Escalation" placeholder="Explain why..." btnLabel="Escalate" btnBg={C.purple} onClose={() => setShowEscalate(false)} onSubmit={v => handleAction(`/caretaker/complaints/${id}/escalate`, { reason: v })} />}
+      {showResolve && <TextActionModal title="Resolve Complaint" sub={complaint.subject} icon="check" iconBg={{ background: 'rgba(26,122,74,0.08)', border: '1px solid rgba(76,186,122,0.15)', color: C.greenLight }} label="Resolution Notes" placeholder="How was this resolved?" btnLabel="Mark Resolved" btnBg={C.greenLight} onClose={() => setShowResolve(false)} onSubmit={v => handleAction(`/caretaker/complaints/${id}/resolve`, { notes: v })} />}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
-            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
-              <div className="flex items-center gap-3 mb-4"><StatusBadge status={complaint.status} /><span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600 dark:bg-gray-700 dark:text-gray-300">{scopeLabel}</span></div>
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-2">{complaint.subject}</h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">{complaint.description}</p>
-              {isCommonArea && complaint.common_area_location && <div className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-yellow-50 px-3 py-1.5 text-xs font-medium text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-300">{complaint.common_area_location}</div>}
+      <button onClick={() => navigate("/caretaker/complaints")} style={S.backBtn} onMouseEnter={e => e.currentTarget.style.color = C.white} onMouseLeave={e => e.currentTarget.style.color = 'rgba(245,240,232,0.3)'}><Icon name="chevron-left" size={13} /> Back</button>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.2rem' }}>
+        <style>{`@media (min-width: 1024px) { .comp-grid { grid-template-columns: 1fr 300px !important; } }`}</style>
+        <div className="comp-grid" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.2rem', alignItems: 'start' }}>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div style={cardStyle}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.8rem', flexWrap: 'wrap' }}>
+                <StatusBadge status={complaint.status} />
+                <span style={{ fontSize: '0.6rem', fontWeight: 600, padding: '0.15rem 0.5rem', borderRadius: '3px', fontFamily: F.mono, color: 'rgba(245,240,232,0.4)', background: C.black, border: `1px solid ${C.border}` }}>{scopeLabel}</span>
+              </div>
+              <h2 style={{ fontSize: '1rem', fontWeight: 600, color: C.white, fontFamily: F.dm, marginBottom: '0.4rem' }}>{complaint.subject}</h2>
+              <p style={{ fontSize: '0.78rem', color: 'rgba(245,240,232,0.45)', lineHeight: 1.6 }}>{complaint.description}</p>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">Parties Involved</h3>
-              <div className={`grid gap-4 ${hasAgainstParty ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-1 sm:grid-cols-2'}`}>
-                <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800"><p className="text-xs text-blue-500 dark:text-blue-400 uppercase tracking-wider font-semibold">Filed By</p><p className="text-sm font-semibold text-gray-900 dark:text-white mt-1">{complaint.filed_by_name}</p></div>
-                {hasAgainstParty && <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800"><p className="text-xs text-red-500 dark:text-red-400 uppercase tracking-wider font-semibold">Against</p><p className="text-sm font-semibold text-gray-900 dark:text-white mt-1">{complaint.against_name}</p>{complaint.against_unit_number && <p className="text-xs text-gray-500 mt-0.5">Unit {complaint.against_unit_number}</p>}</div>}
-                <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700"><p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Property</p><p className="text-sm font-semibold text-gray-900 dark:text-white mt-1">{complaint.property_name || "Property"}</p></div>
+            <div style={cardStyle}>
+              <h3 style={S.sectionTitle}>Parties Involved</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: hasAgainstParty ? '1fr 1fr 1fr' : '1fr 1fr', gap: '0.6rem' }}>
+                <div style={{ padding: '0.7rem', borderRadius: '3px', background: 'rgba(58,143,212,0.06)', border: '1px solid rgba(58,143,212,0.12)' }}><p style={{ fontSize: '0.58rem', fontWeight: 600, color: C.blue, fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '3px' }}>Filed By</p><p style={{ fontSize: '0.8rem', fontWeight: 600, color: C.white }}>{complaint.filed_by_name}</p></div>
+                {hasAgainstParty && <div style={{ padding: '0.7rem', borderRadius: '3px', background: 'rgba(224,90,74,0.06)', border: '1px solid rgba(224,90,74,0.12)' }}><p style={{ fontSize: '0.58rem', fontWeight: 600, color: C.redLight, fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '3px' }}>Against</p><p style={{ fontSize: '0.8rem', fontWeight: 600, color: C.white }}>{complaint.against_name}</p>{complaint.against_unit_number && <p style={{ fontSize: '0.62rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono }}>Unit {complaint.against_unit_number}</p>}</div>}
+                <div style={{ padding: '0.7rem', borderRadius: '3px', background: C.black, border: `1px solid ${C.border}` }}><p style={{ fontSize: '0.58rem', fontWeight: 600, color: 'rgba(245,240,232,0.3)', fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '3px' }}>Property</p><p style={{ fontSize: '0.8rem', fontWeight: 600, color: C.white }}>{complaint.property_name || "—"}</p></div>
               </div>
             </div>
 
             {complaint.evidence?.length > 0 && (
-              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2"><Image size={16} className="text-gray-400" />Evidence ({complaint.evidence.length})</h3>
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                  {complaint.evidence.map((item, idx) => {
-                    const imageUrl = item.document_url?.startsWith('http') ? item.document_url : `${API}${item.document_url || item.url || ''}`;
-                    return (
-                      <button key={item.id || idx} onClick={() => { setViewerIndex(idx); setViewerOpen(true); }} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600 group hover:ring-2 hover:ring-blue-400">
-                        <img src={imageUrl} alt={`Evidence ${idx + 1}`} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center"><Eye size={18} className="text-white opacity-0 group-hover:opacity-100" /></div>
-                      </button>
-                    );
-                  })}
+              <div style={cardStyle}>
+                <h3 style={S.sectionTitle}>Evidence ({complaint.evidence.length})</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: '0.5rem' }}>
+                  {complaint.evidence.map((item, idx) => (
+                    <button key={item.id || idx} onClick={() => { setViewerIndex(idx); setViewerOpen(true); }} style={{ aspectRatio: '1', borderRadius: '4px', overflow: 'hidden', border: `1px solid ${C.border}`, cursor: 'pointer', background: C.black }}>
+                      <img src={item.document_url?.startsWith('http') ? item.document_url : `${API}${item.document_url || ''}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    </button>
+                  ))}
                 </div>
               </div>
             )}
 
             {complaint.resolution_notes && (
-              <div className={`rounded-xl p-6 border ${complaint.status === "resolved" ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800" : "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"}`}>
-                <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">{complaint.status === "resolved" ? <CheckCircle size={14} className="text-green-600" /> : <XCircle size={14} className="text-red-600" />}<span>{complaint.status === "resolved" ? "Resolution" : "Dismissal Reason"}</span></h3>
-                <p className="text-sm text-gray-700 dark:text-gray-300">{complaint.resolution_notes}</p>
+              <div style={{ ...cardStyle, background: complaint.status === "resolved" ? 'rgba(26,122,74,0.04)' : 'rgba(224,90,74,0.04)', border: `1px solid ${complaint.status === "resolved" ? 'rgba(76,186,122,0.15)' : 'rgba(224,90,74,0.15)'}` }}>
+                <h3 style={{ ...S.sectionTitle, color: complaint.status === "resolved" ? C.greenLight : C.redLight }}>{complaint.status === "resolved" ? "Resolution" : "Dismissal Reason"}</h3>
+                <p style={{ fontSize: '0.78rem', color: complaint.status === "resolved" ? C.greenLight : C.redLight }}>{complaint.resolution_notes}</p>
               </div>
             )}
           </div>
 
-          <div className="space-y-4">
-            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">Details</h3>
-              <div className="space-y-3">
-                <div className="flex justify-between"><span className="text-xs text-gray-500">Category</span><span className="text-xs font-medium text-gray-900 dark:text-white capitalize">{complaint.category?.replace(/_/g, ' ')}</span></div>
-                <div className="flex justify-between"><span className="text-xs text-gray-500">Scope</span><span className="text-xs font-medium text-gray-900 dark:text-white">{scopeLabel}</span></div>
-                <div className="flex justify-between"><span className="text-xs text-gray-500">Severity</span><span className="text-xs font-medium text-gray-900 dark:text-white">{complaint.severity}/5</span></div>
-                <div className="flex justify-between"><span className="text-xs text-gray-500">Submitted</span><span className="text-xs font-medium text-gray-900 dark:text-white">{fmtDate(complaint.created_at)}</span></div>
-              </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+            <div style={cardStyle}>
+              <h3 style={S.sectionTitle}>Details</h3>
+              {[["Category", complaint.category?.replace(/_/g, " ")], ["Scope", scopeLabel], ["Severity", `${complaint.severity}/5`], ["Submitted", fmtDate(complaint.created_at)]].map(([l, v]) => (
+                <div key={l} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.35rem 0', fontSize: '0.7rem' }}><span style={{ color: 'rgba(245,240,232,0.3)', fontFamily: F.mono }}>{l}</span><span style={{ color: C.white, fontWeight: 500 }}>{v}</span></div>
+              ))}
             </div>
 
-            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6 space-y-3">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Actions</h3>
-              {canMarkUnderReview && <button onClick={() => handleAction(`/caretaker/complaints/${id}/review`, {})} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-yellow-600 hover:bg-yellow-700 text-white text-sm font-medium rounded-xl transition-colors">Mark Under Review</button>}
-              {canMarkResolved && <button onClick={() => setShowResolve(true)} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-xl transition-colors">Mark Resolved</button>}
-              {canIssueVerdict && hasAgainstParty && <button onClick={() => setShowVerdict(true)} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium rounded-xl transition-colors">Issue Verdict</button>}
-              {canDismiss && <button onClick={() => setShowDismiss(true)} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-xl transition-colors">Dismiss Complaint</button>}
-              {canEscalate && <button onClick={() => setShowEscalate(true)} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-xl transition-colors">Escalate to Landlord</button>}
-              {canReopen && <button onClick={() => handleAction(`/complaints/${id}/reopen`, { reason: "Caretaker reopened" })} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors"><AlertTriangle size={16} />Reopen Complaint</button>}
-              {!canMarkUnderReview && !canMarkResolved && !canIssueVerdict && !canDismiss && !canEscalate && !canReopen && <p className="text-sm text-gray-400 text-center py-2">No actions available</p>}
+            <div style={cardStyle}>
+              <h3 style={S.sectionTitle}>Actions</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {canMarkUnderReview && <button onClick={() => handleAction(`/caretaker/complaints/${id}/review`, {})} style={btnStyle(C.gold, C.black)}>Mark Under Review</button>}
+                {canMarkResolved && <button onClick={() => setShowResolve(true)} style={btnStyle(C.greenLight, C.white)}>Mark Resolved</button>}
+                {canIssueVerdict && <button onClick={() => setShowVerdict(true)} style={btnStyle('#f97316', C.white)}>Issue Verdict</button>}
+                {canDismiss && <button onClick={() => setShowDismiss(true)} style={btnStyle(C.redLight, C.white)}>Dismiss</button>}
+                {canEscalate && <button onClick={() => setShowEscalate(true)} style={btnStyle(C.purple, C.white)}>Escalate to Landlord</button>}
+                {canReopen && <button onClick={() => handleAction(`/complaints/${id}/reopen`, { reason: "Caretaker reopened" })} style={btnStyle(C.blue, C.white)}>Reopen</button>}
+                {!canMarkUnderReview && !canMarkResolved && !canIssueVerdict && !canDismiss && !canEscalate && !canReopen && <p style={{ textAlign: 'center', color: 'rgba(245,240,232,0.2)', fontSize: '0.72rem', fontFamily: F.mono }}>No actions available</p>}
+              </div>
             </div>
           </div>
         </div>
       </div>
+
+      {viewerOpen && complaint.evidence?.length > 0 && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(0,0,0,0.95)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setViewerOpen(false)}>
+          <button onClick={() => setViewerOpen(false)} style={{ position: 'absolute', top: '1rem', right: '1rem', color: 'rgba(255,255,255,0.6)', background: 'none', border: 'none', cursor: 'pointer', zIndex: 10 }}><Icon name="x" size={22} /></button>
+          {viewerIndex > 0 && <button onClick={e => { e.stopPropagation(); setViewerIndex(v => v - 1); }} style={{ position: 'absolute', left: '1rem', color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none', cursor: 'pointer' }}><Icon name="chevron-left" size={22} /></button>}
+          {viewerIndex < complaint.evidence.length - 1 && <button onClick={e => { e.stopPropagation(); setViewerIndex(v => v + 1); }} style={{ position: 'absolute', right: '1rem', color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none', cursor: 'pointer' }}><Icon name="chevron-right" size={22} /></button>}
+          <img src={complaint.evidence[viewerIndex]?.document_url?.startsWith('http') ? complaint.evidence[viewerIndex].document_url : `${API}${complaint.evidence[viewerIndex]?.document_url}`} alt="" style={{ maxHeight: '85vh', maxWidth: '90%', objectFit: 'contain', borderRadius: '4px' }} onClick={e => e.stopPropagation()} />
+          <div style={{ position: 'absolute', bottom: '1.5rem', color: 'rgba(255,255,255,0.5)', fontSize: '0.8rem' }}>{viewerIndex + 1} / {complaint.evidence.length}</div>
+        </div>
+      )}
     </div>
   );
 }

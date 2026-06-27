@@ -1,26 +1,30 @@
-// TENANT RESET PASSWORD SCREEN
+// TENANT RESET PASSWORD SCREEN 
 import { useState } from "react";
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-   StatusBar, KeyboardAvoidingView, Platform,
-  ActivityIndicator, SafeAreaView
+  StatusBar, KeyboardAvoidingView, Platform,
+  ActivityIndicator, SafeAreaView,
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
 import api from "../../utils/api";
 
-const API_URL = api.getBaseUrl(); 
+const API_URL = api.getBaseUrl();
+
 
 const C = {
-  bg: "#0F172A", surface: "#1E293B", surfaceAlt: "#273449",
-  border: "#334155", primary: "#3B82F6",
-  success: "#22C55E", successBg: "#052E16",
-  danger: "#EF4444", dangerBg: "#450A0A",
-  textPrimary: "#F1F5F9", textSecondary: "#94A3B8", textMuted: "#64748B",
-  white: "#fbdada",
+  black:        "#0a0a0a",
+  muted:        "#141414",
+  muted2:       "#1a1a1a",
+  border:       "#2a2a2a",
+  gold:         "#E8A012",
+  white:        "#F5F0E8",
+  blue:         "#3A8FD4",
+  greenLight:   "#1A7A4A",
+  redLight:     "#E05A4A",
 };
+const F = { bebas: "bebas-neue", dm: "dm-sans", mono: "space-mono" };
 
-// MAIN COMPONENT
 export default function ResetPassword() {
   const navigation = useNavigation();
   const route = useRoute();
@@ -37,121 +41,103 @@ export default function ResetPassword() {
     if (!newPassword) { setError("New password is required"); return; }
     if (newPassword.length < 8) { setError("Password must be at least 8 characters"); return; }
     if (newPassword !== confirmPassword) { setError("Passwords do not match"); return; }
-
-    setLoading(true);
-    setError("");
-
+    setLoading(true); setError("");
     try {
       const response = await fetch(`${API_URL}/auth/reset-password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, code, newPassword }),
       });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to reset password");
-      }
-
+      if (!response.ok) { const data = await response.json(); throw new Error(data.error || "Failed to reset password"); }
       setSuccess(true);
     } catch (err) {
       setError(err.message || "Unable to connect. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   }
+
+  const $input = {
+    backgroundColor: C.black, borderWidth: 1, borderColor: C.border,
+    borderRadius: 3, paddingHorizontal: 12, paddingVertical: 13,
+    fontSize: 15, color: C.white, fontFamily: F.dm,
+  };
+  const $btnGold = {
+    backgroundColor: C.gold, borderRadius: 3, paddingVertical: 15,
+    alignItems: "center", justifyContent: "center",
+  };
 
   // SUCCESS
   if (success) {
     return (
-      <SafeAreaView style={styles.safe}>
-        <StatusBar barStyle="light-content" backgroundColor={C.bg} />
-        <View style={styles.container}>
-          <View style={styles.successIcon}>
-            <Feather name="check" size={32} color={C.success} />
+      <SafeAreaView style={S.safe}>
+        <StatusBar barStyle="light-content" backgroundColor={C.black} />
+        <View style={S.container}>
+          <View style={S.successIcon}>
+            <Feather name="check" size={30} color={C.greenLight} />
           </View>
-          <Text style={styles.title}>Password Reset</Text>
-          <Text style={styles.subtitle}>
-            Your password has been updated successfully.
-          </Text>
-
-          <TouchableOpacity
-            style={styles.btn}
-            onPress={() => navigation.navigate("Login")}
-          >
-            <Text style={styles.btnText}>Go to Login</Text>
+          <Text style={S.title}>Password Reset</Text>
+          <Text style={S.subtitle}>Your password has been updated successfully.</Text>
+          <TouchableOpacity style={$btnGold} onPress={() => navigation.navigate("Login")} activeOpacity={0.85}>
+            <Text style={S.btnText}>GO TO LOGIN</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
   }
 
-  // RESET FORM
+  // FORM
   return (
-    <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={C.bg} />
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-      >
-        <View style={styles.container}>
-          <Text style={styles.step}>Step 2 of 2</Text>
-          <Text style={styles.title}>Set New Password</Text>
-          <Text style={styles.subtitle}>Choose a new password for {email}.</Text>
+    <SafeAreaView style={S.safe}>
+      <StatusBar barStyle="light-content" backgroundColor={C.black} />
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+        <View style={S.container}>
+          <Text style={S.step}>STEP 2 OF 2</Text>
+          <Text style={S.title}>Set New Password</Text>
+          <Text style={S.subtitle}>Choose a new password for <Text style={{ color: C.white, fontWeight: "600" }}>{email}</Text>.</Text>
 
           {error ? (
-            <View style={styles.errorBanner}>
-              <Feather name="alert-circle" size={14} color={C.danger} />
-              <Text style={styles.errorText}>{error}</Text>
+            <View style={S.errorBanner}>
+              <Feather name="alert-circle" size={14} color={C.redLight} />
+              <Text style={S.errorText}>{error}</Text>
             </View>
           ) : null}
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>New Password</Text>
-            <View style={styles.passwordRow}>
+          <View style={S.inputGroup}>
+            <Text style={S.label}>NEW PASSWORD</Text>
+            <View style={{ position: "relative" }}>
               <TextInput
-                style={[styles.input, { flex: 1 }]}
+                style={[$input, { paddingRight: 40 }]}
                 value={newPassword}
                 onChangeText={(v) => { setNewPassword(v); setError(""); }}
                 placeholder="At least 8 characters"
-                placeholderTextColor={C.textMuted}
+                placeholderTextColor="rgba(245,240,232,0.15)"
                 secureTextEntry={!showPassword}
               />
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
-                <Feather name={showPassword ? "eye-off" : "eye"} size={18} color={C.textMuted} />
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={S.eyeBtn}>
+                <Feather name={showPassword ? "eye-off" : "eye"} size={18} color="rgba(245,240,232,0.3)" />
               </TouchableOpacity>
             </View>
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Confirm New Password</Text>
+          <View style={S.inputGroup}>
+            <Text style={S.label}>CONFIRM NEW PASSWORD</Text>
             <TextInput
-              style={styles.input}
+              style={$input}
               value={confirmPassword}
               onChangeText={(v) => { setConfirmPassword(v); setError(""); }}
               placeholder="Re-enter your password"
-              placeholderTextColor={C.textMuted}
+              placeholderTextColor="rgba(245,240,232,0.15)"
               secureTextEntry
             />
             {confirmPassword && newPassword !== confirmPassword ? (
-              <Text style={styles.fieldError}>Passwords do not match</Text>
+              <Text style={S.fieldError}>Passwords do not match</Text>
             ) : null}
           </View>
 
-          <TouchableOpacity
-            style={[styles.btn, loading && { opacity: 0.6 }]}
-            onPress={handleReset}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color={C.white} size="small" />
-            ) : (
-              <Text style={styles.btnText}>Reset Password</Text>
-            )}
+          <TouchableOpacity style={[$btnGold, loading && { opacity: 0.6 }]} onPress={handleReset} disabled={loading} activeOpacity={0.85}>
+            {loading ? <ActivityIndicator color={C.black} size="small" /> : <Text style={S.btnText}>RESET PASSWORD</Text>}
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Text style={styles.link}>Back</Text>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: 16 }}>
+            <Text style={S.link}>Back</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -159,37 +145,27 @@ export default function ResetPassword() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.bg },
+const S = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: C.black },
   container: { flex: 1, justifyContent: "center", padding: 24 },
-  step: { fontSize: 12, fontWeight: "600", color: C.primary, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 },
-  title: { fontSize: 24, fontWeight: "800", color: C.textPrimary, marginBottom: 8 },
-  subtitle: { fontSize: 14, color: C.textSecondary, marginBottom: 24, lineHeight: 20 },
+  step: { fontSize: 10, fontWeight: "700", color: C.gold, fontFamily: F.mono, letterSpacing: 1.5, marginBottom: 4 },
+  title: { fontSize: 22, fontWeight: "700", color: C.white, fontFamily: F.bebas, letterSpacing: 1, marginBottom: 8 },
+  subtitle: { fontSize: 13, color: "rgba(245,240,232,0.4)", fontFamily: F.dm, marginBottom: 24, lineHeight: 20 },
   successIcon: {
-    width: 64, height: 64, borderRadius: 32,
-    backgroundColor: C.successBg, borderWidth: 2, borderColor: C.success,
-    alignItems: "center", justifyContent: "center", marginBottom: 16,
+    width: 60, height: 60, borderRadius: 30,
+    backgroundColor: "rgba(26,122,74,0.08)", borderWidth: 2, borderColor: "rgba(76,186,122,0.2)",
+    alignItems: "center", justifyContent: "center", marginBottom: 16, alignSelf: "center",
   },
   inputGroup: { marginBottom: 16 },
-  label: { fontSize: 12, fontWeight: "600", color: C.textSecondary, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 },
-  input: {
-    backgroundColor: C.surface, borderWidth: 1, borderColor: C.border,
-    borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12,
-    fontSize: 15, color: C.textPrimary,
-  },
-  passwordRow: { flexDirection: "row", alignItems: "center" },
-  eyeBtn: { position: "absolute", right: 14 },
-  fieldError: { fontSize: 11, color: C.danger, marginTop: 4 },
+  label: { fontSize: 10, fontWeight: "700", color: "rgba(245,240,232,0.25)", fontFamily: F.mono, letterSpacing: 1.5, marginBottom: 6 },
+  eyeBtn: { position: "absolute", right: 12, top: "50%", transform: [{ translateY: -9 }] },
+  fieldError: { fontSize: 10, color: C.redLight, fontFamily: F.mono, marginTop: 3 },
   errorBanner: {
     flexDirection: "row", alignItems: "center", gap: 8,
-    backgroundColor: C.dangerBg, borderRadius: 10, borderWidth: 1,
-    borderColor: C.danger, padding: 12, marginBottom: 16,
+    backgroundColor: "rgba(224,90,74,0.06)", borderRadius: 3, borderWidth: 1,
+    borderColor: "rgba(224,90,74,0.15)", padding: 10, marginBottom: 16,
   },
-  errorText: { flex: 1, fontSize: 13, color: C.danger },
-  btn: {
-    backgroundColor: C.primary, borderRadius: 14, paddingVertical: 16,
-    alignItems: "center", marginBottom: 16, marginTop: 8,
-  },
-  btnText: { color: C.white, fontSize: 16, fontWeight: "700" },
-  link: { color: C.primary, fontSize: 14, fontWeight: "600", textAlign: "center" },
+  errorText: { flex: 1, fontSize: 12, color: C.redLight, fontFamily: F.dm },
+  btnText: { color: C.black, fontSize: 13, fontWeight: "700", fontFamily: F.dm, letterSpacing: 1, textTransform: "uppercase" },
+  link: { color: C.gold, fontSize: 13, fontWeight: "600", fontFamily: F.mono, textAlign: "center" },
 });

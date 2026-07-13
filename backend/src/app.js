@@ -23,6 +23,7 @@ const notificationRoutes = require("./routes/notifications");
 const announcementRoutes = require("./routes/announcements");
 const reportRoutes = require("./routes/reports");
 const landlordCaretakerRoutes = require("./routes/landlordCaretakers");
+const billingRoutes = require("./routes/billing");
 
 
 
@@ -58,11 +59,14 @@ app.use("/landlord", landlordRoutes);
 app.use("/landlord/payment-settings", paymentSettingsRoutes);
 app.use("/landlord/settings", landlordSettingsRoutes);
 app.use("/landlord/payments", landlordPaymentRoutes);
+app.use("/landlord", landlordPaymentRoutes);
 app.use("/messages", messageRoutes);
 app.use("/notifications", notificationRoutes);
 app.use("/announcements", announcementRoutes);
 app.use("/reports", reportRoutes);
 app.use("/landlord/caretakers", landlordCaretakerRoutes);
+app.use("/billing", billingRoutes);
+
 
 
 app.get("/uploads/maintenance/:filename", (req, res) => {

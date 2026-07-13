@@ -132,20 +132,20 @@ export default function LandlordMessages() {
       ]);
 
       const mappedConvos = (convRes.data.conversations || []).map(c => ({
-        ...c,
-        initials: initials(c.with_name),
-        unread: c.unread_count || 0,
-        preview: c.last_message || "No messages yet",
-        time: timeAgo(c.last_message_at || c.created_at),
-        online: c.with_online || false,
-      }));
+      ...c,
+      initials: initials(c.with_name),
+      unread: c.unread_count || 0,
+      preview: c.last_message || "No messages yet",
+      time: timeAgo(c.last_message_at || c.created_at),
+      online: c.with_online || false,
+    }));
 
-      setConversations(mappedConvos);
-      setRecipients(recipRes.data.recipients || []);
+    mappedConvos.sort((a, b) =>
+      new Date(b.last_message_at || b.created_at || 0) - new Date(a.last_message_at || a.created_at || 0)
+    );
 
-      if (!activeConvo && mappedConvos.length > 0) {
-        setActiveConvo(mappedConvos[0]);
-      }
+    setConversations(mappedConvos);
+    setRecipients(recipRes.data.recipients || []);
     } catch (err) {
       console.error("Fetch messages:", err);
     } finally {
@@ -206,17 +206,20 @@ export default function LandlordMessages() {
       })),
     };
 
-    setConversations(prev => prev.map(c => {
-      if (c.id !== activeConvo.id) return c;
-      return {
-        ...c,
-        messages: [...(c.messages || []), newMsg],
-        last_message: text || (attachments.length > 0 ? `📎 ${attachments.length} attachment(s)` : ""),
-        last_message_at: new Date().toISOString(),
-        preview: text || (attachments.length > 0 ? `📎 ${attachments.length} attachment(s)` : ""),
-        time: "Just now",
-      };
-    }));
+    setConversations(prev => {
+      const updated = prev.map(c => {
+        if (c.id !== activeConvo.id) return c;
+        return {
+          ...c,
+          messages: [...(c.messages || []), newMsg],
+          last_message: text || (attachments.length > 0 ? `📎 ${attachments.length} attachment(s)` : ""),
+          last_message_at: new Date().toISOString(),
+          preview: text || (attachments.length > 0 ? `📎 ${attachments.length} attachment(s)` : ""),
+          time: "Just now",
+        };
+      });
+      return updated.sort((a, b) => new Date(b.last_message_at || 0) - new Date(a.last_message_at || 0));
+    });
     setActiveConvo(prev => prev ? { ...prev, messages: [...(prev.messages || []), newMsg] } : prev);
     setMsgInput("");
     setAttachments([]);

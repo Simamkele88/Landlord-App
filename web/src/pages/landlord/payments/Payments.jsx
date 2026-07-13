@@ -360,8 +360,27 @@ export default function PaymentsPage() {
   const [showFullReport, setShowFullReport] = useState(false);
   const toast = useToast();
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState("invoices"); 
+  const [invoices, setInvoices] = useState([]);
+  const [loadingInvoices, setLoadingInvoices] = useState(false);
+  const [invoiceFilter, setInvoiceFilter] = useState("All");
 
-  useDocumentTitle("Payments");
+  useDocumentTitle("Billing & Payments");
+
+  const fetchInvoices = useCallback(async () => {
+    setLoadingInvoices(true);
+    try {
+      const token = localStorage.getItem("token");
+      const { data } = await axios.get(`${API}/landlord/invoices`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setInvoices(data.invoices || []);
+    } catch (err) {
+      console.error("Fetch invoices:", err);
+    } finally {
+      setLoadingInvoices(false);
+    }
+  }, []);
 
   const fetchPayments = useCallback(async () => {
     setLoading(true);
@@ -378,10 +397,11 @@ export default function PaymentsPage() {
     }
   }, []);
 
-  useEffect(() => { fetchPayments(); }, [fetchPayments]);
+  useEffect(() => { fetchInvoices(); fetchPayments(); }, [fetchInvoices, fetchPayments]);
 
   function handleApproved(id) {
     setPayments(prev => prev.map(p => p.id === id ? { ...p, status: 'paid' } : p));
+    fetchInvoices(); 
     toast.success("Payment approved. Receipt generated and sent to tenant.");
   }
 
@@ -392,10 +412,11 @@ export default function PaymentsPage() {
 
   function handleCollections(id) {
     setPayments(prev => prev.map(p => p.id === id ? { ...p, status: 'collections' } : p));
+    fetchInvoices();
     toast.warning("Account escalated to collections.");
   }
 
-  const filtered = payments.filter(p => {
+  const filteredPayments = payments.filter(p => {
     const matchFilter = filter === "All" || p.status === FILTER_MAP[filter];
     const q = search.toLowerCase();
     const tenantName = p.tenant_name || "";
@@ -405,10 +426,25 @@ export default function PaymentsPage() {
     return matchFilter && matchSearch;
   });
 
-  const totalExpected  = payments.reduce((s, p) => s + Number(p.amount_paid || 0), 0);
-  const totalCollected = payments.filter(p => p.status === 'paid').reduce((s, p) => s + Number(p.amount_paid || 0), 0);
-  const pendingCount   = payments.filter(p => p.status === 'pending' || p.status === 'pending_approval').length;
-  const lateCount      = payments.filter(p => p.status === 'late' || p.status === 'collections').length;
+  const INVOICE_FILTERS = ["All", "Unpaid", "Paid", "Overdue"];
+  const INVOICE_FILTER_MAP = { "All": "All", "Unpaid": "sent", "Paid": "paid", "Overdue": "overdue" };
+
+  const filteredInvoices = invoices.filter(inv => {
+    const matchFilter = invoiceFilter === "All" || inv.status === INVOICE_FILTER_MAP[invoiceFilter];
+    const q = search.toLowerCase();
+    const tenantName = inv.tenant_name || "";
+    const unitInfo = inv.unit_number || "";
+    const matchSearch = !q || tenantName.toLowerCase().includes(q) || unitInfo.toLowerCase().includes(q);
+    return matchFilter && matchSearch;
+  });
+
+  // Summary calculations
+  const totalExpected  = invoices.filter(i => i.status === 'sent' || i.status === 'overdue' || i.status === 'paid').reduce((s, i) => s + Number(i.amount_due || 0), 0);
+  const totalCollected = invoices.filter(i => i.status === 'paid').reduce((s, i) => s + Number(i.amount_due || 0), 0);
+  const unpaidCount    = invoices.filter(i => i.status === 'sent').length;
+  const overdueCount   = invoices.filter(i => i.status === 'overdue').length;
+  const pendingPayments = payments.filter(p => p.status === 'pending' || p.status === 'pending_approval').length;
+  const latePayments    = payments.filter(p => p.status === 'late' || p.status === 'collections').length;
 
   const S = {
     container: { maxWidth: 1280, padding: '1.5rem 1rem 3rem', margin: '-1rem -1.8rem' },
@@ -444,103 +480,229 @@ export default function PaymentsPage() {
 
       <div style={S.headerRow}>
         <div>
-          <h1 style={S.title}><Icon name="credit-card" size={24} color={C.gold} />Payments</h1>
-          <p style={S.subtitle}>All Properties</p>
+          <h1 style={S.title}><Icon name="credit-card" size={24} color={C.gold} />Billing & Payments</h1>
+          <p style={S.subtitle}>{invoices.length} invoices · {payments.length} payments</p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button onClick={fetchPayments} style={btnGhost}><Icon name="refresh" size={14} /> Refresh</button>
+          <button onClick={() => { fetchInvoices(); fetchPayments(); }} style={btnGhost}><Icon name="refresh" size={14} /> Refresh</button>
           <button onClick={() => setShowFullReport(true)} style={btnPrimary}><Icon name="download" size={14} /> Export Report</button>
         </div>
       </div>
 
-      <SummaryBar totalExpected={totalExpected} totalCollected={totalCollected} pendingCount={pendingCount} lateCount={lateCount} totalPayments={payments.length} />
+      <SummaryBar 
+        totalExpected={totalExpected} 
+        totalCollected={totalCollected} 
+        pendingCount={pendingPayments + unpaidCount} 
+        lateCount={latePayments + overdueCount} 
+        totalPayments={invoices.length} 
+      />
 
       <div style={cardStyle}>
-        <div style={S.toolbarInner}>
-          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-            {FILTERS.map(f => (
-              <button key={f} onClick={() => setFilter(f)} style={S.filterBtn(filter === f)}>
-                {f}{f !== "All" && <span style={{ marginLeft: '0.3rem', opacity: 0.6 }}>{payments.filter(p => p.status === FILTER_MAP[f]).length}</span>}
-              </button>
-            ))}
-          </div>
-          <div style={S.searchWrap}>
-            <Icon name="search" size={14} style={S.searchIcon} />
-            <input type="text" placeholder="Search tenant, unit..." value={search} onChange={e => setSearch(e.target.value)} style={S.searchInput} />
-          </div>
+        {/* TABS */}
+        <div style={{ display: 'flex', borderBottom: `1px solid ${C.border}` }}>
+          <button onClick={() => setActiveTab("invoices")} style={{
+            flex: 1, padding: '0.7rem 1rem', fontSize: '0.78rem', fontWeight: 600,
+            fontFamily: F.dm, border: 'none', cursor: 'pointer',
+            background: activeTab === "invoices" ? 'rgba(232,160,18,0.06)' : 'transparent',
+            color: activeTab === "invoices" ? C.gold : 'rgba(245,240,232,0.4)',
+            borderBottom: activeTab === "invoices" ? `2px solid ${C.gold}` : '2px solid transparent',
+            transition: 'all 0.15s',
+          }}>
+             Invoices
+            {(unpaidCount + overdueCount) > 0 && (
+              <span style={{ marginLeft: '0.4rem', background: C.redLight, color: C.white, padding: '0.1rem 0.4rem', borderRadius: '8px', fontSize: '0.6rem', fontWeight: 700, fontFamily: F.mono }}>
+                {unpaidCount + overdueCount}
+              </span>
+            )}
+          </button>
+          <button onClick={() => setActiveTab("payments")} style={{
+            flex: 1, padding: '0.7rem 1rem', fontSize: '0.78rem', fontWeight: 600,
+            fontFamily: F.dm, border: 'none', cursor: 'pointer',
+            background: activeTab === "payments" ? 'rgba(232,160,18,0.06)' : 'transparent',
+            color: activeTab === "payments" ? C.gold : 'rgba(245,240,232,0.4)',
+            borderBottom: activeTab === "payments" ? `2px solid ${C.gold}` : '2px solid transparent',
+            transition: 'all 0.15s',
+          }}>
+             Payments
+            {pendingPayments > 0 && (
+              <span style={{ marginLeft: '0.4rem', background: C.gold, color: C.black, padding: '0.1rem 0.4rem', borderRadius: '8px', fontSize: '0.6rem', fontWeight: 700, fontFamily: F.mono }}>
+                {pendingPayments}
+              </span>
+            )}
+          </button>
         </div>
 
-        <div style={{ overflowX: 'auto' }}>
-          <table style={S.table}>
-            <thead>
-              <tr>
-                {["Tenant", "Unit / Property", "Amount", "Method", "Reference", "Proof", "Status", "Actions"].map(h => (
-                  <th key={h} style={S.th}>{h}</th>
+        {/* INVOICES TABLE */}
+        {activeTab === "invoices" && (
+          <>
+            <div style={S.toolbarInner}>
+              <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                {INVOICE_FILTERS.map(f => (
+                  <button key={f} onClick={() => setInvoiceFilter(f)} style={S.filterBtn(invoiceFilter === f)}>
+                    {f}{f !== "All" && <span style={{ marginLeft: '0.3rem', opacity: 0.6 }}>{invoices.filter(inv => inv.status === INVOICE_FILTER_MAP[f]).length}</span>}
+                  </button>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan={8} style={{ ...S.td, textAlign: 'center', padding: '3rem 0', color: 'rgba(245,240,232,0.25)' }}>Loading payments...</td></tr>
-              ) : filtered.length === 0 ? (
-                <tr><td colSpan={8} style={{ ...S.td, textAlign: 'center', padding: '3rem 0', color: 'rgba(245,240,232,0.25)' }}>No payments match your filters.</td></tr>
-              ) : (
-                filtered.map(p => {
-                  const tenantName = p.tenant_name || "Unknown";
-                  const unitInfo = p.unit_number || "—";
-                  const propertyName = p.property_name || "—";
-                  const amount = p.amount_paid || 0;
-                  const method = p.payment_method || "—";
-                  const reference = p.bank_reference || "—";
-                  const hasProof = !!p.proof_of_payment_url;
-                  return (
-                    <tr key={p.id} style={{ transition: 'background 0.15s' }}
-                      onMouseEnter={e => e.currentTarget.style.background = C.muted}
-                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                      <td style={S.td}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(245,240,232,0.25)', color: C.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: F.bebas, fontSize: '0.65rem', flexShrink: 0 }}>{initials(tenantName)}</div>
-                          <div>
-                            <div style={{ fontWeight: 600, color: C.white }}>{tenantName}</div>
-                            {p.rejection_reason && <div style={{ fontSize: '0.62rem', color: C.redLight, marginTop: '1px' }} title={p.rejection_reason}>↳ {p.rejection_reason}</div>}
-                          </div>
-                        </div>
-                      </td>
-                      <td style={S.td}><div style={{ fontWeight: 500, color: C.white }}>{unitInfo}</div><div style={{ fontSize: '0.65rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono }}>{propertyName}</div></td>
-                      <td style={{ ...S.td, fontWeight: 600, color: C.white }}>{formatAmount(amount)}</td>
-                      <td style={S.td}>{method}</td>
-                      <td style={S.td}><span style={{ fontFamily: F.mono, fontSize: '0.72rem', color: 'rgba(245,240,232,0.4)' }}>{reference}</span></td>
-                      <td style={S.td}>{hasProof ? <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: C.greenLight, fontWeight: 500 }}><Icon name="check" size={12} /> Yes</span> : <span style={{ color: 'rgba(245,240,232,0.25)' }}>—</span>}</td>
-                      <td style={S.td}><StatusBadge status={p.status} /></td>
-                      <td style={S.td}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                          {(p.status === "pending" || p.status === "pending_approval") && (
-                            <button onClick={() => navigate(`/landlord/payments/review/${p.id}`, { state: { payment: p } })} style={{ fontSize: '0.68rem', fontWeight: 500, color: C.blue, background: 'none', border: 'none', cursor: 'pointer', fontFamily: F.mono }}>Review</button>
-                          )}
-                          {p.status === "late" && (
-                            <button onClick={() => navigate(`/landlord/payments/collections/${p.id}`, { state: { payment: p } })} style={{ fontSize: '0.68rem', fontWeight: 500, color: C.purple, background: 'none', border: 'none', cursor: 'pointer', fontFamily: F.mono }}>Collections</button>
-                          )}
-                          {p.status === "rejected" && (
-                            <button onClick={() => navigate(`/landlord/payments/collections/${p.id}`, { state: { payment: p } })} style={{ fontSize: '0.68rem', fontWeight: 500, color: C.purple, background: 'none', border: 'none', cursor: 'pointer', fontFamily: F.mono }}>Collections</button>
-                          )}
-                          {p.status === "paid" && (
-                            <button onClick={() => navigate(`/landlord/payments/receipt/${p.id}`, { state: { payment: p } })} style={{ fontSize: '0.68rem', fontWeight: 500, color: 'rgba(245,240,232,0.3)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: F.mono }}>View Receipt</button>
-                          )}
-                          {p.status === "collections" && (
-                            <span style={{ fontSize: '0.65rem', color: 'rgba(245,240,232,0.2)', fontFamily: F.mono, fontStyle: 'italic' }}>Escalated</span>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+              </div>
+              <div style={S.searchWrap}>
+                <Icon name="search" size={14} style={S.searchIcon} />
+                <input type="text" placeholder="Search tenant, unit..." value={search} onChange={e => setSearch(e.target.value)} style={S.searchInput} />
+              </div>
+            </div>
+
+            <div style={{ overflowX: 'auto' }}>
+              <table style={S.table}>
+                <thead>
+                  <tr>
+                    {["Invoice #", "Tenant", "Unit / Property", "Amount", "Period", "Due Date", "Status"].map(h => (
+                      <th key={h} style={S.th}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {loadingInvoices ? (
+                    <tr><td colSpan={7} style={{ ...S.td, textAlign: 'center', padding: '3rem 0', color: 'rgba(245,240,232,0.25)' }}>Loading invoices...</td></tr>
+                  ) : filteredInvoices.length === 0 ? (
+                    <tr><td colSpan={7} style={{ ...S.td, textAlign: 'center', padding: '3rem 0', color: 'rgba(245,240,232,0.25)' }}>No invoices match your filters.</td></tr>
+                  ) : (
+                    filteredInvoices.map(inv => {
+                      const invStatus = inv.status === 'sent' ? { color: C.gold, bg: 'rgba(232,160,18,0.08)', border: '1px solid rgba(232,160,18,0.15)', dot: C.gold, label: 'Unpaid' }
+                        : inv.status === 'paid' ? { color: C.greenLight, bg: 'rgba(26,122,74,0.08)', border: '1px solid rgba(76,186,122,0.15)', dot: C.greenLight, label: 'Paid' }
+                        : { color: C.redLight, bg: 'rgba(224,90,74,0.08)', border: '1px solid rgba(224,90,74,0.15)', dot: C.redLight, label: 'Overdue' };
+                      return (
+                        <tr key={inv.id} style={{ transition: 'background 0.15s' }}
+                          onMouseEnter={e => e.currentTarget.style.background = C.muted}
+                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                          <td style={{ ...S.td, fontFamily: F.mono, fontSize: '0.7rem', color: 'rgba(245,240,232,0.5)' }}>{inv.invoice_number}</td>
+                          <td style={S.td}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(245,240,232,0.2)', color: C.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: F.bebas, fontSize: '0.6rem', flexShrink: 0 }}>
+                                {initials(inv.tenant_name || "?")}
+                              </div>
+                              <span style={{ fontWeight: 500, color: C.white }}>{inv.tenant_name || "—"}</span>
+                            </div>
+                          </td>
+                          <td style={S.td}>
+                            <div style={{ fontWeight: 500, color: C.white }}>{inv.unit_number || "—"}</div>
+                            <div style={{ fontSize: '0.65rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono }}>{inv.property_name || "—"}</div>
+                          </td>
+                          <td style={{ ...S.td, fontWeight: 600, color: C.white }}>{formatAmount(inv.amount_due)}</td>
+                          <td style={S.td}>
+                            {inv.billing_period_start 
+                              ? new Date(inv.billing_period_start).toLocaleDateString('en-ZA', { month: 'long', year: 'numeric' })
+                              : "—"}
+                          </td>
+                          <td style={{ ...S.td, fontFamily: F.mono, fontSize: '0.7rem', color: 'rgba(245,240,232,0.5)' }}>
+                            {inv.due_date ? new Date(inv.due_date).toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' }) : "—"}
+                          </td>
+                          <td style={S.td}>
+                            <span style={pillStyle(invStatus)}>
+                              <span style={{ width: 5, height: 5, borderRadius: '50%', background: invStatus.dot }} />
+                              {invStatus.label}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+
+        {/* PAYMENTS TABLE */}
+        {activeTab === "payments" && (
+          <>
+            <div style={S.toolbarInner}>
+              <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                {FILTERS.map(f => (
+                  <button key={f} onClick={() => setFilter(f)} style={S.filterBtn(filter === f)}>
+                    {f}{f !== "All" && <span style={{ marginLeft: '0.3rem', opacity: 0.6 }}>{payments.filter(p => p.status === FILTER_MAP[f]).length}</span>}
+                  </button>
+                ))}
+              </div>
+              <div style={S.searchWrap}>
+                <Icon name="search" size={14} style={S.searchIcon} />
+                <input type="text" placeholder="Search tenant, unit..." value={search} onChange={e => setSearch(e.target.value)} style={S.searchInput} />
+              </div>
+            </div>
+
+            <div style={{ overflowX: 'auto' }}>
+              <table style={S.table}>
+                <thead>
+                  <tr>
+                    {["Tenant", "Unit / Property", "Amount", "Method", "Reference", "Proof", "Status", "Actions"].map(h => (
+                      <th key={h} style={S.th}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr><td colSpan={8} style={{ ...S.td, textAlign: 'center', padding: '3rem 0', color: 'rgba(245,240,232,0.25)' }}>Loading payments...</td></tr>
+                  ) : filteredPayments.length === 0 ? (
+                    <tr><td colSpan={8} style={{ ...S.td, textAlign: 'center', padding: '3rem 0', color: 'rgba(245,240,232,0.25)' }}>No payments match your filters.</td></tr>
+                  ) : (
+                    filteredPayments.map(p => {
+                      const tenantName = p.tenant_name || "Unknown";
+                      const unitInfo = p.unit_number || "—";
+                      const propertyName = p.property_name || "—";
+                      const amount = p.amount_paid || 0;
+                      const method = p.payment_method || "—";
+                      const reference = p.bank_reference || "—";
+                      const hasProof = !!p.proof_of_payment_url;
+                      return (
+                        <tr key={p.id} style={{ transition: 'background 0.15s' }}
+                          onMouseEnter={e => e.currentTarget.style.background = C.muted}
+                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                          <td style={S.td}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(245,240,232,0.25)', color: C.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: F.bebas, fontSize: '0.65rem', flexShrink: 0 }}>{initials(tenantName)}</div>
+                              <div>
+                                <div style={{ fontWeight: 600, color: C.white }}>{tenantName}</div>
+                                {p.rejection_reason && <div style={{ fontSize: '0.62rem', color: C.redLight, marginTop: '1px' }} title={p.rejection_reason}>↳ {p.rejection_reason}</div>}
+                              </div>
+                            </div>
+                          </td>
+                          <td style={S.td}><div style={{ fontWeight: 500, color: C.white }}>{unitInfo}</div><div style={{ fontSize: '0.65rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono }}>{propertyName}</div></td>
+                          <td style={{ ...S.td, fontWeight: 600, color: C.white }}>{formatAmount(amount)}</td>
+                          <td style={S.td}>{method}</td>
+                          <td style={S.td}><span style={{ fontFamily: F.mono, fontSize: '0.72rem', color: 'rgba(245,240,232,0.4)' }}>{reference}</span></td>
+                          <td style={S.td}>{hasProof ? <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: C.greenLight, fontWeight: 500 }}><Icon name="check" size={12} /> Yes</span> : <span style={{ color: 'rgba(245,240,232,0.25)' }}>—</span>}</td>
+                          <td style={S.td}><StatusBadge status={p.status} /></td>
+                          <td style={S.td}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                              {(p.status === "pending" || p.status === "pending_approval") && (
+                                <button onClick={() => setReviewPayment(p)} style={{ fontSize: '0.68rem', fontWeight: 500, color: C.blue, background: 'none', border: 'none', cursor: 'pointer', fontFamily: F.mono }}>Review</button>
+                              )}
+                              {(p.status === "late" || p.status === "rejected") && (
+                                <button onClick={() => setCollectionsPayment(p)} style={{ fontSize: '0.68rem', fontWeight: 500, color: C.purple, background: 'none', border: 'none', cursor: 'pointer', fontFamily: F.mono }}>Collections</button>
+                              )}
+                              {p.status === "paid" && (
+                                <button onClick={() => navigate(`/landlord/payments/receipt/${p.id}`, { state: { payment: p } })} style={{ fontSize: '0.68rem', fontWeight: 500, color: 'rgba(245,240,232,0.3)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: F.mono }}>View Receipt</button>
+                              )}
+                              {p.status === "collections" && (
+                                <span style={{ fontSize: '0.65rem', color: 'rgba(245,240,232,0.2)', fontFamily: F.mono, fontStyle: 'italic' }}>Escalated</span>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
 
         <div style={S.footer}>
-          <span>Showing <span style={{ color: C.white, fontWeight: 500 }}>{filtered.length}</span> of <span style={{ color: C.white, fontWeight: 500 }}>{payments.length}</span> payments</span>
+          <span>
+            Showing <span style={{ color: C.white, fontWeight: 500 }}>
+              {activeTab === "invoices" ? filteredInvoices.length : filteredPayments.length}
+            </span> of <span style={{ color: C.white, fontWeight: 500 }}>
+              {activeTab === "invoices" ? invoices.length : payments.length}
+            </span> {activeTab === "invoices" ? "invoices" : "payments"}
+          </span>
           <button onClick={() => setShowFullReport(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.65rem', fontWeight: 600, color: C.blue, fontFamily: F.mono, letterSpacing: '0.04em', textTransform: 'uppercase', background: 'none', border: 'none', cursor: 'pointer' }}>
             Full Report <Icon name="chevronRight" size={12} />
           </button>

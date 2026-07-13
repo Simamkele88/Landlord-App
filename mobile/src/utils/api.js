@@ -7,7 +7,7 @@ import { Platform } from "react-native";
 const PORT = "4000";
 
 
-const API_URL = "http://192.168.0.9:4000"; 
+const API_URL = "http://10.254.160.222:4000"; 
 console.log("API URL:", API_URL);
 
 const api = {

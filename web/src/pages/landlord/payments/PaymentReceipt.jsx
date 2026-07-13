@@ -19,11 +19,17 @@ function initials(name = "") {
 
 function formatDate(dateStr) {
   if (!dateStr) return "—";
-  return new Date(dateStr).toLocaleDateString("en-ZA", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return String(dateStr).slice(0, 10);
+    return date.toLocaleDateString("en-ZA", { 
+      day: "2-digit", 
+      month: "short", 
+      year: "numeric" 
+    });
+  } catch {
+    return String(dateStr).slice(0, 10);
+  }
 }
 
 function Row({ label, value, mono = false, highlight = false }) {
@@ -155,7 +161,7 @@ export default function PaymentReceipt() {
       cursor: 'pointer', marginBottom: '1.2rem', transition: 'color 0.15s',
     },
     panel: {
-      maxWidth: 640, margin: '0 auto', background: C.muted2,
+       margin: '0 auto', background: C.muted2,
       borderRadius: '8px', border: `1px solid ${C.border}`,
       overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
     },
@@ -199,7 +205,7 @@ export default function PaymentReceipt() {
         }
       `}</style>
 
-      <div style={{ maxWidth: 640, margin: '0 auto 1.2rem' }}>
+      <div style={{  margin: '0 auto 1.2rem' }}>
         <button
           onClick={() => navigate("/landlord/payments")}
           style={S.backBtn}

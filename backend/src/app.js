@@ -21,6 +21,8 @@ const notificationRoutes = require("./routes/notifications");
 const announcementRoutes = require("./routes/announcements");
 const reportRoutes = require("./routes/reports");
 const landlordCaretakerRoutes = require("./routes/landlordCaretakers");
+const billingRoutes = require("./routes/billing");
+
 
 
 
@@ -61,7 +63,7 @@ app.use("/notifications", notificationRoutes);
 app.use("/announcements", announcementRoutes);
 app.use("/reports", reportRoutes);
 app.use("/landlord/caretakers", landlordCaretakerRoutes);
-
+app.use("/billing", billingRoutes);
 
 app.get("/uploads/maintenance/:filename", (req, res) => {
   const filePath = path.join(__dirname, '..', 'uploads', 'maintenance', req.params.filename);

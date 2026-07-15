@@ -9,6 +9,7 @@ const { auditLog } = require("../utils/audit");
 const { generateTempPassword } = require("../utils/helpers");
 const { createNotification } = require("../utils/notifications");
 
+
 async function getLandlordId(userId) {
   const result = await pool.query("SELECT id FROM landlord WHERE user_id = $1", [userId]);
   return result.rows[0]?.id || null;

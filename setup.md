@@ -1,7 +1,7 @@
 # Chihwa Rentals - Setup Guide
 
 ## Prerequisites
-- Node.js installed (v18 or later)
+- Node.js installed 
 - Git installed
 - Expo CLI: `npm install -g expo-cli eas-cli`
 
@@ -51,7 +51,7 @@ Terminal 3 — Web (Development)
 bash
 cd web
 npm start
-Opens in browser at http://localhost:3000
+Opens in browser 
 
 Step 5: API URL Configuration
 The mobile app API URL is in mobile/src/utils/api.js. Update it when backend is deployed:
@@ -61,7 +61,7 @@ const API_URL = "https://your-backend.onrender.com";
 Step 6: Create Accounts
 Run the SQL queries below in Supabase SQL Editor (https://supabase.com/dashboard → your project → SQL Editor).
 
-🔵 Create a Landlord
+ Create a Landlord
 sql
 -- 1. Create user login
 INSERT INTO public.user_ (id, email, phone, password_hash, role, email_verified, status)
@@ -90,7 +90,7 @@ VALUES (
   0000,
   'South Africa'
 );
-🟢 Create a Caretaker
+ Create a Caretaker
 sql
 -- 1. Create user login
 INSERT INTO public.user_ (id, email, phone, password_hash, role, email_verified, status)
@@ -118,7 +118,7 @@ VALUES (
   '0710000000',
   CURRENT_DATE
 );
-🟠 Create a Tenant
+ Create a Tenant
 sql
 -- 1. Create user login
 INSERT INTO public.user_ (id, email, phone, password_hash, role, email_verified, status)
@@ -195,14 +195,14 @@ SELECT
   'LANDLORD-USER-UUID-HERE'
 FROM public.unit
 WHERE current_tenant_id = 'TENANT-UUID-FROM-STEP-2';
-🔐 How to Generate a Password Hash
+ How to Generate a Password Hash
 Use this Node.js script or an online bcrypt generator:
 
 bash
 node -e "const bcrypt = require('bcryptjs'); console.log(bcrypt.hashSync('YourPassword123', 12));"
 Replace 'YourPassword123' with your actual password. Copy the output into the SQL query above.
 
-📝 Quick Reference
+ Quick Reference
 Replace This	With
 landlord@example.com	Your actual email
 0600000000	Your phone number
@@ -210,7 +210,7 @@ $2b$12$aaaa...	Your bcrypt password hash
 UUID-FROM-STEP-1	The UUID returned by the first INSERT
 LANDLORD-UUID-HERE	The landlord's profile UUID
 TENANT-UUID-FROM-STEP-2	The tenant's profile UUID
-🗄️ Database
+ Database
 We use Supabase (cloud PostgreSQL).
 
 Dashboard: supabase.com/dashboard

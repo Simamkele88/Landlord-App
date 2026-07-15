@@ -59,34 +59,6 @@ router.get("/", requireAuth, requireLandlord, async (req, res) => {
   }
 });
 
-// GET /landlord/invoices - List all invoices
-router.get("/invoices", requireAuth, requireLandlord, async (req, res) => {
-  try {
-    const landlordId = await getLandlordId(req.userId);
-    if (!landlordId) return res.status(404).json({ error: "Landlord not found" });
-
-    const result = await pool.query(
-      `SELECT i.*, 
-              t.first_name || ' ' || t.last_name AS tenant_name,
-              u.unit_number,
-              p.name AS property_name
-       FROM invoice i
-       JOIN tenant t ON t.id = i.tenant_id
-       JOIN unit u ON u.id = i.unit_id
-       JOIN property p ON p.id = u.property_id
-       WHERE i.landlord_id = $1
-       ORDER BY i.billing_period_start DESC, i.created_at DESC
-       LIMIT 100`,
-      [landlordId]
-    );
-
-    res.json({ invoices: result.rows });
-  } catch (err) {
-    console.error("Get invoices:", err);
-    res.status(500).json({ error: "Server error" });
-  }
-});
-
 // GET /landlord/payments/:id
 router.get("/:id", requireAuth, requireLandlord, async (req, res) => {
   try {

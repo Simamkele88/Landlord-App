@@ -7,7 +7,7 @@ import { Platform } from "react-native";
 const PORT = "4000";
 
 
-const API_URL = "http://10.254.160.222:4000"; 
+const API_URL = "https://private-racoon-sedative.ngrok-free.dev"; 
 console.log("API URL:", API_URL);
 
 const api = {

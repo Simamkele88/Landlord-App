@@ -404,7 +404,7 @@ export default function Dashboard() {
       };
       const [td, pd, md, ld, propD] = await Promise.all([
         get("/tenants"),
-        get("/payments"),
+        get("/landlord/payments"),
         get("/maintenance"),
         get("/leases"),
         get("/properties"),

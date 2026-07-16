@@ -371,7 +371,7 @@ export default function PaymentsPage() {
     setLoadingInvoices(true);
     try {
       const token = localStorage.getItem("token");
-      const { data } = await axios.get(`${API}/landlord/invoices`, {
+      const { data } = await axios.get(`${API}/landlord/payments/invoices`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setInvoices(data.invoices || []);

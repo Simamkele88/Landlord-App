@@ -4,25 +4,27 @@ const path = require("path");
 const pool = require("./config/database");
 
 // Import route files
-const authRoutes = require("./routes/auth");
-const tenantRoutes = require("./routes/tenants");
-const maintenanceRoutes = require("./routes/maintenance");
-const propertyRoutes = require("./routes/properties");
-const unitRoutes = require("./routes/units");
-const complaintRoutes = require("./routes/complaints");
-const uploadRoutes = require("./routes/uploads");
-const caretakerRoutes = require("./routes/caretaker");
-const landlordRoutes = require("./routes/landlord");
-const paymentSettingsRoutes = require("./routes/paymentSettings");
-const landlordSettingsRoutes = require("./routes/landlordSettings");
-const landlordPaymentRoutes = require("./routes/landlordPayments");
-const messageRoutes = require("./routes/messages");
-const notificationRoutes = require("./routes/notifications");
-const announcementRoutes = require("./routes/announcements");
-const reportRoutes = require("./routes/reports");
-const landlordCaretakerRoutes = require("./routes/landlordCaretakers");
-const billingRoutes = require("./routes/billing");
-
+const authRoutes = require("./routesi/auth");
+const tenantRoutes = require("./routesi/tenants");
+const maintenanceRoutes = require("./routesi/maintenance");
+const propertyRoutes = require("./routesi/properties");
+const unitRoutes = require("./routesi/units");
+const complaintRoutes = require("./routesi/complaints");
+const uploadRoutes = require("./routesi/uploads");
+const caretakerRoutes = require("./routesi/caretaker");
+const landlordRoutes = require("./routesi/landlord");
+const paymentSettingsRoutes = require("./routesi/paymentSettings");
+const landlordSettingsRoutes = require("./routesi/landlordSettings");
+const landlordPaymentRoutes = require("./routesi/landlordPayments");
+const messageRoutes = require("./routesi/messages");
+const notificationRoutes = require("./routesi/notifications");
+const announcementRoutes = require("./routesi/announcements");
+const reportRoutes = require("./routesi/reports");
+const landlordCaretakerRoutes = require("./routesi/landlordCaretakers");
+const billingRoutes = require("./routesi/billing");
+const leaseRoutes = require("./routes/leases");
+const repaymentPlanRoutes = require("./routes/repaymentPlans");
+const collectionRoutes = require("./routes/collections");
 
 
 
@@ -64,6 +66,10 @@ app.use("/announcements", announcementRoutes);
 app.use("/reports", reportRoutes);
 app.use("/landlord/caretakers", landlordCaretakerRoutes);
 app.use("/billing", billingRoutes);
+app.use("/leases", leaseRoutes);
+app.use("/repayment-plans", repaymentPlanRoutes);
+app.use("/collections", collectionRoutes);
+
 
 app.get("/uploads/maintenance/:filename", (req, res) => {
   const filePath = path.join(__dirname, '..', 'uploads', 'maintenance', req.params.filename);

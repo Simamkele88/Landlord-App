@@ -192,6 +192,59 @@ router.put("/:id", requireAuth, async (req, res) => {
   }
 });
 
+// POST /properties/:propertyId/units - Add unit to a specific property
+router.post("/:propertyId/units", requireAuth, async (req, res) => {
+  try {
+    if (req.userRole !== "landlord") {
+      return res.status(403).json({ error: "Only landlords can create units" });
+    }
+    
+    const { propertyId } = req.params;
+    const {
+      unit_number, unit_type, floor_number, bedrooms, bathrooms,
+      square_meters, monthly_rent, deposit_amount, status,
+      furnished, parking_bay, has_balcony
+    } = req.body;
+    
+    if (!unit_number || !monthly_rent) {
+      return res.status(400).json({ error: "Unit number and monthly rent are required" });
+    }
+    
+    const property = await pool.query("SELECT id FROM property WHERE id = $1", [propertyId]);
+    if (!property.rows.length) {
+      return res.status(404).json({ error: "Property not found" });
+    }
+    
+    const result = await pool.query(
+      `INSERT INTO unit (
+        property_id, unit_number, unit_type, floor_number, bedrooms, bathrooms,
+        square_meters, monthly_rent, deposit_amount, status,
+        furnished, parking_bay, has_balcony
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+      RETURNING *`,
+      [
+        propertyId, parseInt(unit_number),
+        unit_type || "1_bedroom",
+        floor_number ? parseInt(floor_number) : null,
+        bedrooms ? parseInt(bedrooms) : null,
+        bathrooms ? parseInt(bathrooms) : null,
+        square_meters ? parseFloat(square_meters) : null,
+        parseFloat(monthly_rent),
+        deposit_amount ? parseFloat(deposit_amount) : null,
+        status || "vacant",
+        furnished || false,
+        parking_bay || false,
+        has_balcony || false
+      ]
+    );
+    
+    res.status(201).json({ message: "Unit created", unit: result.rows[0] });
+  } catch (err) {
+    console.error("Create unit:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 // DELETE /properties/:id - Landlord deletes property
 router.delete("/:id", requireAuth, async (req, res) => {
   try {

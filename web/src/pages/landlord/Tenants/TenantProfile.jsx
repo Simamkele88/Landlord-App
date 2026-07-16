@@ -407,7 +407,7 @@ export default function TenantProfile() {
             </button>
             {balance > 0 && (
               <button onClick={() => navigate("/landlord/payments/plans")} style={{ ...btnGhost, fontSize: '0.7rem', padding: '0.4rem 0.9rem', color: C.blue, borderColor: 'rgba(58,143,212,0.3)' }}>
-                <Icon name="dollar" size={12} /> Repayment Plan
+                <Icon name="rand" size={12} /> Repayment Plan
               </button>
             )}
             {(isExpiring || isExpired) && (
@@ -467,7 +467,7 @@ export default function TenantProfile() {
       {/* ── QUICK STATS ROW ───────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.6rem', marginBottom: '1.5rem' }}>
         {[
-          { label: "Monthly Rent", value: format(tenant.rent_amount), icon: "dollar", color: C.white },
+          { label: "Monthly Rent", value: format(tenant.rent_amount), icon: "rand", color: C.white },
           { label: "Balance", value: balance > 0 ? format(balance) : "Clear", icon: "credit-card", color: balance > 0 ? C.redLight : C.greenLight },
           { label: "Payment Score", value: `${paymentScore}%`, icon: "check", color: paymentScore >= 80 ? C.greenLight : paymentScore >= 50 ? C.gold : C.redLight },
           { label: "Lease Period", value: `${formatDate(tenant.lease_start_date)} → ${formatDate(tenant.lease_end_date)}`, icon: "calendar", color: 'rgba(245,240,232,0.5)', fullWidth: true },

@@ -43,6 +43,10 @@ function leaseExpired(endDate) {
   if (!endDate) return false;
   return new Date(endDate) < new Date();
 }
+function formatDate(dateStr) {
+  if (!dateStr) return "—";
+  return new Date(dateStr).toLocaleDateString("en-ZA", { day: "numeric", month: "long", year: "numeric" });
+}
 
 const inputStyle = (error) => ({
   width: '100%', fontSize: '0.82rem', padding: '0.6rem 0.9rem', borderRadius: '3px',
@@ -176,17 +180,24 @@ function ScoreBar({ label, value, max, color }) {
   );
 }
 
-function PaymentSparkline({ paymentHistory }) {
+function PaymentPunchRow({ paymentHistory }) {
   const { onTime, late, missed } = paymentHistory;
-  const dots = [...Array(onTime).fill(C.greenLight), ...Array(late).fill(C.gold), ...Array(missed).fill(C.redLight)].slice(-12);
+  const marks = [...Array(onTime).fill({ c: C.greenLight, l: "on-time" }),
+                 ...Array(late).fill({ c: C.gold, l: "late" }),
+                 ...Array(missed).fill({ c: C.redLight, l: "missed" })].slice(-14);
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-      {dots.map((c, i) => <span key={i} style={{ width: 6, height: 12, borderRadius: '1px', background: c, opacity: 0.7 }} />)}
+    <div style={{ display: 'flex', gap: '3px' }}>
+      {marks.map((m, i) => (
+        <span key={i} title={m.l} style={{
+          width: 7, height: 7, borderRadius: '1px',
+          background: m.c, opacity: 0.85,
+        }} />
+      ))}
     </div>
   );
 }
 
-function LeaseHealthBar({ leaseStart, leaseEnd }) {
+function LeaseTicker({ leaseStart, leaseEnd }) {
   if (!leaseStart || !leaseEnd) return null;
   const start = new Date(leaseStart).getTime();
   const end = new Date(leaseEnd).getTime();
@@ -194,17 +205,51 @@ function LeaseHealthBar({ leaseStart, leaseEnd }) {
   const pct = Math.min(100, Math.max(0, ((now - start) / (end - start)) * 100));
   const daysLeft = Math.ceil((end - now) / 86400000);
   const color = daysLeft < 0 ? C.redLight : daysLeft < 60 ? C.gold : C.blue;
+  const TOTAL = 24;
+  const filled = Math.round((pct / 100) * TOTAL);
   return (
-    <div style={{ width: '100%' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.2rem' }}>
-        <span style={{ fontSize: '0.6rem', color: 'rgba(245,240,232,0.25)', fontFamily: F.mono }}>Lease progress</span>
-        <span style={{ fontSize: '0.6rem', color: daysLeft < 0 ? C.redLight : daysLeft < 60 ? C.gold : 'rgba(245,240,232,0.25)', fontFamily: F.mono }}>
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem' }}>
+        <span style={{ fontSize: '0.6rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono, letterSpacing: '0.04em', textTransform: 'uppercase' }}>Lease</span>
+        <span style={{ fontSize: '0.62rem', color, fontFamily: F.mono, fontWeight: 600 }}>
           {daysLeft < 0 ? "Expired" : `${daysLeft}d left`}
         </span>
       </div>
-      <div style={{ width: '100%', height: 3, borderRadius: '2px', background: 'rgba(245,240,232,0.08)', overflow: 'hidden' }}>
-        <div style={{ height: 3, borderRadius: '2px', background: color, width: `${pct}%`, transition: 'width 0.3s' }} />
+      <div style={{ display: 'flex', gap: '2px', alignItems: 'flex-end', height: 10 }}>
+        {Array.from({ length: TOTAL }).map((_, i) => (
+          <span key={i} style={{
+            flex: 1,
+            height: i % 6 === 0 ? 10 : 6,
+            background: i < filled ? color : 'rgba(245,240,232,0.08)',
+            borderRadius: '1px',
+          }} />
+        ))}
       </div>
+    </div>
+  );
+}
+
+function ReliabilityStamp({ score }) {
+  const key = score.replace(/\s+/g, " ").toLowerCase();
+  const cfg = scoreConfig[key] ?? scoreConfig["reliable"];
+  const label = key === "reliable" ? "RELIABLE" : key === "moderate risk" ? "WATCH" : "AT RISK";
+  return (
+    <div style={{
+      position: 'absolute', top: 12, right: 12,
+      transform: 'rotate(-6deg)',
+      border: `2px solid ${cfg.color}`,
+      borderRadius: '4px',
+      padding: '0.15rem 0.5rem',
+      fontFamily: F.mono,
+      fontSize: '0.58rem',
+      fontWeight: 800,
+      letterSpacing: '0.1em',
+      color: cfg.color,
+      opacity: 0.9,
+      pointerEvents: 'none',
+      boxShadow: `inset 0 0 0 1px ${cfg.color}33`,
+    }}>
+      {label}
     </div>
   );
 }
@@ -416,7 +461,7 @@ function ProfileModal({ tenant, onClose, onEdit, onRepayment, onRenewal, onTermi
                   onMouseEnter={e => e.currentTarget.style.background = 'rgba(58,143,212,0.12)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'rgba(58,143,212,0.06)'}>
                   <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(58,143,212,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <Icon name="dollar" size={14} color={C.blue} />
+                    <Icon name="rand" size={14} color={C.blue} />
                   </div>
                   <div style={{ flex: 1 }}>
                     <p style={{ fontSize: '0.75rem', fontWeight: 600, color: C.blue }}>Create Repayment Plan</p>
@@ -467,101 +512,96 @@ function ProfileModal({ tenant, onClose, onEdit, onRepayment, onRenewal, onTermi
 function TenantCard({ tenant, onProfile, onEdit, onRepayment, onRenewal, onDelete, navigate }) {
   const isExpiring = leaseExpiresSoon(tenant.leaseEnd);
   const isExpired = leaseExpired(tenant.leaseEnd);
+  const total = tenant.paymentHistory.onTime + tenant.paymentHistory.late + tenant.paymentHistory.missed;
 
   const actionBtnStyle = (bg, color) => ({
-    flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.2rem',
-    padding: '0.4rem 0.3rem', borderRadius: '3px', fontSize: '0.62rem', fontWeight: 500,
-    fontFamily: F.mono, letterSpacing: '0.04em', border: 'none', cursor: 'pointer',
-    background: bg, color: color, transition: 'all 0.15s',
+    flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem',
+    padding: '0.45rem 0.4rem', borderRadius: '3px', fontSize: '0.65rem', fontWeight: 500,
+    fontFamily: F.mono, letterSpacing: '0.03em', border: 'none', cursor: 'pointer',
+    background: bg, color: color, transition: 'all 0.15s', whiteSpace: 'nowrap',
   });
 
   return (
-    <div style={{ ...cardStyle, transition: 'box-shadow 0.2s, border-color 0.2s', cursor: 'default' }}
+    <div style={{ ...cardStyle, position: 'relative', transition: 'box-shadow 0.2s, border-color 0.2s' }}
       onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,0.3)'; e.currentTarget.style.borderColor = 'rgba(245,240,232,0.15)'; }}
       onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = C.border; }}>
-      
-      <div style={{ padding: '1rem' }}>
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.7rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', minWidth: 0 }}>
-            <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(232,160,18,0.12)', color: C.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: F.bebas, fontSize: '0.7rem', flexShrink: 0 }}>
-              {initials(tenant.name)}
-            </div>
-            <div style={{ minWidth: 0 }}>
-              <p style={{ fontSize: '0.82rem', fontWeight: 600, color: C.white, fontFamily: F.dm, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tenant.name}</p>
-              <p style={{ fontSize: '0.62rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono, display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: '1px' }}>
-                <Icon name="home" size={9} /> {tenant.unit}
-              </p>
-            </div>
+
+      <ReliabilityStamp score={tenant.reliabilityScore} />
+
+      <div style={{ padding: '1.1rem' }}>
+        {/* Identity */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1rem', paddingRight: '4.5rem' }}>
+          <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(232,160,18,0.12)', color: C.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: F.bebas, fontSize: '0.68rem', flexShrink: 0 }}>
+            {initials(tenant.name)}
           </div>
-          <ScoreBadge score={tenant.reliabilityScore} />
+          <div style={{ minWidth: 0 }}>
+            <p style={{ fontSize: '0.85rem', fontWeight: 600, color: C.white, fontFamily: F.dm, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tenant.name}</p>
+            <p style={{ fontSize: '0.65rem', color: 'rgba(245,240,232,0.35)', fontFamily: F.mono, marginTop: '1px' }}>{tenant.unit} · {tenant.property}</p>
+          </div>
         </div>
 
-        {/* Lease Health Bar */}
-        <div style={{ marginBottom: '0.7rem' }}>
-          <LeaseHealthBar leaseStart={tenant.leaseStart} leaseEnd={tenant.leaseEnd} />
-        </div>
-
-        {/* Payment Sparkline */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.7rem' }}>
-          <span style={{ fontSize: '0.6rem', color: 'rgba(245,240,232,0.25)', fontFamily: F.mono }}>Payment history</span>
-          <PaymentSparkline paymentHistory={tenant.paymentHistory} />
-        </div>
-
-        {/* Rent & Balance */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 0.8rem', borderRadius: '3px', background: C.black, border: `1px solid ${C.border}`, marginBottom: '0.7rem' }}>
+        {/* Rent / balance */}
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: '1rem', marginBottom: '0.6rem' }}>
           <div>
-            <p style={{ fontSize: '0.58rem', color: 'rgba(245,240,232,0.25)', fontFamily: F.mono, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '1px' }}>Monthly rent</p>
-            <p style={{ fontSize: '0.82rem', fontWeight: 700, color: C.white, fontFamily: F.bebas, letterSpacing: '0.03em' }}>{format(tenant.rentAmount)}</p>
+            <span style={{ fontSize: '1.05rem', fontWeight: 700, color: C.white, fontFamily: F.bebas, letterSpacing: '0.02em' }}>{format(tenant.rentAmount)}</span>
+            <span style={{ fontSize: '0.65rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono, marginLeft: '0.3rem' }}>/{tenant.frequency}</span>
           </div>
-          <div style={{ width: 1, height: 32, background: C.border }} />
-          <div style={{ textAlign: 'right' }}>
-            <p style={{ fontSize: '0.58rem', color: 'rgba(245,240,232,0.25)', fontFamily: F.mono, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '1px' }}>Balance</p>
-            {tenant.balance > 0 ? (
-              <p style={{ fontSize: '0.82rem', fontWeight: 700, color: C.redLight, fontFamily: F.bebas, letterSpacing: '0.03em' }}>{format(tenant.balance)}</p>
-            ) : (
-              <p style={{ fontSize: '0.78rem', fontWeight: 600, color: C.greenLight, display: 'flex', alignItems: 'center', gap: '0.2rem', justifyContent: 'flex-end' }}>
-                <Icon name="check" size={10} /> Clear
-              </p>
-            )}
-          </div>
+          {tenant.balance > 0 ? (
+            <span style={{ fontSize: '0.72rem', fontWeight: 600, color: C.redLight, fontFamily: F.mono }}>{format(tenant.balance)} owed</span>
+          ) : (
+            <span style={{ fontSize: '0.72rem', fontWeight: 500, color: C.greenLight, fontFamily: F.mono, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              <Icon name="check" size={10} /> Paid up
+            </span>
+          )}
         </div>
+
+        {/* Lease dates */}
+        <p style={{ fontSize: '0.68rem', color: isExpired ? C.redLight : isExpiring ? C.gold : 'rgba(245,240,232,0.35)', fontFamily: F.mono, marginBottom: '0.5rem' }}>
+          {isExpired ? "Lease expired: " : "Lease ends: "}
+          {formatDate(tenant.leaseEnd)}
+        </p>
+
+        {/* Payment summary */}
+        <p style={{ fontSize: '0.68rem', color: 'rgba(245,240,232,0.35)', fontFamily: F.mono, marginBottom: '1rem' }}>
+          {tenant.paymentHistory.onTime}/{total || 0} payments on time
+          {tenant.paymentHistory.missed > 0 && <span style={{ color: C.redLight }}> · {tenant.paymentHistory.missed} missed</span>}
+        </p>
 
         {/* Actions */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', flexWrap: 'wrap', paddingTop: '0.8rem', borderTop: `1px solid ${C.border}` }}>
           <button onClick={() => navigate(`/landlord/tenants/${tenant.id}`)} style={actionBtnStyle('rgba(58,143,212,0.12)', C.blue)}
             onMouseEnter={e => e.currentTarget.style.background = 'rgba(58,143,212,0.22)'}
             onMouseLeave={e => e.currentTarget.style.background = 'rgba(58,143,212,0.12)'}>
-            <Icon name="user" size={9} /> Profile
+            <Icon name="user" size={11} /> Profile
           </button>
           <button onClick={() => onEdit(tenant)} style={actionBtnStyle(C.black, 'rgba(245,240,232,0.4)')}
             onMouseEnter={e => { e.currentTarget.style.background = C.muted; e.currentTarget.style.color = C.white; }}
             onMouseLeave={e => { e.currentTarget.style.background = C.black; e.currentTarget.style.color = 'rgba(245,240,232,0.4)'; }}>
-            <Icon name="edit" size={9} /> Edit
+            <Icon name="edit" size={11} /> Edit
           </button>
           <button onClick={() => navigate("/landlord/payments")} style={actionBtnStyle(C.black, 'rgba(245,240,232,0.4)')}
             onMouseEnter={e => { e.currentTarget.style.background = C.muted; e.currentTarget.style.color = C.white; }}
             onMouseLeave={e => { e.currentTarget.style.background = C.black; e.currentTarget.style.color = 'rgba(245,240,232,0.4)'; }}>
-            <Icon name="credit-card" size={9} /> Payments
+            <Icon name="credit-card" size={11} /> Payments
           </button>
           {tenant.balance > 0 && (
             <button onClick={() => onRepayment(tenant)} style={actionBtnStyle('rgba(58,143,212,0.08)', C.blue)}
               onMouseEnter={e => e.currentTarget.style.background = 'rgba(58,143,212,0.18)'}
               onMouseLeave={e => e.currentTarget.style.background = 'rgba(58,143,212,0.08)'}>
-              <Icon name="dollar" size={9} /> Plan
+              <Icon name="rand" size={11} /> Plan
             </button>
           )}
           {(isExpiring || isExpired) && (
             <button onClick={() => onRenewal(tenant)} style={actionBtnStyle('rgba(26,122,74,0.08)', C.greenLight)}
               onMouseEnter={e => e.currentTarget.style.background = 'rgba(26,122,74,0.18)'}
               onMouseLeave={e => e.currentTarget.style.background = 'rgba(26,122,74,0.08)'}>
-              <Icon name="refresh" size={9} /> Renew
+              <Icon name="refresh" size={11} /> Renew
             </button>
           )}
-          <button onClick={() => onDelete(tenant)} style={{ padding: '0.4rem', borderRadius: '3px', background: 'rgba(224,90,74,0.08)', border: '1px solid rgba(224,90,74,0.12)', cursor: 'pointer', color: C.redLight, transition: 'all 0.15s', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+          <button onClick={() => onDelete(tenant)} style={{ padding: '0.45rem', borderRadius: '3px', background: 'rgba(224,90,74,0.08)', border: '1px solid rgba(224,90,74,0.12)', cursor: 'pointer', color: C.redLight, transition: 'all 0.15s', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
             onMouseEnter={e => e.currentTarget.style.background = 'rgba(224,90,74,0.18)'}
             onMouseLeave={e => e.currentTarget.style.background = 'rgba(224,90,74,0.08)'}>
-            <Icon name="trash" size={11} />
+            <Icon name="trash" size={12} />
           </button>
         </div>
       </div>
@@ -609,7 +649,7 @@ function PropertyGroup({ property, tenants, accent, onProfile, onEdit, onRepayme
       {!collapsed && (
         viewMode === "grid" ? (
           <div className="tenants-grid" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.8rem' }}>
-            {tenants.map(t => <TenantCard key={t.id} tenant={t} onProfile={onProfile} onEdit={onEdit} onRepayment={onRepayment} onRenewal={onRenewal} onDelete={onDelete} navigate={navigate} />)}
+            {tenants.map(t => <TenantCard key={t.id} tenant={t} accent={accent} onProfile={onProfile} onEdit={onEdit} onRepayment={onRepayment} onRenewal={onRenewal} onDelete={onDelete} navigate={navigate} />)}
           </div>
         ) : (
           <div style={cardStyle}>
@@ -721,7 +761,7 @@ function RepaymentModal({ tenant, onClose, onConfirm }) {
         <div style={modalHeader}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem' }}>
             <div style={{ width: 36, height: 36, borderRadius: '6px', background: 'rgba(58,143,212,0.12)', border: '1px solid rgba(58,143,212,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <Icon name="dollar" size={16} color={C.blue} />
+              <Icon name="rand" size={16} color={C.blue} />
             </div>
             <div>
               <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: C.white, fontFamily: F.bebas, letterSpacing: '0.04em' }}>Create Repayment Plan</h3>
@@ -789,7 +829,7 @@ function RepaymentModal({ tenant, onClose, onConfirm }) {
         <div style={modalFooter}>
           <button onClick={onClose} disabled={loading} style={{ ...btnGhost, flex: 1, textAlign: 'center' }}>Cancel</button>
           <button onClick={handleConfirm} disabled={loading} style={{ ...btnPrimary, flex: 1, justifyContent: 'center' }}>
-            {loading ? <span style={{ width: 14, height: 14, border: '2px solid rgba(0,0,0,0.2)', borderTopColor: C.black, borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} /> : <><Icon name="dollar" size={14} /> Create Plan</>}
+            {loading ? <span style={{ width: 14, height: 14, border: '2px solid rgba(0,0,0,0.2)', borderTopColor: C.black, borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} /> : <><Icon name="rand" size={14} /> Create Plan</>}
           </button>
         </div>
       </div>
@@ -1044,7 +1084,6 @@ export default function Tenants() {
         input:focus, select:focus { border-color: ${C.borderFocus} !important; }
       `}</style>
 
-      {profileTenant && <ProfileModal tenant={profileTenant} onClose={() => setProfile(null)} onEdit={t => { setProfile(null); setEditTenant(t); }} onRepayment={t => setRepayment(t)} onRenewal={t => setRenewal(t)} onTermination={t => setTermination(t)} />}
       {editTenant && <EditTenantModal tenant={editTenant} onClose={() => setEditTenant(null)} onSave={fetchTenants} />}
       {showAdd && <LandlordRegisterTenantModal onClose={() => setShowAdd(false)} onCreated={handleTenantCreated} />}
       {deleteTenant && <DeleteModal tenant={deleteTenant} onClose={() => setDelete(null)} onConfirm={handleDelete} />}

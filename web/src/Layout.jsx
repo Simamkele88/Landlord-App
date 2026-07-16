@@ -286,7 +286,7 @@ export default function DashboardLayout() {
                 onMouseEnter={e => { e.currentTarget.style.background = 'rgba(245,240,232,0.08)'; }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'rgba(245,240,232,0.04)'; }}
                 title="Collapse sidebar">
-                <Icon name="chevron-left" size={14} color="rgba(245,240,232,0.5)" />
+                <Icon name="chevronLeft" size={14} color="rgba(245,240,232,0.5)" />
               </button>
             </>
           ) : (

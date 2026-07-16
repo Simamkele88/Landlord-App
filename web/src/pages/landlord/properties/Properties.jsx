@@ -351,6 +351,7 @@ function UnitFormModal({ unit, propertyId, onClose, onSave }) {
         : await axios.post(`${API}/properties/${propertyId}/units`, payload, { headers: { Authorization: `Bearer ${token}` } });
       toast.success(isEdit ? "Unit updated successfully!" : "Unit added successfully!");
       onSave(data.unit ?? data);
+      
     } catch (err) {
       toast.error(err.response?.data?.error || "Failed to save unit.");
       onSave({ ...form, id: unit?.id ?? Date.now().toString(), monthly_rent: Number(form.monthly_rent) });
@@ -501,14 +502,7 @@ function UnitsView({ property, onBack, onAddUnit, onEditUnit, onDeleteUnit }) {
             </button>
           ))}
         </div>
-        <div style={{ display: 'flex', background: C.muted, borderRadius: '3px', padding: '2px' }}>
-          {[{ id: "grid", icon: 'grid' }, { id: "list", icon: 'list' }].map(({ id, icon }) => (
-            <button key={id} onClick={() => setUnitView(id)}
-              style={{ padding: '0.4rem 0.6rem', borderRadius: '2px', background: unitView === id ? C.muted2 : 'transparent', border: 'none', cursor: 'pointer', color: unitView === id ? C.gold : 'rgba(245,240,232,0.3)', transition: 'all 0.2s', display: 'flex' }}>
-              <Icon name={icon} size={14} />
-            </button>
-          ))}
-        </div>
+        
       </div>
 
       {unitView === "grid" && (
@@ -582,6 +576,7 @@ function UnitsView({ property, onBack, onAddUnit, onEditUnit, onDeleteUnit }) {
 
 export default function PropertiesPage() {
   const toast = useToast();
+  const navigate = useNavigate();
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -627,9 +622,39 @@ export default function PropertiesPage() {
   }
 
   function handleSaveUnit(saved) {
-    setProperties(prev => prev.map(p => { if (p.id !== viewProperty.id) return p; const exists = (p.units || []).find(u => u.id === saved.id); const units = exists ? (p.units || []).map(u => u.id === saved.id ? { ...u, ...saved } : u) : [...(p.units || []), saved]; return { ...p, units }; }));
-    setViewProperty(prev => prev ? { ...prev, units: prev.units ? prev.units.map(u => u.id === saved.id ? { ...u, ...saved } : u) : [saved] } : prev);
-    setEditUnit(null); setShowAddUnit(false);
+    // Update the properties list
+    setProperties(prev => prev.map(p => {
+      if (p.id !== viewProperty.id) return p;
+      
+      const existingUnits = p.units || [];
+      const exists = existingUnits.find(u => u.id === saved.id);
+      
+      let updatedUnits;
+      if (exists) {
+        // Update existing unit
+        updatedUnits = existingUnits.map(u => u.id === saved.id ? { ...u, ...saved } : u);
+      } else {
+        // Add new unit
+        updatedUnits = [...existingUnits, saved];
+      }
+      
+      return { ...p, units: updatedUnits };
+    }));
+    
+    // Update the viewProperty state
+    setViewProperty(prev => {
+      if (!prev) return prev;
+      const existingUnits = prev.units || [];
+      const exists = existingUnits.find(u => u.id === saved.id);
+      const updatedUnits = exists 
+        ? existingUnits.map(u => u.id === saved.id ? { ...u, ...saved } : u)
+        : [...existingUnits, saved];
+      return { ...prev, units: updatedUnits };
+    });
+    
+    // Close modals
+    setEditUnit(null);
+    setShowAddUnit(false);
   }
 
   async function handleDeleteUnit(unitId) {

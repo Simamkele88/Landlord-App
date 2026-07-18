@@ -672,7 +672,7 @@ export default function PaymentsPage() {
                           <td style={S.td}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                               {(p.status === "pending" || p.status === "pending_approval") && (
-                                <button onClick={() => setReviewPayment(p)} style={{ fontSize: '0.68rem', fontWeight: 500, color: C.blue, background: 'none', border: 'none', cursor: 'pointer', fontFamily: F.mono }}>Review</button>
+                                <button onClick={() => navigate(`/landlord/payments/review/${p.id}`, { state: { payment: p } })} style={{ fontSize: '0.68rem', fontWeight: 500, color: C.blue, background: 'none', border: 'none', cursor: 'pointer', fontFamily: F.mono }}>Review</button>
                               )}
                               {(p.status === "late" || p.status === "rejected") && (
                                 <button onClick={() => setCollectionsPayment(p)} style={{ fontSize: '0.68rem', fontWeight: 500, color: C.purple, background: 'none', border: 'none', cursor: 'pointer', fontFamily: F.mono }}>Collections</button>

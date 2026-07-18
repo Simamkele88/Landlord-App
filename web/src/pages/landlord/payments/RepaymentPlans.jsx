@@ -157,7 +157,7 @@ function CreatePlanModal({ tenants, onClose, onCreated }) {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.5rem', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem' }}>
             <div style={{ width: 36, height: 36, borderRadius: '6px', background: 'rgba(58,143,212,0.12)', border: '1px solid rgba(58,143,212,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <Icon name="dollar" size={16} color={C.blue} />
+              <Icon name="rand" size={16} color={C.blue} />
             </div>
             <div>
               <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: C.white, fontFamily: F.bebas, letterSpacing: '0.04em' }}>Create Repayment Plan</h3>
@@ -516,7 +516,7 @@ export default function RepaymentPlans() {
       {/* HEADER */}
       <div style={S.headerRow}>
         <div>
-          <h1 style={S.title}><Icon name="dollar" size={24} color={C.gold} />Repayment Plans</h1>
+          <h1 style={S.title}><Icon name="rand" size={24} color={C.gold} />Repayment Plans</h1>
           <p style={S.subtitle}>
             {activePlans} active plans · {format(totalOwed)} total outstanding
           </p>

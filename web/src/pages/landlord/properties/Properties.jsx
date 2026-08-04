@@ -419,7 +419,7 @@ function UnitFormModal({ unit, propertyId, onClose, onSave }) {
 function DeleteModal({ title, sub, onClose, onConfirm }) {
   const toast = useToast();
   const [loading, setLoading] = useState(false);
-  function go() { setLoading(true); onConfirm(); setLoading(false); toast.success(`${title} completed.`); }
+  function go() { setLoading(true); onConfirm(); setLoading(false); }
 
   return (
     <div style={modalOverlay}>
@@ -435,7 +435,7 @@ function DeleteModal({ title, sub, onClose, onConfirm }) {
         </div>
         <div style={{ display: 'flex', gap: '0.8rem', marginTop: '1rem' }}>
           <button onClick={onClose} style={{ ...btnGhost, flex: 1, display: 'flex', justifyContent: 'center' }}>Cancel</button>
-          <button onClick={go} disabled={loading} style={{ flex: 1, padding: '0.6rem 1.2rem', borderRadius: '3px', fontSize: '0.76rem', fontWeight: 600, fontFamily: F.dm, letterSpacing: '0.04em', border: 'none', cursor: 'pointer', background: C.red, color: C.white, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}>
+          <button onClick={go} disabled={loading} style={{ ...btnPrimary, flex: 2, display: 'flex', justifyContent: 'center' }}>
             {loading ? <span style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.2)', borderTopColor: C.white, borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} /> : <Icon name="trash" size={14} />}
             Delete
           </button>

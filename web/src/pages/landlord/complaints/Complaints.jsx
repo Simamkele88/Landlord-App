@@ -1,4 +1,3 @@
-// LANDLORD COMPLAINTS PAGE 
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -19,7 +18,7 @@ const STATUS_CONFIG = {
   "rejected":               { label: "Rejected",           color: 'rgba(245,240,232,0.4)', bg: 'rgba(245,240,232,0.04)', border: '1px solid rgba(245,240,232,0.1)', dot: 'rgba(245,240,232,0.3)' },
 };
 
-const FILTERS = ["All", "Open", "Under Review", "Escalated", "Resolved", "Dismissed"];
+const FILTERS = ["All", "Open", "Under Review", "Escalated", "Approved", "Resolved", "Dismissed"];
 
 const SCOPE_LABELS = {
   specific_tenant: "Specific Unit",
@@ -96,6 +95,7 @@ export default function LandlordComplaints() {
     if (filter === "Open") return c.status === "open";
     if (filter === "Under Review") return c.status === "under_review";
     if (filter === "Escalated") return c.status === "escalated";
+    if (filter === "Approved") return c.status === "approved";
     if (filter === "Resolved") return c.status === "resolved";
     if (filter === "Dismissed") return c.status === "dismissed";
     return true;
@@ -107,7 +107,7 @@ export default function LandlordComplaints() {
   });
 
   const escalatedCount = complaints.filter(c => c.status === "escalated").length;
-  const openCount = complaints.filter(c => ["open", "under_review"].includes(c.status)).length;
+  const openCount = complaints.filter(c => ["open", "under_review", "awaiting_clarification"].includes(c.status)).length;
 
   
   const btnPrimary = {
@@ -146,7 +146,6 @@ export default function LandlordComplaints() {
         input:focus, select:focus { border-color: ${C.borderFocus} !important; }
       `}</style>
 
-      {/* HEADER */}
       <div style={S.headerRow}>
         <div>
           <h1 style={S.title}><Icon name="message-square" size={24} color={C.gold} />Complaints</h1>
@@ -159,7 +158,6 @@ export default function LandlordComplaints() {
         </button>
       </div>
 
-      {/* ERROR */}
       {error && (
         <div style={{ padding: '0.8rem 1rem', borderRadius: '3px', background: 'rgba(224,90,74,0.08)', border: '1px solid rgba(224,90,74,0.2)', marginBottom: '1.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <Icon name="warning" size={16} color={C.redLight} />
@@ -168,9 +166,7 @@ export default function LandlordComplaints() {
         </div>
       )}
 
-      {/* TABLE CARD */}
       <div style={cardStyle}>
-        {/* TOOLBAR */}
         <div style={S.toolbarInner}>
           <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
             {FILTERS.map(f => (
@@ -186,7 +182,6 @@ export default function LandlordComplaints() {
           </div>
         </div>
 
-        {/* TABLE */}
         {loading ? (
           <div style={S.loading}>
             <span style={{ width: 20, height: 20, border: '2px solid rgba(245,240,232,0.1)', borderTopColor: C.gold, borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
@@ -197,7 +192,7 @@ export default function LandlordComplaints() {
             <table style={S.table}>
               <thead>
                 <tr>
-                  {["Complaint", "Property", "Filed By", "Scope", "Status", "Date", ""].map(h => (
+                  {["Complaint", "Property", "Filed By", "Against", "Scope", "Status", "Date", ""].map(h => (
                     <th key={h} style={S.th}>{h}</th>
                   ))}
                 </tr>
@@ -205,7 +200,7 @@ export default function LandlordComplaints() {
               <tbody>
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={7} style={{ ...S.td, textAlign: 'center', padding: '3rem 0', color: 'rgba(245,240,232,0.25)' }}>
+                    <td colSpan={8} style={{ ...S.td, textAlign: 'center', padding: '3rem 0', color: 'rgba(245,240,232,0.25)' }}>
                       No complaints found.
                     </td>
                   </tr>
@@ -218,28 +213,37 @@ export default function LandlordComplaints() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                         <div style={{
                           width: 32, height: 32, borderRadius: '6px',
-                          background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.15)',
+                          background: c.status === 'escalated' ? 'rgba(139,92,246,0.1)' : 'rgba(245,158,11,0.1)',
+                          border: c.status === 'escalated' ? '1px solid rgba(139,92,246,0.15)' : '1px solid rgba(245,158,11,0.15)',
                           display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                         }}>
-                          <Icon name="message-square" size={14} color="#f59e0b" />
+                          <Icon name="message-square" size={14} color={c.status === 'escalated' ? C.purple : '#f59e0b'} />
                         </div>
                         <div style={{ minWidth: 0 }}>
-                          <p style={{
-                            fontWeight: 600, color: C.white, fontSize: '0.8rem',
-                            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '240px',
-                          }}>
-                            {c.subject}
-                          </p>
-                          {c.category && (
-                            <p style={{ fontSize: '0.62rem', color: 'rgba(245,240,232,0.25)', fontFamily: F.mono, marginTop: '1px' }}>
-                              {c.category}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <p style={{
+                              fontWeight: 600, color: C.white, fontSize: '0.8rem',
+                              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px',
+                            }}>
+                              {c.subject}
                             </p>
-                          )}
+                            {c.status === 'escalated' && (
+                              <span style={{ fontSize: '0.5rem', fontWeight: 700, color: C.purple, fontFamily: F.mono, letterSpacing: '0.04em', textTransform: 'uppercase', background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.2)', padding: '0.1rem 0.3rem', borderRadius: '2px', flexShrink: 0 }}>
+                                Escalated
+                              </span>
+                            )}
+                          </div>
+                          <p style={{ fontSize: '0.62rem', color: 'rgba(245,240,232,0.25)', fontFamily: F.mono, marginTop: '1px' }}>
+                            {(c.category || "").replace(/_/g, " ")}
+                          </p>
                         </div>
                       </div>
                     </td>
                     <td style={{ ...S.td, color: 'rgba(245,240,232,0.4)', fontSize: '0.75rem' }}>{c.property_name}</td>
                     <td style={{ ...S.td, fontWeight: 500, color: C.white }}>{c.filed_by_name}</td>
+                    <td style={{ ...S.td, fontWeight: 500, color: c.against_name ? C.white : 'rgba(245,240,232,0.2)', fontSize: '0.75rem' }}>
+                      {c.against_name || "—"}
+                    </td>
                     <td style={{ ...S.td, color: 'rgba(245,240,232,0.3)', fontSize: '0.68rem', fontFamily: F.mono }}>
                       {SCOPE_LABELS[c.complaint_scope] || "—"}
                     </td>
@@ -268,7 +272,6 @@ export default function LandlordComplaints() {
           </div>
         )}
 
-        {/* FOOTER */}
         <div style={S.footer}>
           <span>
             Showing <span style={{ color: C.white, fontWeight: 500 }}>{filtered.length}</span> of{" "}

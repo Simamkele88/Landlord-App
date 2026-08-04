@@ -1,22 +1,17 @@
-/* eslint-disable no-unused-vars */
-// CARETAKER SETTINGS PAGE 
+
 import { useState } from "react";
+import axios from "axios";
 import useDocumentTitle from "../../../hooks/useDocumentTitle";
 import { useToast } from "../../../contexts/ToastContext";
 import { Icon } from "../../../components/Icon";
 import { c as C, f as F } from "../../../styles/theme";
 
+const API = "http://localhost:4000";
+
 const inputStyle = {
   width: '100%', fontSize: '0.82rem', padding: '0.6rem 0.9rem', borderRadius: '3px',
   background: C.black, border: `1px solid ${C.border}`, color: C.white,
   fontFamily: F.dm, outline: 'none',
-};
-
-const selectStyle = {
-  ...inputStyle,
-  appearance: 'none',
-  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23555' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E")`,
-  backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.75rem center', paddingRight: '2rem',
 };
 
 const btnPrimary = {
@@ -88,7 +83,6 @@ export default function CaretakerSettings() {
 
   const [activePanel, setActivePanel] = useState('profile');
   const [hasChanges, setHasChanges] = useState(false);
-  const [showToast, setShowToast] = useState(false);
 
   const [firstName, setFirstName] = useState('David');
   const [lastName, setLastName] = useState('Nkosi');
@@ -104,17 +98,43 @@ export default function CaretakerSettings() {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [savingPassword, setSavingPassword] = useState(false);
 
   const flagChange = () => { if (!hasChanges) setHasChanges(true); };
 
   const saveChanges = () => {
     setHasChanges(false);
-    setShowToast(true);
     toast.success("Settings saved successfully.");
-    setTimeout(() => setShowToast(false), 2500);
   };
 
   const discardChanges = () => setHasChanges(false);
+
+  const savePassword = async () => {
+    if (!currentPassword) { toast.error("Current password is required."); return; }
+    if(!newPassword) { toast.error("New password is required."); return; }
+    if(!confirmPassword) { toast.error("Please confirm your new password."); return; }
+    if(currentPassword === newPassword) { toast.error("New password cannot be the same as the current password."); return; }
+    if (newPassword.length < 6) { toast.error("New password must be at least 6 characters."); return; }
+    if (newPassword !== confirmPassword) { toast.error("Passwords do not match."); return; }
+
+    setSavingPassword(true);
+    try {
+      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+      await axios.put(`${API}/auth/change-password`, {
+        current_password: currentPassword,
+        new_password: newPassword,
+      }, { headers: { Authorization: `Bearer ${token}` } });
+      toast.success("Password updated successfully!");
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      console.log("Change Password Error:", err);
+      toast.error(err.response?.data?.error || "Failed to update password");
+    } finally {
+      setSavingPassword(false);
+    }
+  };
 
   const S = {
     container: { maxWidth: 1000, padding: '1.5rem 1rem 3rem', margin: '-1rem -1.8rem' },
@@ -133,7 +153,6 @@ export default function CaretakerSettings() {
 
       <div className="settings-layout" style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: '1.5rem', alignItems: 'start' }}>
         
-        {/* SIDE NAV */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', position: 'sticky', top: '1rem' }}>
           {settingsNav.map(item => {
             const isActive = activePanel === item.id;
@@ -153,10 +172,8 @@ export default function CaretakerSettings() {
           })}
         </div>
 
-        {/* CONTENT */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
           
-          {/* PROFILE */}
           {activePanel === 'profile' && (
             <>
               <Block title="Profile Photo">
@@ -176,10 +193,10 @@ export default function CaretakerSettings() {
               <Block title="Personal Information">
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <Field label="First Name">
-                    <input type="text" value={firstName} onChange={e => { setFirstName(e.target.value); flagChange(); }} style={inputStyle} />
+                    <input type="text" value={firstName} onChange={e => { setFirstName(e.target.value); flagChange(); }} style={inputStyle} autoComplete="off" name="caretaker-firstname" />
                   </Field>
                   <Field label="Last Name">
-                    <input type="text" value={lastName} onChange={e => { setLastName(e.target.value); flagChange(); }} style={inputStyle} />
+                    <input type="text" value={lastName} onChange={e => { setLastName(e.target.value); flagChange(); }} style={inputStyle} autoComplete="off" name="caretaker-lastname" />
                   </Field>
                 </div>
               </Block>
@@ -188,43 +205,41 @@ export default function CaretakerSettings() {
                 <Field label="Email Address">
                   <div style={{ position: 'relative' }}>
                     <Icon name="mail" size={14} style={{ position: 'absolute', left: '0.9rem', top: '50%', transform: 'translateY(-50%)', color: 'rgba(245,240,232,0.2)' }} />
-                    <input type="email" value={email} onChange={e => { setEmail(e.target.value); flagChange(); }} style={{ ...inputStyle, paddingLeft: '2.5rem' }} />
+                    <input type="email" value={email} onChange={e => { setEmail(e.target.value); flagChange(); }} style={{ ...inputStyle, paddingLeft: '2.5rem' }} autoComplete="off" name="caretaker-email" />
                   </div>
                 </Field>
                 <Field label="Phone Number">
                   <div style={{ position: 'relative' }}>
                     <Icon name="phone" size={14} style={{ position: 'absolute', left: '0.9rem', top: '50%', transform: 'translateY(-50%)', color: 'rgba(245,240,232,0.2)' }} />
-                    <input type="tel" value={phone} onChange={e => { setPhone(e.target.value); flagChange(); }} style={{ ...inputStyle, paddingLeft: '2.5rem' }} />
+                    <input type="tel" value={phone} onChange={e => { setPhone(e.target.value); flagChange(); }} style={{ ...inputStyle, paddingLeft: '2.5rem' }} autoComplete="off" name="caretaker-phone" />
                   </div>
                 </Field>
               </Block>
             </>
           )}
 
-          {/* ACCOUNT & SECURITY  */}
           {activePanel === 'account' && (
             <Block title="Change Password">
               <Field label="Current Password">
                 <div style={{ position: 'relative' }}>
                   <Icon name="lock" size={14} style={{ position: 'absolute', left: '0.9rem', top: '50%', transform: 'translateY(-50%)', color: 'rgba(245,240,232,0.2)' }} />
-                  <input type="password" value={currentPassword} onChange={e => { setCurrentPassword(e.target.value); flagChange(); }} placeholder="••••••••" style={{ ...inputStyle, paddingLeft: '2.5rem' }} />
+                  <input type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} style={{ ...inputStyle, paddingLeft: '2.5rem' }} autoComplete="new-password" name="caretaker-current-pwd" />
                 </div>
               </Field>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <Field label="New Password">
-                  <input type="password" value={newPassword} onChange={e => { setNewPassword(e.target.value); flagChange(); }} placeholder="••••••••" style={inputStyle} />
+                  <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} style={inputStyle} autoComplete="new-password" name="caretaker-new-pwd" />
                 </Field>
                 <Field label="Confirm Password">
-                  <input type="password" value={confirmPassword} onChange={e => { setConfirmPassword(e.target.value); flagChange(); }} placeholder="••••••••" style={inputStyle} />
+                  <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} style={inputStyle} autoComplete="new-password" name="caretaker-confirm-pwd" />
                 </Field>
               </div>
-              <button onClick={() => { toast.success("Password updated!"); setCurrentPassword(''); setNewPassword(''); setConfirmPassword(''); }} style={{ ...btnPrimary, marginTop: '0.5rem' }}>
-                Update Password
+              <button onClick={savePassword} disabled={savingPassword} style={{ ...btnPrimary, marginTop: '0.5rem', opacity: savingPassword ? 0.6 : 1 }}>
+                {savingPassword ? "Updating..." : "Update Password"}
               </button>
             </Block>
           )}
 
-          {/* NOTIFICATIONS */}
           {activePanel === 'notifications' && (
             <>
               <Block title="Work Alerts">
@@ -243,7 +258,6 @@ export default function CaretakerSettings() {
             </>
           )}
 
-          {/* PROPERTY INFO */}
           {activePanel === 'property' && (
             <Block title="Assigned Property">
               <div style={{ padding: '1rem', borderRadius: '3px', background: C.black, border: `1px solid ${C.border}`, marginBottom: '1rem' }}>
@@ -277,7 +291,6 @@ export default function CaretakerSettings() {
         </div>
       </div>
 
-      {/* SAVE BAR */}
       <div style={{
         position: 'fixed', bottom: hasChanges ? 0 : '-100px', left: 0, right: 0,
         background: 'rgba(10,10,10,0.95)', backdropFilter: 'blur(12px)',
@@ -290,18 +303,6 @@ export default function CaretakerSettings() {
           <button onClick={discardChanges} style={btnGhost}>Discard</button>
           <button onClick={saveChanges} style={btnPrimary}>Save Changes</button>
         </div>
-      </div>
-
-      {/* TOAST */}
-      <div style={{
-        position: 'fixed', bottom: '5rem', right: '2rem',
-        background: C.greenLight, color: C.black, padding: '0.65rem 1.3rem',
-        borderRadius: '3px', fontFamily: F.mono, fontSize: '0.68rem',
-        letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 600,
-        opacity: showToast ? 1 : 0, pointerEvents: 'none', zIndex: 200,
-        transition: 'opacity 0.3s', display: 'flex', alignItems: 'center', gap: '0.4rem',
-      }}>
-        <Icon name="check" size={13} /> Changes Saved
       </div>
     </div>
   );

@@ -21,22 +21,21 @@ router.get("/", requireAuth, requireLandlord, async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      // Insert defaults
       result = await pool.query(
         `INSERT INTO landlord_settings (landlord_id) VALUES ($1) RETURNING *`,
         [landlordId]
       );
     }
 
-    // Also get landlord profile info
     const landlord = await pool.query(
-      "SELECT first_name, last_name, company_name FROM landlord WHERE id = $1",
+      `SELECT u.first_name, u.last_name, l.company_name
+       FROM landlord l JOIN users u ON u.id = l.user_id
+       WHERE l.id = $1`,
       [landlordId]
     );
 
-    // Get user email/phone
     const user = await pool.query(
-      "SELECT email, phone FROM user_ WHERE id = $1",
+      "SELECT email, phone FROM users WHERE id = $1",
       [req.userId]
     );
 
@@ -84,55 +83,45 @@ router.put("/", requireAuth, requireLandlord, async (req, res) => {
       }
     }
 
-    if (updates.length === 0) {
+    if (updates.length === 0 && !req.body.first_name && !req.body.last_name
+        && !req.body.company_name && !req.body.email && !req.body.phone) {
       return res.status(400).json({ error: "No valid fields to update" });
     }
 
-    updates.push(`updated_at = NOW()`);
-    values.push(landlordId);
+    if (updates.length > 0) {
+      updates.push(`updated_at = NOW()`);
+      values.push(landlordId);
 
-    await pool.query(
-      `UPDATE landlord_settings SET ${updates.join(", ")} WHERE landlord_id = $${paramIndex}`,
-      values
-    );
-
-    // Also update landlord profile if provided
-    if (req.body.first_name || req.body.last_name || req.body.company_name) {
-      const profileUpdates = [];
-      const profileValues = [];
-      let pIndex = 1;
-
-      if (req.body.first_name) { profileUpdates.push(`first_name = $${pIndex}`); profileValues.push(req.body.first_name); pIndex++; }
-      if (req.body.last_name) { profileUpdates.push(`last_name = $${pIndex}`); profileValues.push(req.body.last_name); pIndex++; }
-      if (req.body.company_name) { profileUpdates.push(`company_name = $${pIndex}`); profileValues.push(req.body.company_name); pIndex++; }
-
-      if (profileUpdates.length > 0) {
-        profileUpdates.push(`updated_at = NOW()`);
-        profileValues.push(landlordId);
-        await pool.query(
-          `UPDATE landlord SET ${profileUpdates.join(", ")} WHERE id = $${pIndex}`,
-          profileValues
-        );
-      }
+      await pool.query(
+        `UPDATE landlord_settings SET ${updates.join(", ")} WHERE landlord_id = $${paramIndex}`,
+        values
+      );
     }
 
-    // Update user email/phone if provided
-    if (req.body.email || req.body.phone) {
+    if (req.body.first_name || req.body.last_name || req.body.email || req.body.phone) {
       const userUpdates = [];
       const userValues = [];
       let uIndex = 1;
 
+      if (req.body.first_name) { userUpdates.push(`first_name = $${uIndex}`); userValues.push(req.body.first_name); uIndex++; }
+      if (req.body.last_name) { userUpdates.push(`last_name = $${uIndex}`); userValues.push(req.body.last_name); uIndex++; }
       if (req.body.email) { userUpdates.push(`email = $${uIndex}`); userValues.push(req.body.email); uIndex++; }
       if (req.body.phone) { userUpdates.push(`phone = $${uIndex}`); userValues.push(req.body.phone); uIndex++; }
 
-      if (userUpdates.length > 0) {
-        userUpdates.push(`updated_at = NOW()`);
-        userValues.push(req.userId);
-        await pool.query(
-          `UPDATE user_ SET ${userUpdates.join(", ")} WHERE id = $${uIndex}`,
-          userValues
-        );
-      }
+      userUpdates.push(`updated_at = NOW()`);
+      userValues.push(req.userId);
+
+      await pool.query(
+        `UPDATE users SET ${userUpdates.join(", ")} WHERE id = $${uIndex}`,
+        userValues
+      );
+    }
+
+    if (req.body.company_name) {
+      await pool.query(
+        "UPDATE landlord SET company_name = $1, updated_at = NOW() WHERE id = $2",
+        [req.body.company_name, landlordId]
+      );
     }
 
     res.json({ message: "Settings saved successfully" });

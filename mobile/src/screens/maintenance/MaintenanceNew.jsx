@@ -252,18 +252,14 @@ export default function MaintenanceNew() {
             ))}
           </View>
 
-          <View style={S.infoBox}>
-            <Feather name="info" size={13} color={C.blue} />
-            <Text style={S.infoText}>Your caretaker will be notified. Urgent requests are escalated to the landlord.</Text>
-          </View>
         </ScrollView>
       </Animated.View>
 
       <View style={S.footer}>
-        <TouchableOpacity style={$btnGhost} onPress={() => navigation.goBack()} disabled={loading}>
+        <TouchableOpacity style={[$btnGhost, { flex: 1 }]} onPress={() => navigation.goBack()} disabled={loading}>
           <Text style={S.btnGhostText}>Cancel</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[$btnGold, (loading || uploading) && { opacity: 0.6 }]} onPress={handleSubmit} disabled={loading || uploading}>
+        <TouchableOpacity style={[$btnGold, { flex: 1 }, (loading || uploading) && { opacity: 0.6 }]} onPress={handleSubmit} disabled={loading || uploading}>
           {loading ? (
             <><ActivityIndicator color={C.black} size="small" /><Text style={S.btnGoldText}>{uploading ? "Uploading..." : "Submitting..."}</Text></>
           ) : (

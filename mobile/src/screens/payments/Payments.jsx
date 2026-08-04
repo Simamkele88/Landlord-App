@@ -1,99 +1,64 @@
-// TENANT PAYMENTS LIST SCREEN
+// TENANT PAYMENTS SCREEN 
 import { useState, useEffect, useCallback } from "react";
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, SafeAreaView, StatusBar,
-  ActivityIndicator, RefreshControl,
+  StyleSheet, StatusBar, Alert,
+  ActivityIndicator, RefreshControl, SafeAreaView
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { MaterialIcons, FontAwesome5, Ionicons, Feather } from "@expo/vector-icons";
 import api from "../../utils/api";
 
 const C = {
-  black:        "#0a0a0a",
-  muted:        "#141414",
-  muted2:       "#1a1a1a",
-  border:       "#2a2a2a",
-  gold:         "#E8A012",
-  white:        "#F5F0E8",
-  blue:         "#3A8FD4",
-  greenLight:   "#1A7A4A",
-  redLight:     "#E05A4A",
-  purple:       "#8B5CF6",
+  black:      "#0a0a0a", muted: "#141414", muted2: "#1a1a1a",
+  border:     "#2a2a2a", gold: "#E8A012", white: "#F5F0E8",
+  blue:       "#3A8FD4", greenLight: "#1A7A4A", redLight: "#E05A4A", purple: "#8B5CF6",
 };
+const F = { bebas: "bebas-neue", dm: "dm-sans", mono: "space-mono" };
 
-const F = {
-  bebas: "bebas-neue",
-  dm:    "dm-sans",
-  mono:  "space-mono",
-};
-
-function fmt(amount) { 
-  return `R ${Number(amount || 0).toLocaleString("en-ZA")}`; 
-}
-
-function formatDate(dateStr) {
-  if (!dateStr) return "—";
+function fmt(n) { return `R ${Number(n || 0).toLocaleString("en-ZA")}`; }
+function formatDate(d) {
+  if (!d) return "—";
   try {
-    const date = new Date(dateStr);
-    if (isNaN(date.getTime())) return String(dateStr).slice(0, 10);
-    return date.toLocaleDateString("en-ZA", { 
-      day: "2-digit", 
-      month: "short", 
-      year: "numeric" 
-    });
-  } catch {
-    return String(dateStr).slice(0, 10);
-  }
+    const dt = new Date(d);
+    if (isNaN(dt)) return String(d).slice(0, 10);
+    return dt.toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" });
+  } catch { return String(d).slice(0, 10); }
 }
-
-function formatDateFull(dateStr) {
-  if (!dateStr) return "—";
+function formatDateFull(d) {
+  if (!d) return "—";
   try {
-    const date = new Date(dateStr);
-    if (isNaN(date.getTime())) return String(dateStr).slice(0, 10);
-    return date.toLocaleDateString("en-ZA", { 
-      day: "2-digit", 
-      month: "long", 
-      year: "numeric" 
-    });
-  } catch {
-    return String(dateStr).slice(0, 10);
-  }
+    const dt = new Date(d);
+    if (isNaN(dt)) return String(d).slice(0, 10);
+    return dt.toLocaleDateString("en-ZA", { day: "2-digit", month: "long", year: "numeric" });
+  } catch { return String(d).slice(0, 10); }
 }
-
-function formatPeriod(startStr, endStr) {
-  if (!startStr && !endStr) return "Current Period";
+function formatPeriod(s) {
+  if (!s) return "Current Period";
   try {
-    if (startStr) {
-      const date = new Date(startStr);
-      if (isNaN(date.getTime())) return String(startStr).slice(0, 7);
-      return date.toLocaleDateString("en-ZA", { month: "long", year: "numeric" });
-    }
-    return "Current Period";
-  } catch {
-    return "Current Period";
-  }
+    const dt = new Date(s);
+    if (isNaN(dt)) return String(s).slice(0, 7);
+    return dt.toLocaleDateString("en-ZA", { month: "long", year: "numeric" });
+  } catch { return "Current Period"; }
 }
-
 function getOrdinal(n) {
-  const s = ["th", "st", "nd", "rd"];
-  const v = n % 100;
+  const s = ["th","st","nd","rd"], v = n % 100;
   return s[(v - 20) % 10] || s[v] || s[0];
 }
 
 function statusConfig(status) {
   switch (status) {
-    case "paid": return { color: C.greenLight, bg: "rgba(26,122,74,0.08)", label: "Paid" };
+    case "paid":             return { color: C.greenLight, bg: "rgba(26,122,74,0.08)",   label: "Paid" };
     case "pending":
-    case "pending_approval": return { color: C.gold, bg: "rgba(232,160,18,0.06)", label: "Pending" };
-    case "late": return { color: C.redLight, bg: "rgba(224,90,74,0.08)", label: "Late" };
-    case "overdue": return { color: C.redLight, bg: "rgba(224,90,74,0.08)", label: "Overdue" };
+    case "pending_approval": return { color: C.gold,       bg: "rgba(232,160,18,0.06)",  label: "Pending" };
+    case "late":             return { color: C.redLight,   bg: "rgba(224,90,74,0.08)",   label: "Late" };
+    case "overdue":          return { color: C.redLight,   bg: "rgba(224,90,74,0.08)",   label: "Overdue" };
     case "sent":
-    case "unpaid": return { color: C.redLight, bg: "rgba(224,90,74,0.08)", label: "Unpaid" };
-    case "rejected": return { color: C.redLight, bg: "rgba(224,90,74,0.08)", label: "Rejected" };
-    case "collections": return { color: C.purple, bg: "rgba(139,92,246,0.08)", label: "Collections" };
-    default: return { color: "rgba(245,240,232,0.4)", bg: C.muted2, label: String(status) };
+    case "unpaid":           return { color: C.redLight,   bg: "rgba(224,90,74,0.08)",   label: "Unpaid" };
+    case "partial":          return { color: C.gold,       bg: "rgba(232,160,18,0.06)",  label: "Partial" };
+    case "collections":      return { color: C.purple,     bg: "rgba(139,92,246,0.08)",  label: "Collections" };
+    case "rejected":         return { color: C.redLight,   bg: "rgba(224,90,74,0.08)",   label: "Rejected" };
+    default:                 return { color: "rgba(245,240,232,0.4)", bg: C.muted2,      label: String(status) };
   }
 }
 
@@ -122,12 +87,70 @@ function SectionLabel({ title, subtitle, actionLabel, onAction }) {
   );
 }
 
+// PENDING PAYMENT BANNER
+function PendingPaymentBanner({ pendingAmount }) {
+  return (
+    <View style={S.pendingBanner}>
+      <MaterialIcons name="info-outline" size={18} color={C.gold} />
+      <Text style={S.pendingBannerText}>
+        You have a pending payment of {fmt(pendingAmount)} awaiting approval. Submitting a new payment will automatically cancel the previous one.
+      </Text>
+    </View>
+  );
+}
+
+// COLLECTION BANNER 
+function CollectionsBanner({ balance, onPress }) {
+  return (
+    <TouchableOpacity style={S.collectionsBanner} onPress={onPress} activeOpacity={0.85}>
+      <View style={S.collectionsIconWrap}>
+        <MaterialIcons name="warning" size={20} color={C.redLight} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={S.collectionsTitle}>Account in Collections</Text>
+        <Text style={S.collectionsSub}>
+          {balance > 0 ? `${fmt(balance)} outstanding: ` : ""}tap to view options and request a repayment plan.
+        </Text>
+      </View>
+      <Feather name="chevron-right" size={16} color={C.redLight} />
+    </TouchableOpacity>
+  );
+}
+
+// REPAYMENT PLAN BANNER
+function RepaymentBanner({ plan, onPress }) {
+  return (
+    <TouchableOpacity style={S.repaymentBanner} onPress={onPress} activeOpacity={0.85}>
+      <View style={S.repaymentIconWrap}>
+        <Ionicons name="calendar-outline" size={18} color={C.gold} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={S.repaymentTitle}>Active Repayment Plan</Text>
+        <Text style={S.repaymentSub}>
+          {fmt(plan.paid_amount)} paid · {fmt(plan.remaining)} remaining · {plan.progress_pct}% complete
+        </Text>
+      </View>
+      <Feather name="chevron-right" size={16} color={C.gold} />
+    </TouchableOpacity>
+  );
+}
+
 function InvoiceCard({ invoice, tenant, onViewInvoice }) {
-  const status = invoice?.status || "unpaid";
+  const status    = invoice?.status || "unpaid";
   const isOverdue = status === "overdue";
   const isPending = status === "pending" || status === "pending_approval";
-  const isPaid = status === "paid";
-  const isUnpaid = status === "sent" || status === "unpaid";
+  const isPaid    = status === "paid";
+  const isUnpaid  = status === "sent" || status === "unpaid";
+  const isPartial = status === "partial";
+  const hasPendingPayment = Number(invoice?.pending_amount || 0) > 0;
+  
+  const showPendingBanner = hasPendingPayment && !isPaid;
+
+  const isFullyPaid = isPaid || (invoice?.amount_due <= 0);
+  
+  if (isFullyPaid && !isPartial) {
+    return null; 
+  }
 
   return (
     <View style={[S.invoiceCard, isOverdue && { borderColor: C.redLight + "40" }]}>
@@ -136,42 +159,42 @@ function InvoiceCard({ invoice, tenant, onViewInvoice }) {
           <Ionicons name="document-text" size={20} color={C.gold} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={S.invoicePeriod}>
-            {invoice?.billing_period_start 
-              ? formatPeriod(invoice.billing_period_start, invoice.billing_period_end)
-              : "Current"} Invoice
-          </Text>
+          <Text style={S.invoicePeriod}>{formatPeriod(invoice?.billing_period_start)} Invoice</Text>
           <Text style={S.invoiceDue}>Due {formatDate(invoice?.due_date)}</Text>
         </View>
-        <Text style={[S.invoiceAmount, isOverdue && { color: C.redLight }]}>
-          {fmt(invoice?.amount_due || invoice?.amount || tenant?.rentAmount)}
-        </Text>
+        <View style={{ alignItems: "flex-end" }}>
+          <Text style={[S.invoiceAmount, isOverdue && { color: C.redLight }]}>
+            {fmt(invoice?.remaining_balance || 0)}
+          </Text>
+          {isPartial && (
+            <Text style={S.partialLabel}>
+              {fmt(invoice?.paid_amount || 0)} paid
+            </Text>
+          )}
+        </View>
       </View>
+      {(invoice?.late_fees || 0) > 0 && (
+        <View style={[S.invoiceBanner, { backgroundColor: "rgba(224,90,74,0.04)" }]}>
+          <MaterialIcons name="warning-amber" size={13} color={C.redLight} />
+          <Text style={[S.invoiceBannerText, { color: C.redLight, fontSize: 11 }]}>
+            Late fee applied: {fmt(invoice.late_fees)}
+          </Text>
+        </View>
+      )}
       <View style={S.invoiceDivider} />
-      {isUnpaid && (
-        <View style={[S.invoiceBanner, { backgroundColor: C.muted }]}>
-          <Ionicons name="time-outline" size={15} color="rgba(245,240,232,0.3)" />
-          <Text style={[S.invoiceBannerText, { color: "rgba(245,240,232,0.5)" }]}>Rent is due — please make payment to avoid late fees.</Text>
-        </View>
-      )}
-      {isOverdue && (
-        <View style={[S.invoiceBanner, { backgroundColor: "rgba(224,90,74,0.06)" }]}>
-          <MaterialIcons name="error" size={15} color={C.redLight} />
-          <Text style={[S.invoiceBannerText, { color: C.redLight }]}>Payment is overdue</Text>
-        </View>
-      )}
-      {isPending && (
+      {showPendingBanner && (
         <View style={[S.invoiceBanner, { backgroundColor: "rgba(232,160,18,0.04)" }]}>
           <MaterialIcons name="pending-actions" size={15} color={C.gold} />
-          <Text style={[S.invoiceBannerText, { color: C.gold }]}>Awaiting landlord approval</Text>
+          <Text style={[S.invoiceBannerText, { color: C.gold }]}>
+            Pending payment: {fmt(invoice.pending_amount)} awaiting approval
+          </Text>
         </View>
       )}
-      {isPaid && (
-        <View style={[S.invoiceBanner, { backgroundColor: "rgba(26,122,74,0.06)" }]}>
-          <Ionicons name="checkmark-circle" size={15} color={C.greenLight} />
-          <Text style={[S.invoiceBannerText, { color: C.greenLight }]}>Payment confirmed</Text>
-        </View>
-      )}
+      {isUnpaid  && <View style={[S.invoiceBanner, { backgroundColor: C.muted }]}><Ionicons name="time-outline" size={15} color="rgba(245,240,232,0.3)" /><Text style={[S.invoiceBannerText, { color: "rgba(245,240,232,0.5)" }]}>Rent is due. Please make payment to avoid late fees.</Text></View>}
+      {isOverdue && <View style={[S.invoiceBanner, { backgroundColor: "rgba(224,90,74,0.06)" }]}><MaterialIcons name="error" size={15} color={C.redLight} /><Text style={[S.invoiceBannerText, { color: C.redLight }]}>Payment is overdue</Text></View>}
+      {isPending && !hasPendingPayment && <View style={[S.invoiceBanner, { backgroundColor: "rgba(232,160,18,0.04)" }]}><MaterialIcons name="pending-actions" size={15} color={C.gold} /><Text style={[S.invoiceBannerText, { color: C.gold }]}>Awaiting landlord approval</Text></View>}
+      {isPaid    && <View style={[S.invoiceBanner, { backgroundColor: "rgba(26,122,74,0.06)" }]}><Ionicons name="checkmark-circle" size={15} color={C.greenLight} /><Text style={[S.invoiceBannerText, { color: C.greenLight }]}>Payment confirmed</Text></View>}
+      {isPartial && <View style={[S.invoiceBanner, { backgroundColor: "rgba(232,160,18,0.04)" }]}><MaterialIcons name="pending-actions" size={15} color={C.gold} /><Text style={[S.invoiceBannerText, { color: C.gold }]}>Partial payment received: {fmt(invoice?.remaining_balance || 0)} remaining</Text></View>}
       <View style={S.invoiceDivider} />
       <TouchableOpacity style={S.invoiceViewRow} onPress={onViewInvoice} activeOpacity={0.7}>
         <Feather name="file-text" size={14} color={C.gold} />
@@ -188,16 +211,10 @@ function HistoryRow({ item, onViewReceipt }) {
     <View style={S.historyRow}>
       <View style={[S.historyDot, { backgroundColor: color }]} />
       <View style={{ flex: 1 }}>
-        <Text style={S.historyPeriod}>
-          {item.billing_period_start 
-            ? formatPeriod(item.billing_period_start, item.billing_period_end)
-            : item.period || "—"}
-        </Text>
+        <Text style={S.historyPeriod}>{formatPeriod(item.billing_period_start) || item.period || "—"}</Text>
         <Text style={S.historyMeta}>
-          {item.payment_date 
-            ? `Paid ${formatDate(item.payment_date)}` 
-            : "Not yet paid"}
-          {item.payment_method ? ` · ${item.payment_method}` : ""}
+          {item.payment_date ? `Paid ${formatDate(item.payment_date)}` : "Not yet paid"}
+          {item.payment_method ? `  ${item.payment_method}` : ""}
         </Text>
       </View>
       <View style={{ alignItems: "flex-end" }}>
@@ -213,32 +230,57 @@ function HistoryRow({ item, onViewReceipt }) {
   );
 }
 
+// MAIN COMPONENT
 export default function TenantPayments() {
   const navigation = useNavigation();
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [tenant, setTenant] = useState(null);
+  const [loading, setLoading]         = useState(true);
+  const [refreshing, setRefreshing]   = useState(false);
+  const [tenant, setTenant]           = useState(null);
   const [currentInvoice, setCurrentInvoice] = useState(null);
   const [paymentHistory, setPaymentHistory] = useState([]);
+  const [collectionData, setCollectionData] = useState(null);
+  const [repaymentPlan, setRepaymentPlan]   = useState(null);
 
   const fetchData = useCallback(async () => {
     try {
-      const tenantData = await api.getTenantProfile();
+      const [tenantData, invData, payData, collData, planData] = await Promise.all([
+        api.getTenantProfile(),
+        api.getInvoices(),
+        api.getPayments(),
+        api.get("/collections/me").catch(() => null),
+        api.get("/repayment-plans/me").catch(() => null),
+      ]);
+
       setTenant(tenantData);
 
-      const invData = await api.getInvoices();
       const invList = invData.invoices || [];
       
-      const current = invList.find(i => 
-        i.status === "sent" || i.status === "unpaid" || i.status === "overdue"
-      ) || invList[0] || null;
-      setCurrentInvoice(current);
+      const filteredInvoices = invList.filter(i => i.status !== "rejected");
+      
 
-      const payData = await api.getPayments();
+      const activeInvoice = filteredInvoices.find(i => {
+        const hasBalance = (i.amount_due || i.amount || 0) > 0;
+        const isActive = ["sent", "unpaid", "overdue", "partial"].includes(i.status);
+        return isActive && hasBalance;
+      }) || filteredInvoices[0] || null;
+      
+      setCurrentInvoice(activeInvoice);
       setPaymentHistory(payData.payments || []);
+      setCollectionData(collData || null);
 
+      if (planData?.plan && planData.plan.status === "active") {
+        const p = planData.plan;
+        setRepaymentPlan({
+          ...p,
+          paid_amount:  Number(p.paid_amount  || 0),
+          remaining:    Number(p.remaining    || 0),
+          progress_pct: Number(p.progress_pct || 0),
+        });
+      } else {
+        setRepaymentPlan(null);
+      }
     } catch (err) {
-      console.error("Fetch tenant data:", err?.message || err);
+      console.error("Payments fetch:", err?.message || err);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -246,30 +288,44 @@ export default function TenantPayments() {
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
-
-  function onRefresh() {
-    setRefreshing(true);
-    fetchData();
-  }
+  function onRefresh() { setRefreshing(true); fetchData(); }
 
   function openReceipt(item) {
-    navigation.getParent()?.navigate("PaymentReceipt", { 
+    navigation.getParent()?.navigate("PaymentReceipt", {
       payment: {
         ...item,
-        id: item.id,
-        receiptNo: item.receipt_no || `RCP-${String(item.id || "").slice(0, 8)}`,
-        period: item.billing_period_start 
-          ? new Date(item.billing_period_start).toLocaleDateString("en-ZA", { month: "long", year: "numeric" })
-          : item.period || "—",
-        amount: item.amount_paid || item.amount_due || item.amount,
-        paidOn: item.payment_date || item.paidOn,
-        method: item.payment_method || item.method,
-        reference: item.bank_reference || item.reference,
-        tenant_name: tenant?.first_name + " " + tenant?.last_name,
-        unit_number: tenant?.unit_number,
+        receiptNo:     item.receipt_no || `RCP-${String(item.id || "").slice(0, 8)}`,
+        period:        formatPeriod(item.billing_period_start) || item.period || "—",
+        amount:        item.amount_paid || item.amount_due || item.amount,
+        paidOn:        item.payment_date || item.paidOn,
+        method:        item.payment_method || item.method,
+        reference:     item.bank_reference || item.reference,
+        tenant_name:   tenant ? `${tenant.first_name} ${tenant.last_name}` : "—",
+        unit_number:   tenant?.unit_number,
         property_name: tenant?.property_name,
-      }
+      },
     });
+  }
+
+  function handlePaymentNavigation(route, invoice) {
+    const hasPending = Number(invoice?.pending_amount || 0) > 0;
+    
+    if (hasPending) {
+      Alert.alert(
+        "Pending Payment Exists",
+        `You have a pending payment of ${fmt(invoice.pending_amount)} awaiting approval. Submitting a new payment will automatically cancel the previous one. Do you want to continue?`,
+        [
+          { text: "Cancel", style: "cancel" },
+          { 
+            text: "Continue", 
+            style: "destructive",
+            onPress: () => navigation.navigate(route, { invoice, tenant: tenantInfo })
+          }
+        ]
+      );
+    } else {
+      navigation.navigate(route, { invoice, tenant: tenantInfo });
+    }
   }
 
   if (loading) {
@@ -284,28 +340,30 @@ export default function TenantPayments() {
   }
 
   const invoiceStatus = currentInvoice?.status || "unpaid";
-  const isPending = invoiceStatus === "pending" || invoiceStatus === "pending_approval";
-  const needsPay = invoiceStatus === "sent" || invoiceStatus === "unpaid" || invoiceStatus === "overdue";
+  const isPending     = ["pending","pending_approval"].includes(invoiceStatus);
+  const needsPay      = ["sent","unpaid","overdue","partial"].includes(invoiceStatus);
+  const inCollections = collectionData?.in_collections || false;
+  const hasPendingPayment = Number(currentInvoice?.pending_amount || 0) > 0;
 
   const tenantInfo = {
-    name: tenant ? `${tenant.first_name || ""} ${tenant.last_name || ""}`.trim() || "Tenant" : "Tenant",
-    unit: tenant?.unit_number ? `Unit ${tenant.unit_number}` : "—",
-    property: tenant?.property_name || "—",
-    rentAmount: currentInvoice?.amount_due || tenant?.rent_amount || tenant?.monthly_rent || 0,
-    dueDay: currentInvoice?.due_date 
-      ? new Date(currentInvoice.due_date).getDate() 
-      : tenant?.payment_due_day || 1,
-    leaseEnd: tenant?.lease_end_date || "—",
-    reliabilityScore: tenant?.reliability_score || "Reliable",
+    firstName:        tenant?.first_name || "—",
+    lastName:         tenant?.last_name || "—",
+    name:             tenant ? `${tenant.first_name || ""} ${tenant.last_name || ""}`.trim() : "Tenant",
+    unit:             tenant?.unit_number ? `Unit ${tenant.unit_number}` : "—",
+    property:         tenant?.property_name || "—",
+    rentAmount:       currentInvoice?.rent_amount || tenant?.rent_amount || tenant?.monthly_rent || 0,
+    dueDay:           currentInvoice?.due_date ? new Date(currentInvoice.due_date).getDate() : tenant?.payment_due_day || 1,
+    leaseEnd:         tenant?.lease_end_date || "—",
+    reliabilityScore: tenant?.reliability_score || "reliable",
   };
 
+ 
   return (
     <SafeAreaView style={S.safe}>
       <StatusBar barStyle="light-content" backgroundColor={C.black} />
-
-      <ScrollView 
-        style={S.scroll} 
-        contentContainerStyle={S.scrollPad} 
+      <ScrollView
+        style={S.scroll}
+        contentContainerStyle={S.pad}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.gold} />}
       >
@@ -313,48 +371,72 @@ export default function TenantPayments() {
         <View style={S.pageHeader}>
           <View>
             <Text style={S.pageTitle}>Payments</Text>
-            <Text style={S.pageSub}>{tenantInfo.unit} · {tenantInfo.property}</Text>
+            <Text style={S.pageSub}>{tenantInfo.property}  {tenantInfo.unit} </Text>
           </View>
-          <View style={[S.scorePill, { borderColor: tenantInfo.reliabilityScore === "Reliable" || tenantInfo.reliabilityScore === "reliable" ? C.greenLight : C.gold }]}>
-            <Text style={[S.scoreText, { color: tenantInfo.reliabilityScore === "Reliable" || tenantInfo.reliabilityScore === "reliable" ? C.greenLight : C.gold }]}>
-              {tenantInfo.reliabilityScore}
-            </Text>
-          </View>
+          
         </View>
 
-        {/* INVOICE CARD */}
+        {/* COLLECTIONS BANNER */}
+        {inCollections && (
+          <CollectionsBanner
+            balance={collectionData?.total_outstanding || 0}
+            onPress={() => navigation.getParent()?.navigate("CollectionsStatus")}
+          />
+        )}
+
+        {/* REPAYMENT PLAN BANNER */}
+        {!inCollections && repaymentPlan && (
+          <RepaymentBanner
+            plan={repaymentPlan}
+            onPress={() => navigation.getParent()?.navigate("RepaymentPlan")}
+          />
+        )}
+
+        {/* PENDING PAYMENT WARNING */}
+        {needsPay && hasPendingPayment && (
+          <PendingPaymentBanner pendingAmount={currentInvoice.pending_amount} />
+        )}
+
+        {/* CURRENT INVOICE */}
         {currentInvoice ? (
           <InvoiceCard
             invoice={currentInvoice}
             tenant={tenantInfo}
-            onViewInvoice={() => navigation.getParent()?.navigate("PaymentInvoice", { invoice: currentInvoice })}
+            onViewInvoice={() => {
+              navigation.navigate("InvoiceDetail", { invoice: currentInvoice });
+            }}
           />
         ) : (
           <View style={[S.invoiceCard, { padding: 24, alignItems: "center" }]}>
             <Ionicons name="document-text" size={32} color="rgba(245,240,232,0.2)" />
-            <Text style={{ color: "rgba(245,240,232,0.3)", fontFamily: F.mono, fontSize: 12, marginTop: 8 }}>No invoices available</Text>
+            <Text style={{ color: "rgba(245,240,232,0.3)", fontFamily: F.mono, fontSize: 12, marginTop: 8 }}>
+              No outstanding invoices
+            </Text>
           </View>
         )}
 
-        {/* PAYMENT OPTIONS */}
-        {needsPay && (
+        {/* PAY OPTIONS */}
+        {needsPay && currentInvoice && (
           <>
-            <SectionLabel title="MAKE PAYMENT" subtitle="Choose how you'd like to pay this month" />
+            <SectionLabel 
+              title="MAKE PAYMENT" 
+              subtitle={hasPendingPayment ? "Submitting a new payment will auto-cancel the pending one" : "Choose how you'd like to pay this month"} 
+            />
             <View style={S.payOptions}>
               <TouchableOpacity
                 style={[S.payCard, { borderColor: C.gold + "40" }]}
-                onPress={() => navigation.getParent()?.navigate("PaymentMethod", { invoice: currentInvoice, tenant: tenantInfo })}
+                onPress={() => handlePaymentNavigation("PaymentMethod", currentInvoice)}
                 activeOpacity={0.8}
               >
                 <View style={S.payCardIcon}>
                   <FontAwesome5 name="credit-card" size={24} color={C.gold} />
                 </View>
                 <Text style={S.payCardTitle}>Pay In-App</Text>
-                <Text style={S.payCardSub}>Card, EFT, or mobile wallet</Text>
+                <Text style={S.payCardSub}>Card or EFT</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[S.payCard, { borderColor: C.border }]}
-                onPress={() => navigation.getParent()?.navigate("PaymentUpload", { invoice: currentInvoice })}
+                onPress={() => handlePaymentNavigation("PaymentUpload", currentInvoice)}
                 activeOpacity={0.8}
               >
                 <View style={[S.payCardIcon, { backgroundColor: C.muted }]}>
@@ -373,7 +455,7 @@ export default function TenantPayments() {
             <SectionLabel title="ACTIONS" />
             <TouchableOpacity
               style={S.resubmit}
-              onPress={() => navigation.getParent()?.navigate("PaymentUpload", { invoice: currentInvoice })}
+              onPress={() => handlePaymentNavigation("PaymentUpload", currentInvoice)}
               activeOpacity={0.8}
             >
               <Feather name="refresh-cw" size={16} color={C.gold} />
@@ -387,11 +469,16 @@ export default function TenantPayments() {
         )}
 
         {/* PAYMENT HISTORY */}
-        <SectionLabel title="PAYMENT HISTORY" subtitle="Your rent payment record" />
+        <SectionLabel
+          title="PAYMENT HISTORY"
+          subtitle="Your rent payment record"
+        />
         <View style={S.historyCard}>
           {paymentHistory.length === 0 ? (
             <View style={{ padding: 24, alignItems: "center" }}>
-              <Text style={{ color: "rgba(245,240,232,0.3)", fontFamily: F.mono, fontSize: 12 }}>No payment history yet</Text>
+              <Text style={{ color: "rgba(245,240,232,0.3)", fontFamily: F.mono, fontSize: 12 }}>
+                No payment history yet
+              </Text>
             </View>
           ) : (
             paymentHistory.map((item, idx) => (
@@ -407,9 +494,9 @@ export default function TenantPayments() {
         <SectionLabel title="LEASE SUMMARY" />
         <View style={S.leaseCard}>
           {[
-            ["Monthly Rent", fmt(tenantInfo.rentAmount)],
-            ["Payment Due", `${tenantInfo.dueDay}${getOrdinal(tenantInfo.dueDay)} of each month`],
-            ["Lease Ends", formatDateFull(tenantInfo.leaseEnd)],
+            ["Monthly Rent", fmt(tenant?.rent_amount || tenant?.monthly_rent || currentInvoice?.rent_amount || 0)], 
+            ["Payment Due",  `${tenantInfo.dueDay}${getOrdinal(tenantInfo.dueDay)} of each month`],
+            ["Lease Ends",   formatDateFull(tenantInfo.leaseEnd)],
           ].map(([label, val], idx, arr) => (
             <View key={label} style={[S.leaseRow, idx < arr.length - 1 && { borderBottomWidth: 1, borderBottomColor: C.border }]}>
               <Text style={S.leaseLabel}>{label}</Text>
@@ -417,6 +504,7 @@ export default function TenantPayments() {
             </View>
           ))}
         </View>
+
         <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
@@ -424,49 +512,69 @@ export default function TenantPayments() {
 }
 
 const S = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.black },
-  scroll: { flex: 1 },
-  scrollPad: { padding: 16 },
-  pageHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 },
+  safe:      { flex: 1, backgroundColor: C.black },
+  scroll:    { flex: 1 },
+  pad:       { padding: 16 },
+  pageHeader:{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 },
   pageTitle: { fontSize: 22, fontWeight: "700", color: C.white, fontFamily: F.bebas, letterSpacing: 1, marginBottom: 2 },
-  pageSub: { fontSize: 12, color: "rgba(245,240,232,0.4)", fontFamily: F.mono, marginTop: 2 },
+  pageSub:   { fontSize: 12, color: "rgba(245,240,232,0.4)", fontFamily: F.mono, marginTop: 2 },
   scorePill: { borderWidth: 1.5, borderRadius: 3, paddingHorizontal: 10, paddingVertical: 4 },
   scoreText: { fontSize: 10, fontWeight: "700", fontFamily: F.mono, letterSpacing: 1, textTransform: "uppercase" },
-  invoiceCard: { backgroundColor: C.muted2, borderRadius: 6, borderWidth: 1, borderColor: C.border, overflow: "hidden", marginBottom: 20 },
-  invoiceTop: { flexDirection: "row", alignItems: "center", gap: 10, padding: 16 },
-  invoiceIconWrap: { width: 38, height: 38, borderRadius: 6, backgroundColor: "rgba(232,160,18,0.1)", borderWidth: 1, borderColor: "rgba(232,160,18,0.15)", alignItems: "center", justifyContent: "center" },
-  invoicePeriod: { fontSize: 14, fontWeight: "600", color: C.white, fontFamily: F.dm },
-  invoiceDue: { fontSize: 11, color: "rgba(245,240,232,0.35)", fontFamily: F.mono, marginTop: 2 },
-  invoiceAmount: { fontSize: 20, fontWeight: "700", color: C.white, fontFamily: F.bebas, letterSpacing: 1 },
+
+  pendingBanner: { flexDirection: "row", alignItems: "flex-start", gap: 10, backgroundColor: "rgba(232,160,18,0.06)", borderRadius: 4, borderWidth: 1, borderColor: "rgba(232,160,18,0.18)", padding: 14, marginBottom: 14 },
+  pendingBannerText: { flex: 1, fontSize: 12, color: C.gold, fontFamily: F.dm, lineHeight: 18 },
+
+  collectionsBanner: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "rgba(224,90,74,0.06)", borderRadius: 4, borderWidth: 1, borderColor: "rgba(224,90,74,0.22)", padding: 14, marginBottom: 14 },
+  collectionsIconWrap:{ width: 36, height: 36, borderRadius: 6, backgroundColor: "rgba(224,90,74,0.1)", alignItems: "center", justifyContent: "center" },
+  collectionsTitle:  { fontSize: 13, fontWeight: "700", color: C.redLight, fontFamily: F.dm },
+  collectionsSub:    { fontSize: 11, color: "rgba(224,90,74,0.7)", fontFamily: F.dm, marginTop: 2, lineHeight: 16 },
+
+  repaymentBanner:   { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "rgba(232,160,18,0.04)", borderRadius: 4, borderWidth: 1, borderColor: "rgba(232,160,18,0.18)", padding: 14, marginBottom: 14 },
+  repaymentIconWrap: { width: 36, height: 36, borderRadius: 6, backgroundColor: "rgba(232,160,18,0.08)", alignItems: "center", justifyContent: "center" },
+  repaymentTitle:    { fontSize: 13, fontWeight: "700", color: C.gold, fontFamily: F.dm },
+  repaymentSub:      { fontSize: 11, color: "rgba(232,160,18,0.6)", fontFamily: F.dm, marginTop: 2 },
+
+  invoiceCard:    { backgroundColor: C.muted2, borderRadius: 6, borderWidth: 1, borderColor: C.border, overflow: "hidden", marginBottom: 20 },
+  invoiceTop:     { flexDirection: "row", alignItems: "center", gap: 10, padding: 16 },
+  invoiceIconWrap:{ width: 38, height: 38, borderRadius: 6, backgroundColor: "rgba(232,160,18,0.1)", borderWidth: 1, borderColor: "rgba(232,160,18,0.15)", alignItems: "center", justifyContent: "center" },
+  invoicePeriod:  { fontSize: 14, fontWeight: "600", color: C.white, fontFamily: F.dm },
+  invoiceDue:     { fontSize: 11, color: "rgba(245,240,232,0.35)", fontFamily: F.mono, marginTop: 2 },
+  invoiceAmount:  { fontSize: 20, fontWeight: "700", color: C.white, fontFamily: F.bebas, letterSpacing: 1 },
+  partialLabel:   { fontSize: 10, color: C.gold, fontFamily: F.mono, marginTop: 2 },
   invoiceDivider: { height: 1, backgroundColor: C.border },
-  invoiceBanner: { flexDirection: "row", alignItems: "center", gap: 8, padding: 12, paddingHorizontal: 16 },
-  invoiceBannerText: { fontSize: 12, fontWeight: "500", flex: 1, fontFamily: F.dm },
+  invoiceBanner:  { flexDirection: "row", alignItems: "center", gap: 8, padding: 12, paddingHorizontal: 16 },
+  invoiceBannerText:{ fontSize: 12, fontWeight: "500", flex: 1, fontFamily: F.dm },
   invoiceViewRow: { flexDirection: "row", alignItems: "center", gap: 6, padding: 12, paddingHorizontal: 16 },
-  invoiceViewText: { flex: 1, fontSize: 12, fontWeight: "600", color: C.gold, fontFamily: F.mono, letterSpacing: 0.5 },
+  invoiceViewText:{ flex: 1, fontSize: 12, fontWeight: "600", color: C.gold, fontFamily: F.mono, letterSpacing: 0.5 },
+
   sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 10, marginTop: 4 },
-  sectionLabel: { fontSize: 10, fontWeight: "700", color: "rgba(245,240,232,0.2)", fontFamily: F.mono, textTransform: "uppercase", letterSpacing: 2 },
-  sectionSub: { fontSize: 11, color: "rgba(245,240,232,0.3)", fontFamily: F.mono, marginTop: 2 },
+  sectionLabel:  { fontSize: 10, fontWeight: "700", color: "rgba(245,240,232,0.2)", fontFamily: F.mono, textTransform: "uppercase", letterSpacing: 2 },
+  sectionSub:    { fontSize: 11, color: "rgba(245,240,232,0.3)", fontFamily: F.mono, marginTop: 2 },
   sectionAction: { fontSize: 11, color: C.gold, fontWeight: "600", fontFamily: F.mono },
-  payOptions: { flexDirection: "row", gap: 10, marginBottom: 24 },
-  payCard: { flex: 1, backgroundColor: C.muted2, borderRadius: 6, borderWidth: 1, padding: 16 },
-  payCardIcon: { width: 46, height: 46, borderRadius: 6, backgroundColor: C.muted, borderWidth: 1, borderColor: C.border, alignItems: "center", justifyContent: "center", marginBottom: 10 },
+
+  payOptions:   { flexDirection: "row", gap: 10, marginBottom: 24 },
+  payCard:      { flex: 1, backgroundColor: C.muted2, borderRadius: 6, borderWidth: 1, padding: 16 },
+  payCardIcon:  { width: 46, height: 46, borderRadius: 6, backgroundColor: C.muted, borderWidth: 1, borderColor: C.border, alignItems: "center", justifyContent: "center", marginBottom: 10 },
   payCardTitle: { fontSize: 13, fontWeight: "600", color: C.white, fontFamily: F.dm, marginBottom: 3 },
-  payCardSub: { fontSize: 10, color: "rgba(245,240,232,0.35)", fontFamily: F.mono, lineHeight: 15 },
-  resubmit: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "rgba(232,160,18,0.04)", borderRadius: 4, borderWidth: 1, borderColor: "rgba(232,160,18,0.12)", padding: 14, marginBottom: 24 },
+  payCardSub:   { fontSize: 10, color: "rgba(245,240,232,0.35)", fontFamily: F.mono, lineHeight: 15 },
+
+  resubmit:      { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "rgba(232,160,18,0.04)", borderRadius: 4, borderWidth: 1, borderColor: "rgba(232,160,18,0.12)", padding: 14, marginBottom: 24 },
   resubmitTitle: { fontSize: 13, fontWeight: "600", color: C.gold, fontFamily: F.dm },
-  resubmitSub: { fontSize: 10, color: C.gold, opacity: 0.6, fontFamily: F.mono, marginTop: 2 },
-  historyCard: { backgroundColor: C.muted2, borderRadius: 6, borderWidth: 1, borderColor: C.border, overflow: "hidden", marginBottom: 24 },
-  historyRow: { flexDirection: "row", alignItems: "center", gap: 10, padding: 14 },
-  historyDivider: { height: 1, backgroundColor: C.border, marginHorizontal: 14 },
-  historyDot: { width: 6, height: 6, borderRadius: 3, flexShrink: 0 },
+  resubmitSub:   { fontSize: 10, color: C.gold, opacity: 0.6, fontFamily: F.mono, marginTop: 2 },
+
+  historyCard:   { backgroundColor: C.muted2, borderRadius: 6, borderWidth: 1, borderColor: C.border, overflow: "hidden", marginBottom: 24 },
+  historyRow:    { flexDirection: "row", alignItems: "center", gap: 10, padding: 14 },
+  historyDivider:{ height: 1, backgroundColor: C.border, marginHorizontal: 14 },
+  historyDot:    { width: 6, height: 6, borderRadius: 3, flexShrink: 0 },
   historyPeriod: { fontSize: 13, fontWeight: "600", color: C.white, fontFamily: F.dm },
-  historyMeta: { fontSize: 10, color: "rgba(245,240,232,0.3)", fontFamily: F.mono, marginTop: 2 },
+  historyMeta:   { fontSize: 10, color: "rgba(245,240,232,0.3)", fontFamily: F.mono, marginTop: 2 },
   historyAmount: { fontSize: 13, fontWeight: "700", color: C.white, fontFamily: F.bebas, letterSpacing: 0.5 },
-  receiptLink: { fontSize: 10, fontWeight: "600", color: C.gold, fontFamily: F.mono, marginTop: 3 },
-  pill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 3, alignSelf: "flex-start", marginTop: 2 },
-  pillText: { fontSize: 9, fontWeight: "700", textTransform: "uppercase", fontFamily: F.mono, letterSpacing: 1 },
-  leaseCard: { backgroundColor: C.muted2, borderRadius: 6, borderWidth: 1, borderColor: C.border, overflow: "hidden", marginBottom: 12 },
-  leaseRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 14, paddingVertical: 12 },
+  receiptLink:   { fontSize: 10, fontWeight: "600", color: C.gold, fontFamily: F.mono, marginTop: 3 },
+  pill:          { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 3, alignSelf: "flex-start", marginTop: 2 },
+  pillText:      { fontSize: 9, fontWeight: "700", textTransform: "uppercase", fontFamily: F.mono, letterSpacing: 1 },
+
+  leaseCard:  { backgroundColor: C.muted2, borderRadius: 6, borderWidth: 1, borderColor: C.border, overflow: "hidden", marginBottom: 12 },
+  leaseRow:   { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 14, paddingVertical: 12 },
   leaseLabel: { fontSize: 12, color: "rgba(245,240,232,0.4)", fontFamily: F.mono },
   leaseValue: { fontSize: 12, fontWeight: "600", color: C.white, fontFamily: F.dm },
 });

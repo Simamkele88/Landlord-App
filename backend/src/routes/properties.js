@@ -17,7 +17,7 @@ router.get("/", requireAuth, async (req, res) => {
     
     const result = await pool.query(
       `SELECT p.*, 
-              c.first_name || ' ' || c.last_name AS caretaker_name,
+              cu.full_name AS caretaker_name,
               COALESCE(
                 (SELECT json_agg(
                   json_build_object(
@@ -34,15 +34,17 @@ router.get("/", requireAuth, async (req, res) => {
                     'furnished', u.furnished,
                     'parking_bay', u.parking_bay,
                     'has_balcony', u.has_balcony,
-                    'tenant_name', t.first_name || ' ' || t.last_name
+                    'tenant_name', tu.full_name
                   ) ORDER BY u.unit_number)
                 FROM unit u
                 LEFT JOIN tenant t ON t.id = u.current_tenant_id
+                LEFT JOIN users tu ON tu.id = t.user_id
                 WHERE u.property_id = p.id),
                 '[]'::json
               ) AS units
        FROM property p
        LEFT JOIN caretaker c ON c.id = p.caretaker_id
+       LEFT JOIN users cu ON cu.id = c.user_id
        WHERE p.landlord_id = $1
        ORDER BY p.name ASC`,
       [landlord.rows[0].id]
@@ -55,14 +57,14 @@ router.get("/", requireAuth, async (req, res) => {
   }
 });
 
-// GET /properties/:id - Landlord views single property
+
 router.get("/:id", requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
     
     const result = await pool.query(
       `SELECT p.*, 
-              c.first_name || ' ' || c.last_name AS caretaker_name,
+              cu.full_name AS caretaker_name,
               COALESCE(
                 (SELECT json_agg(
                   json_build_object(
@@ -79,15 +81,17 @@ router.get("/:id", requireAuth, async (req, res) => {
                     'furnished', u.furnished,
                     'parking_bay', u.parking_bay,
                     'has_balcony', u.has_balcony,
-                    'tenant_name', t.first_name || ' ' || t.last_name
+                    'tenant_name', tu.full_name
                   ) ORDER BY u.unit_number)
                 FROM unit u
                 LEFT JOIN tenant t ON t.id = u.current_tenant_id
+                LEFT JOIN users tu ON tu.id = t.user_id
                 WHERE u.property_id = p.id),
                 '[]'::json
               ) AS units
        FROM property p
        LEFT JOIN caretaker c ON c.id = p.caretaker_id
+       LEFT JOIN users cu ON cu.id = c.user_id
        WHERE p.id = $1`,
       [id]
     );
@@ -135,7 +139,7 @@ router.post("/", requireAuth, async (req, res) => {
       [
         landlord.rows[0].id, name, property_type || "residential",
         address_line1, address_line2 || null, city, province || null,
-        postal_code ? parseInt(postal_code) : null, country || "South Africa",
+        postal_code || null, country || "South Africa",
         total_floors ? parseInt(total_floors) : null,
         total_units ? parseInt(total_units) : null,
         has_elevator || false, has_parking || false,
@@ -171,7 +175,7 @@ router.put("/:id", requireAuth, async (req, res) => {
        WHERE id = $16 RETURNING *`,
       [
         name, property_type, address_line1, address_line2 || null,
-        city, province || null, postal_code ? parseInt(postal_code) : null,
+        city, province || null, postal_code || null,
         country || "South Africa",
         total_floors ? parseInt(total_floors) : null,
         total_units ? parseInt(total_units) : null,
@@ -223,7 +227,7 @@ router.post("/:propertyId/units", requireAuth, async (req, res) => {
       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
       RETURNING *`,
       [
-        propertyId, parseInt(unit_number),
+        propertyId, String(unit_number),
         unit_type || "1_bedroom",
         floor_number ? parseInt(floor_number) : null,
         bedrooms ? parseInt(bedrooms) : null,

@@ -1,9 +1,9 @@
 // TENANT NOTIFICATION DETAIL SCREEN 
 import { useState } from "react";
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  SafeAreaView, StatusBar, Alert,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, StatusBar, Alert,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { Ionicons, Feather } from "@expo/vector-icons";
 

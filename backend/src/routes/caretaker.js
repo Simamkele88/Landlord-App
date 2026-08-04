@@ -32,7 +32,7 @@ router.get("/maintenance", requireAuth, requireCaretaker, async (req, res) => {
     
     const result = await pool.query(
       `SELECT mr.*, 
-              t.first_name || ' ' || t.last_name AS tenant_name,
+              usr.full_name AS tenant_name,
               u.unit_number, 
               p.name AS property_name,
               (SELECT json_agg(mu ORDER BY mu.created_at ASC) 
@@ -40,6 +40,7 @@ router.get("/maintenance", requireAuth, requireCaretaker, async (req, res) => {
                WHERE mu.request_id = mr.id) AS updates
        FROM maintenance_request mr
        JOIN tenant t ON t.id = mr.tenant_id
+       JOIN users usr ON usr.id = t.user_id
        JOIN unit u ON u.id = mr.unit_id
        JOIN property p ON p.id = u.property_id
        WHERE u.property_id = $1
@@ -74,7 +75,7 @@ router.get("/maintenance/:id", requireAuth, requireCaretaker, async (req, res) =
     
     const result = await pool.query(
       `SELECT mr.*, 
-              t.first_name || ' ' || t.last_name AS tenant_name,        
+              usr.full_name AS tenant_name,
               u.unit_number, 
               p.name AS property_name,
               p.address_line1 AS property_address,
@@ -90,12 +91,13 @@ router.get("/maintenance/:id", requireAuth, requireCaretaker, async (req, res) =
                     'uploaded_at', mp.uploaded_at
                   ) ORDER BY mp.uploaded_at)
                 FROM maintenance_photo mp
-                JOIN document_ d ON d.id = mp.document_id
+                JOIN document d ON d.id = mp.document_id
                 WHERE mp.request_id = mr.id),
                 '[]'::json
               ) AS photos
        FROM maintenance_request mr
        JOIN tenant t ON t.id = mr.tenant_id
+       JOIN users usr ON usr.id = t.user_id
        JOIN unit u ON u.id = mr.unit_id
        JOIN property p ON p.id = u.property_id
        WHERE mr.id = $1 AND u.property_id = $2`,
@@ -347,13 +349,15 @@ router.get("/complaints", requireAuth, requireCaretaker, async (req, res) => {
     
     const result = await pool.query(
       `SELECT c.*, 
-              t1.first_name || ' ' || t1.last_name AS filed_by_name,
-              t2.first_name || ' ' || t2.last_name AS against_name,
+              usr1.full_name AS filed_by_name,
+              usr2.full_name AS against_name,
               u.unit_number AS against_unit_number,
               p.name AS property_name
        FROM complaint c
        LEFT JOIN tenant t1 ON t1.id = c.filed_by_tenant_id
+       LEFT JOIN users usr1 ON usr1.id = t1.user_id
        LEFT JOIN tenant t2 ON t2.id = c.against_tenant_id
+       LEFT JOIN users usr2 ON usr2.id = t2.user_id
        LEFT JOIN unit u ON u.id = c.against_unit_id
        LEFT JOIN property p ON p.id = c.property_id
        WHERE c.property_id = $1
@@ -393,7 +397,7 @@ router.put("/complaints/:id/review", requireAuth, requireCaretaker, async (req, 
   }
 });
 
-// PUT /caretaker/complaints/:id/resolve - Mark as resolved
+// PUT /caretaker/complaints/:id/resolve - Mark complaint as resolved
 router.put("/complaints/:id/resolve", requireAuth, requireCaretaker, async (req, res) => {
   try {
     const { id } = req.params;
@@ -402,7 +406,7 @@ router.put("/complaints/:id/resolve", requireAuth, requireCaretaker, async (req,
     const result = await pool.query(
       `UPDATE complaint 
        SET status = 'resolved', 
-           resolution_notes = COALESCE($2, 'Resolved by caretaker'),
+           resolution_notes = COALESCE($2, 'Resolved by caretaker, no fault found'),
            resolved_by = $3,
            resolved_at = NOW(), 
            updated_at = NOW() 
@@ -424,6 +428,56 @@ router.put("/complaints/:id/resolve", requireAuth, requireCaretaker, async (req,
     res.json({ message: "Complaint marked as resolved", complaint: result.rows[0] });
   } catch (err) {
     console.error("Resolve complaint:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.put("/complaints/:id/verdict", requireAuth, requireCaretaker, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { verdict_type, fine_amount, notes } = req.body;
+
+    if (!["warning", "fine", "dismissed"].includes(verdict_type)) {
+      return res.status(400).json({ error: "verdict_type must be 'warning', 'fine', or 'dismissed'" });
+    }
+    if (verdict_type === "fine" && (fine_amount === undefined || fine_amount === null)) {
+      return res.status(400).json({ error: "fine_amount is required when verdict_type is 'fine'" });
+    }
+
+    const complaint = await pool.query(
+      "SELECT * FROM complaint WHERE id = $1 AND status IN ('under_review', 'escalated')",
+      [id]
+    );
+    if (!complaint.rows.length) {
+      return res.status(404).json({ error: "Complaint not found or not in a state that accepts a verdict" });
+    }
+
+    const verdict = await pool.query(
+      `INSERT INTO complaint_verdict (complaint_id, verdict_type, fine_amount, issued_by, notes)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING *`,
+      [id, verdict_type, verdict_type === "fine" ? fine_amount : null, req.userId, notes || null]
+    );
+
+    const againstTenantId = complaint.rows[0].against_tenant_id;
+    if (againstTenantId) {
+      const tenantUser = await pool.query("SELECT user_id FROM tenant WHERE id = $1", [againstTenantId]);
+      if (tenantUser.rows.length) {
+        const labels = {
+          warning: "Warning Issued",
+          fine: `Fine Issued: R${fine_amount}`,
+          dismissed: "Complaint Dismissed",
+        };
+        await createNotification(
+          tenantUser.rows[0].user_id, "complaint_update", labels[verdict_type],
+          notes || `Verdict issued on complaint "${complaint.rows[0].subject}"`, id, "complaint"
+        );
+      }
+    }
+
+    res.status(201).json({ message: "Verdict recorded", verdict: verdict.rows[0] });
+  } catch (err) {
+    console.error("Issue verdict:", err);
     res.status(500).json({ error: "Server error" });
   }
 });

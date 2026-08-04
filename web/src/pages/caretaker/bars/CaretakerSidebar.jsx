@@ -1,6 +1,3 @@
-// CARETAKER SIDEBAR COMPONENT, RENDERED ON ALL CARETAKER PAGES, PROVIDES NAVIGATION AND LOGOUT FUNCTIONALITY
-// AUTHOR: SIMAMKELE WEKEZA
-
 import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 
@@ -138,7 +135,7 @@ export default function CaretakerSidebar() {
             {/* ICON */}
             <span className="flex-shrink-0">{item.icon}</span>
 
-            {/* LABEL + BADGE */}
+            {/* LABEL*/}
             {!collapsed && (
               <>
                 <span className="flex-1">{item.label}</span>

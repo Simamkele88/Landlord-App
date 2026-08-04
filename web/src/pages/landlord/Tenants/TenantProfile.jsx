@@ -1,5 +1,4 @@
 /* eslint-disable no-unused-vars */
-// LANDLORD TENANT PROFILE PAGE 
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
@@ -48,19 +47,19 @@ const btnGhost = {
   letterSpacing: '0.04em', borderRadius: '3px', cursor: 'pointer',
 };
 
-const tagStyle = (color) => ({
-  display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
-  fontSize: '0.62rem', fontWeight: 600, padding: '0.2rem 0.6rem',
-  borderRadius: '3px', fontFamily: F.mono, letterSpacing: '0.04em',
-  textTransform: 'uppercase', color, background: 'transparent',
-  border: `1px solid ${color}30`,
-});
-
-
 const SCORE_CONFIG = {
   "reliable":      { color: C.greenLight, bg: 'rgba(26,122,74,0.1)',   border: '1px solid rgba(76,186,122,0.2)',  dot: C.greenLight, label: "Reliable"      },
   "moderate risk": { color: C.gold,       bg: 'rgba(232,160,18,0.08)',  border: '1px solid rgba(232,160,18,0.2)',  dot: C.gold,       label: "Moderate Risk" },
   "high risk":     { color: C.redLight,   bg: 'rgba(224,90,74,0.1)',    border: '1px solid rgba(224,90,74,0.2)',   dot: C.redLight,   label: "High Risk"     },
+};
+
+const STANDING_CONFIG = {
+  "good_standing":   { color: C.greenLight, label: "Good Standing"   },
+  "warning_issued":  { color: C.gold,       label: "Warning Issued"  },
+  "fine_issued":     { color: C.gold,       label: "Fine Issued"     },
+  "final_warning":   { color: C.redLight,   label: "Final Warning"   },
+  "eviction_notice": { color: C.redLight,   label: "Eviction Notice" },
+  "evicted":         { color: C.redLight,   label: "Evicted"         },
 };
 
 function ScoreBadge({ score }) {
@@ -68,6 +67,16 @@ function ScoreBadge({ score }) {
   return (
     <span style={pillStyle(cfg.color, cfg.bg, cfg.border)}>
       <span style={{ width: 6, height: 6, borderRadius: '50%', background: cfg.dot }} />
+      {cfg.label}
+    </span>
+  );
+}
+
+function StandingBadge({ standing }) {
+  const cfg = STANDING_CONFIG[standing] ?? STANDING_CONFIG["good_standing"];
+  return (
+    <span style={pillStyle(cfg.color, `${cfg.color}15`, `1px solid ${cfg.color}30`)}>
+      <span style={{ width: 6, height: 6, borderRadius: '50%', background: cfg.color }} />
       {cfg.label}
     </span>
   );
@@ -230,9 +239,9 @@ function MaintenanceHistoryTable({ requests }) {
               <td style={{ padding: '0.45rem 0.6rem', color: 'rgba(245,240,232,0.4)' }}>{r.category || "—"}</td>
               <td style={{ padding: '0.45rem 0.6rem' }}>
                 <span style={pillStyle(
-                  r.status === "completed" ? C.greenLight : r.status === "in_progress" ? C.gold : C.blue,
-                  r.status === "completed" ? 'rgba(26,122,74,0.08)' : 'rgba(58,143,212,0.06)',
-                  `1px solid ${r.status === "completed" ? 'rgba(76,186,122,0.15)' : 'rgba(58,143,212,0.12)'}`,
+                  r.status === "completed" || r.status === "closed" ? C.greenLight : r.status === "in_progress" ? C.gold : C.blue,
+                  r.status === "completed" || r.status === "closed" ? 'rgba(26,122,74,0.08)' : 'rgba(58,143,212,0.06)',
+                  `1px solid ${r.status === "completed" || r.status === "closed" ? 'rgba(76,186,122,0.15)' : 'rgba(58,143,212,0.12)'}`,
                 )}>
                   {r.status?.replace(/_/g, " ")}
                 </span>
@@ -244,6 +253,56 @@ function MaintenanceHistoryTable({ requests }) {
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+
+function ScoreHistoryTimeline({ scoreHistory }) {
+  if (!scoreHistory || scoreHistory.length === 0) {
+    return <p style={{ fontSize: '0.65rem', color: 'rgba(245,240,232,0.2)', fontStyle: 'italic', textAlign: 'center', padding: '0.5rem' }}>No score changes recorded.</p>;
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+      {scoreHistory.slice(0, 8).map((entry, i) => {
+        const newCfg = SCORE_CONFIG[(entry.new_score || "").replace(/_/g, " ")] ?? SCORE_CONFIG["moderate risk"];
+        const oldCfg = entry.old_score ? SCORE_CONFIG[entry.old_score.replace(/_/g, " ")] : null;
+        return (
+          <div key={entry.id || i} style={{ display: 'flex', gap: '0.6rem', alignItems: 'flex-start' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: newCfg.dot }} />
+              {i < scoreHistory.slice(0, 8).length - 1 && (
+                <div style={{ width: 1, flex: 1, background: 'rgba(42,42,42,0.8)', marginTop: '3px', minHeight: 16 }} />
+              )}
+            </div>
+            <div style={{ flex: 1, minWidth: 0, paddingBottom: '0.4rem' }}>
+              <p style={{ fontSize: '0.65rem', color: 'rgba(245,240,232,0.5)', lineHeight: 1.3 }}>
+                {entry.reason || "Score recalculated"}
+              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.2rem' }}>
+                {oldCfg && (
+                  <span style={{ fontSize: '0.55rem', color: oldCfg.color, fontFamily: F.mono, textDecoration: 'line-through', opacity: 0.6 }}>
+                    {oldCfg.label}
+                  </span>
+                )}
+                {oldCfg && <span style={{ fontSize: '0.55rem', color: 'rgba(245,240,232,0.2)' }}>→</span>}
+                <span style={{ fontSize: '0.55rem', fontWeight: 600, color: newCfg.color, fontFamily: F.mono }}>
+                  {newCfg.label}
+                </span>
+                {entry.new_score_value != null && (
+                  <span style={{ fontSize: '0.55rem', color: 'rgba(245,240,232,0.25)', fontFamily: F.mono }}>
+                    ({entry.new_score_value})
+                  </span>
+                )}
+                <span style={{ fontSize: '0.5rem', color: 'rgba(245,240,232,0.15)', fontFamily: F.mono, marginLeft: 'auto' }}>
+                  {formatDate(entry.created_at)}
+                </span>
+              </div>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -300,7 +359,7 @@ export default function TenantProfile() {
             <h2 style={{ fontSize: '1rem', fontWeight: 600, color: C.white, marginBottom: '0.5rem' }}>Tenant not found</h2>
             <p style={{ fontSize: '0.78rem', color: 'rgba(245,240,232,0.4)', marginBottom: '1.2rem' }}>{error || "This tenant could not be loaded."}</p>
             <button onClick={() => navigate("/landlord/tenants")} style={btnPrimary}>
-              <Icon name="chevron-left" size={14} /> Back to Tenants
+              <Icon name="chevronLeft" size={14} /> Back to Tenants
             </button>
           </div>
         </div>
@@ -310,6 +369,8 @@ export default function TenantProfile() {
 
   
   const reliabilityScore = (tenant.reliability_score || "moderate_risk").replace(/_/g, " ");
+  const reliabilityScoreValue = tenant.reliability_score_value || null;
+  const standing = tenant.standing || "good_standing";
   const daysLeft = daysUntil(tenant.lease_end_date);
   const isExpired = leaseExpired(tenant.lease_end_date);
   const isExpiring = leaseExpiresSoon(tenant.lease_end_date);
@@ -317,6 +378,7 @@ export default function TenantProfile() {
   const payments = tenant.payments || [];
   const complaints = tenant.complaints || [];
   const maintenanceRequests = tenant.maintenance_requests || [];
+  const scoreHistory = tenant.score_history || [];
   const onTime = Number(tenant.on_time_payments) || 0;
   const late = Number(tenant.late_payments) || 0;
   const missed = Number(tenant.missed_payments) || 0;
@@ -376,28 +438,26 @@ export default function TenantProfile() {
         @media (max-width: 900px) { .profile-grid { grid-template-columns: 1fr !important; } }
       `}</style>
 
-      {/* BACK BUTTON */}
       <button onClick={() => navigate("/landlord/tenants")} style={S.backBtn}
         onMouseEnter={e => e.currentTarget.style.color = C.white}
         onMouseLeave={e => e.currentTarget.style.color = 'rgba(245,240,232,0.3)'}>
-        <Icon name="chevron-left" size={14} /> Back to Tenants
+        <Icon name="chevronLeft" size={14} /> Back to Tenants
       </button>
 
-      {/* ── PROFILE HEADER ────────────────────────────────── */}
       <div className="profile-header" style={S.profileHeader}>
-        <div style={S.avatar}>{initials(`${tenant.first_name} ${tenant.last_name}`)}</div>
+        <div style={S.avatar}>{initials(tenant.full_name || `${tenant.first_name} ${tenant.last_name}`)}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', flexWrap: 'wrap', marginBottom: '0.3rem' }}>
             <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: C.white, fontFamily: F.bebas, letterSpacing: '0.04em' }}>
-              {tenant.first_name} {tenant.last_name}
+              {tenant.full_name || `${tenant.first_name} ${tenant.last_name}`}
             </h1>
             <ScoreBadge score={reliabilityScore} />
+            <StandingBadge standing={standing} />
           </div>
           <p style={{ fontSize: '0.75rem', color: 'rgba(245,240,232,0.35)', fontFamily: F.mono }}>
             {tenant.unit_number ? `Unit ${tenant.unit_number}` : "N/A"} · {tenant.property_name || "Unknown Property"}
           </p>
 
-          {/* Quick actions */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '1rem', flexWrap: 'wrap' }}>
             <button onClick={() => navigate("/landlord/tenants", { state: { editTenant: tenant } })} style={{ ...btnGhost, fontSize: '0.7rem', padding: '0.4rem 0.9rem' }}>
               <Icon name="edit" size={12} /> Edit
@@ -418,7 +478,6 @@ export default function TenantProfile() {
           </div>
         </div>
 
-        {/* Lease status badge */}
         <div style={{ flexShrink: 0 }}>
           {isExpired ? (
             <span style={pillStyle(C.redLight, 'rgba(224,90,74,0.08)', '1px solid rgba(224,90,74,0.2)')}>
@@ -436,7 +495,6 @@ export default function TenantProfile() {
         </div>
       </div>
 
-      {/* ── ALERTS ────────────────────────────────────────── */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1.5rem' }}>
         {isExpired && (
           <div style={S.alertBanner('expired')}>
@@ -456,15 +514,14 @@ export default function TenantProfile() {
             Outstanding balance: {format(balance)}
           </div>
         )}
-        {Number(tenant.missed_payments) > 0 && (
+        {missed > 0 && (
           <div style={S.alertBanner('expired')}>
             <Icon name="warning" size={14} />
-            {tenant.missed_payments} missed payment{Number(tenant.missed_payments) !== 1 ? "s" : ""} on record
+            {missed} missed payment{missed !== 1 ? "s" : ""} on record
           </div>
         )}
       </div>
 
-      {/* ── QUICK STATS ROW ───────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.6rem', marginBottom: '1.5rem' }}>
         {[
           { label: "Monthly Rent", value: format(tenant.rent_amount), icon: "rand", color: C.white },
@@ -486,7 +543,6 @@ export default function TenantProfile() {
         ))}
       </div>
 
-      {/* ── TABS ──────────────────────────────────────────── */}
       <div style={{ display: 'flex', gap: '0', borderBottom: `1px solid ${C.border}`, marginBottom: '1.2rem', overflowX: 'auto' }}>
         {tabs.map(tab => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={S.tabBtn(activeTab === tab.id)}>
@@ -501,20 +557,16 @@ export default function TenantProfile() {
         ))}
       </div>
 
-      {/* ── TAB CONTENT ───────────────────────────────────── */}
       <div className="profile-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: '1.2rem', alignItems: 'start' }}>
         
-        {/* LEFT COLUMN */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
           
-          {/* OVERVIEW TAB */}
           {activeTab === "overview" && (
             <>
-              {/* Personal Information */}
               <div style={cardStyle}>
                 <SectionHeader title="Personal Information" icon="user" />
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 2rem' }}>
-                  <InfoRow label="Full Name" value={`${tenant.first_name} ${tenant.last_name}`} />
+                  <InfoRow label="Full Name" value={tenant.full_name || `${tenant.first_name} ${tenant.last_name}`} />
                   <InfoRow label="Email" value={tenant.email || "—"} icon="mail" />
                   <InfoRow label="Phone" value={tenant.phone || "—"} icon="phone" />
                   <InfoRow label="ID Number" value={tenant.id_number || "—"} mono />
@@ -524,7 +576,6 @@ export default function TenantProfile() {
                 </div>
               </div>
 
-              {/* Lease Information */}
               <div style={cardStyle}>
                 <SectionHeader title="Lease Information" icon="file-text" />
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 2rem' }}>
@@ -542,7 +593,6 @@ export default function TenantProfile() {
             </>
           )}
 
-          {/* PAYMENTS TAB */}
           {activeTab === "payments" && (
             <div style={cardStyle}>
               <SectionHeader title="Payment History" icon="credit-card" action="View All" onAction={() => navigate("/landlord/payments")} />
@@ -550,7 +600,6 @@ export default function TenantProfile() {
             </div>
           )}
 
-          {/* COMPLAINTS TAB */}
           {activeTab === "complaints" && (
             <div style={cardStyle}>
               <SectionHeader title="Complaint History" icon="message-square" action="View All" onAction={() => navigate("/landlord/complaints")} />
@@ -558,7 +607,6 @@ export default function TenantProfile() {
             </div>
           )}
 
-          {/* MAINTENANCE TAB */}
           {activeTab === "maintenance" && (
             <div style={cardStyle}>
               <SectionHeader title="Maintenance History" icon="wrench" action="View All" onAction={() => navigate("/landlord/maintenance")} />
@@ -567,15 +615,18 @@ export default function TenantProfile() {
           )}
         </div>
 
-        {/* RIGHT COLUMN — RELIABILITY SCORE CARD */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
           <div style={cardStyle}>
             <SectionHeader title="Reliability Score" icon="star" />
-            <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
+            <div style={{ textAlign: 'center', marginBottom: '0.8rem' }}>
               <ScoreBadge score={reliabilityScore} />
+              {reliabilityScoreValue != null && (
+                <p style={{ fontSize: '0.6rem', color: 'rgba(245,240,232,0.25)', fontFamily: F.mono, marginTop: '0.3rem' }}>
+                  Raw score: {reliabilityScoreValue}/100
+                </p>
+              )}
             </div>
 
-            {/* Payment breakdown */}
             <div style={{ marginBottom: '0.8rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.2rem' }}>
                 <span style={{ fontSize: '0.65rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono }}>On-time</span>
@@ -605,9 +656,16 @@ export default function TenantProfile() {
             <InfoRow label="Total Periods" value={String(totalPayments)} />
             <InfoRow label="Complaints" value={String(complaints.length)} color={complaints.length > 2 ? C.redLight : complaints.length > 0 ? C.gold : C.greenLight} />
             <InfoRow label="Maintenance Requests" value={String(maintenanceRequests.length)} />
+            <InfoRow label="Conduct Standing" value={standing.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())} color={STANDING_CONFIG[standing]?.color || C.white} />
           </div>
 
-          {/* Quick Contact Card */}
+          {scoreHistory.length > 0 && (
+            <div style={cardStyle}>
+              <SectionHeader title="Score History" icon="trending-up" />
+              <ScoreHistoryTimeline scoreHistory={scoreHistory} />
+            </div>
+          )}
+
           <div style={cardStyle}>
             <SectionHeader title="Quick Contact" icon="phone" />
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>

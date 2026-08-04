@@ -1,4 +1,4 @@
-// CARETAKER COMPLAINT DETAIL PAGE 
+/* eslint-disable no-unused-vars */
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
@@ -10,28 +10,72 @@ import { c as C, f as F } from "../../../styles/theme";
 const API = "http://localhost:4000";
 
 const STATUS_CONFIG = {
-  "open":                   { label: "Open",               color: C.redLight,   bg: 'rgba(224,90,74,0.06)',  border: '1px solid rgba(224,90,74,0.12)',  dot: C.redLight   },
-  "under_review":           { label: "Under Review",       color: C.gold,       bg: 'rgba(232,160,18,0.04)',  border: '1px solid rgba(232,160,18,0.1)',   dot: C.gold       },
-  "awaiting_clarification": { label: "Needs Clarification",color: '#f97316',    bg: 'rgba(249,115,22,0.06)',  border: '1px solid rgba(249,115,22,0.12)',  dot: '#f97316'    },
-  "approved":               { label: "Approved",           color: C.blue,       bg: 'rgba(58,143,212,0.06)',  border: '1px solid rgba(58,143,212,0.12)',  dot: C.blue       },
-  "resolved":               { label: "Resolved",           color: C.greenLight, bg: 'rgba(26,122,74,0.04)',   border: '1px solid rgba(76,186,122,0.1)',   dot: C.greenLight },
-  "dismissed":              { label: "Dismissed",          color: 'rgba(245,240,232,0.4)', bg: 'rgba(245,240,232,0.03)', border: '1px solid rgba(245,240,232,0.08)', dot: 'rgba(245,240,232,0.3)' },
-  "escalated":              { label: "Escalated",          color: C.purple,     bg: 'rgba(139,92,246,0.06)',  border: '1px solid rgba(139,92,246,0.12)',  dot: C.purple     },
+  "open":                   { label: "Open",               color: C.redLight,   bg: 'rgba(224,90,74,0.06)',  border: '1px solid rgba(224,90,74,0.12)',  dot: C.redLight,   icon: 'alert-circle' },
+  "under_review":           { label: "Under Review",       color: C.gold,       bg: 'rgba(232,160,18,0.04)',  border: '1px solid rgba(232,160,18,0.1)',   dot: C.gold,       icon: 'search' },
+  "awaiting_clarification": { label: "Needs Clarification",color: '#f97316',    bg: 'rgba(249,115,22,0.06)',  border: '1px solid rgba(249,115,22,0.12)',  dot: '#f97316',    icon: 'help-circle' },
+  "approved":               { label: "Approved",           color: C.blue,       bg: 'rgba(58,143,212,0.06)',  border: '1px solid rgba(58,143,212,0.12)',  dot: C.blue,       icon: 'thumbs-up' },
+  "resolved":               { label: "Resolved",           color: C.greenLight, bg: 'rgba(26,122,74,0.04)',   border: '1px solid rgba(76,186,122,0.1)',   dot: C.greenLight, icon: 'check-circle' },
+  "dismissed":              { label: "Dismissed",          color: 'rgba(245,240,232,0.4)', bg: 'rgba(245,240,232,0.03)', border: '1px solid rgba(245,240,232,0.08)', dot: 'rgba(245,240,232,0.3)', icon: 'archive' },
+  "escalated":              { label: "Escalated",          color: C.purple,     bg: 'rgba(139,92,246,0.06)',  border: '1px solid rgba(139,92,246,0.12)',  dot: C.purple,     icon: 'trending-up' },
+  "rejected":               { label: "Rejected",           color: 'rgba(245,240,232,0.4)', bg: 'rgba(245,240,232,0.03)', border: '1px solid rgba(245,240,232,0.08)', dot: 'rgba(245,240,232,0.3)', icon: 'x-circle' },
 };
 
-const SCOPE_LABELS = { specific_tenant: "Specific Unit / Tenant", common_area: "Common Area", unknown: "Unknown / General", property_wide: "Property-Wide Issue" };
+const SCOPE_LABELS = { 
+  specific_tenant: "Specific Unit / Tenant", 
+  common_area: "Common Area", 
+  unknown: "Unknown / General", 
+  property_wide: "Property-Wide Issue" 
+};
+
+const SCOPE_ICONS = {
+  specific_tenant: 'user',
+  common_area: 'home',
+  unknown: 'help-circle',
+  property_wide: 'grid',
+};
+
+const CATEGORY_CONFIG = {
+  noise:              { label: "Noise",              color: '#f97316', icon: 'volume-2' },
+  cleanliness:        { label: "Cleanliness",        color: C.greenLight, icon: 'sparkles' },
+  neighbor_dispute:   { label: "Neighbor Dispute",   color: C.purple, icon: 'users' },
+  parking:            { label: "Parking",            color: C.blue, icon: 'truck' },
+  security:           { label: "Security",           color: C.redLight, icon: 'shield' },
+  pets:               { label: "Pets",               color: '#84CC16', icon: 'github' },
+  smoking:            { label: "Smoking",            color: '#f97316', icon: 'wind' },
+  property_damage:    { label: "Property Damage",    color: C.redLight, icon: 'tool' },
+  maintenance_issue:  { label: "Maintenance",        color: C.gold, icon: 'wrench' },
+  other:              { label: "Other",              color: 'rgba(245,240,232,0.4)', icon: 'more-horizontal' },
+};
+
+const VERDICT_LABELS = { warning: "Warning Issued", fine: "Fine Issued", dismissed: "Dismissed" };
+
+const VERDICT_COLORS = {
+  warning: { color: C.gold, bg: 'rgba(232,160,18,0.06)', border: '1px solid rgba(232,160,18,0.15)', icon: 'alert-triangle' },
+  fine: { color: C.redLight, bg: 'rgba(224,90,74,0.06)', border: '1px solid rgba(224,90,74,0.15)', icon: 'rand' },
+  dismissed: { color: 'rgba(245,240,232,0.4)', bg: 'rgba(245,240,232,0.03)', border: '1px solid rgba(245,240,232,0.08)', icon: 'x' },
+};
+
+function fmt(n) { return n ? `R ${Number(n).toLocaleString("en-ZA")}` : "—"; }
+function fmtDate(d) { return d ? new Date(d).toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" }) : ""; }
+function fmtDateTime(d) { return d ? new Date(d).toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : ""; }
 
 function StatusBadge({ status }) {
   const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG["open"];
-  return <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.58rem', fontWeight: 600, padding: '0.12rem 0.45rem', borderRadius: '3px', fontFamily: F.mono, letterSpacing: '0.04em', textTransform: 'uppercase', color: cfg.color, background: cfg.bg, border: cfg.border }}><span style={{ width: 5, height: 5, borderRadius: '50%', background: cfg.dot }} />{cfg.label}</span>;
+  return (
+    <span style={{ 
+      display: 'inline-flex', alignItems: 'center', gap: '0.35rem', 
+      fontSize: '0.6rem', fontWeight: 600, padding: '0.2rem 0.55rem', 
+      borderRadius: '3px', fontFamily: F.mono, letterSpacing: '0.04em', 
+      textTransform: 'uppercase', color: cfg.color, background: cfg.bg, border: cfg.border 
+    }}>
+      <Icon name={cfg.icon} size={10} />
+      {cfg.label}
+    </span>
+  );
 }
-
-function fmtDate(d) { return d ? new Date(d).toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" }) : ""; }
 
 const cardStyle = { background: C.muted2, border: `1px solid ${C.border}`, borderRadius: '6px', padding: '1.3rem' };
 const inputStyle = { width: '100%', fontSize: '0.8rem', padding: '0.55rem 0.8rem', borderRadius: '3px', background: C.black, border: `1px solid ${C.border}`, color: C.white, fontFamily: F.dm, outline: 'none', resize: 'none' };
-const btnStyle = (bg, color) => ({ width: '100%', padding: '0.65rem', borderRadius: '3px', background: bg, color, border: 'none', cursor: 'pointer', fontFamily: F.dm, fontWeight: 600, fontSize: '0.74rem', textAlign: 'center' });
-
 
 function ModalShell({ title, sub, icon, iconBg, onClose, children, footer }) {
   return (
@@ -39,10 +83,19 @@ function ModalShell({ title, sub, icon, iconBg, onClose, children, footer }) {
       <div style={{ width: '100%', maxWidth: 440, background: C.muted2, border: `1px solid ${C.border}`, borderRadius: '6px', boxShadow: '0 20px 60px rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.5rem', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem' }}>
-            <div style={{ width: 34, height: 34, borderRadius: '6px', ...iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon name={icon} size={16} /></div>
-            <div><h3 style={{ fontSize: '0.9rem', fontWeight: 600, color: C.white, fontFamily: F.bebas, letterSpacing: '0.04em' }}>{title}</h3>{sub && <p style={{ fontSize: '0.62rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono }}>{sub}</p>}</div>
+            <div style={{ width: 34, height: 34, borderRadius: '6px', ...iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Icon name={icon} size={16} />
+            </div>
+            <div>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 600, color: C.white, fontFamily: F.bebas, letterSpacing: '0.04em' }}>{title}</h3>
+              {sub && <p style={{ fontSize: '0.62rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono }}>{sub}</p>}
+            </div>
           </div>
-          <button onClick={onClose} style={{ padding: '0.2rem', borderRadius: '3px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.3)' }} onMouseEnter={e => e.currentTarget.style.color = C.white} onMouseLeave={e => e.currentTarget.style.color = 'rgba(245,240,232,0.3)'}><Icon name="x" size={17} /></button>
+          <button onClick={onClose} style={{ padding: '0.2rem', borderRadius: '3px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.3)' }}
+            onMouseEnter={e => e.currentTarget.style.color = C.white}
+            onMouseLeave={e => e.currentTarget.style.color = 'rgba(245,240,232,0.3)'}>
+            <Icon name="x" size={17} />
+          </button>
         </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: '1.2rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>{children}</div>
         {footer && <div style={{ display: 'flex', gap: '0.7rem', padding: '1rem 1.5rem 1.5rem', borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>{footer}</div>}
@@ -51,44 +104,119 @@ function ModalShell({ title, sub, icon, iconBg, onClose, children, footer }) {
   );
 }
 
-
 function TextActionModal({ title, sub, icon, iconBg, label, placeholder, btnLabel, btnBg, onClose, onSubmit }) {
   const [value, setValue] = useState("");
   const [error, setError] = useState("");
-  function handleSubmit() { if (!value.trim()) { setError("Required"); return; } onSubmit(value.trim()); onClose(); }
+  function handleSubmit() { if (!value.trim()) { setError("This field is required"); return; } onSubmit(value.trim()); onClose(); }
   return (
     <ModalShell title={title} sub={sub} icon={icon} iconBg={iconBg} onClose={onClose}
-      footer={<><button onClick={onClose} style={{ flex: 1, padding: '0.55rem', borderRadius: '3px', background: 'transparent', border: `1px solid ${C.border}`, color: 'rgba(245,240,232,0.4)', cursor: 'pointer', fontFamily: F.dm, fontSize: '0.74rem' }}>Cancel</button>
-        <button onClick={handleSubmit} style={{ flex: 1, padding: '0.55rem', borderRadius: '3px', background: btnBg, color: C.white, border: 'none', cursor: 'pointer', fontFamily: F.dm, fontWeight: 600, fontSize: '0.74rem' }}>{btnLabel}</button></>}>
-      {error && <div style={{ padding: '0.5rem 0.7rem', borderRadius: '3px', background: 'rgba(224,90,74,0.06)', border: '1px solid rgba(224,90,74,0.12)', fontSize: '0.7rem', color: C.redLight }}>{error}</div>}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}><label style={{ fontSize: '0.62rem', fontWeight: 600, color: 'rgba(245,240,232,0.35)', fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label} *</label><textarea rows={4} value={value} onChange={e => { setValue(e.target.value); setError(""); }} placeholder={placeholder} style={{ ...inputStyle, minHeight: 80 }} /></div>
+      footer={
+        <>
+          <button onClick={onClose} style={{ flex: 1, padding: '0.55rem', borderRadius: '3px', background: 'transparent', border: `1px solid ${C.border}`, color: 'rgba(245,240,232,0.4)', cursor: 'pointer', fontFamily: F.dm, fontSize: '0.74rem' }}>
+            Cancel
+          </button>
+          <button onClick={handleSubmit} style={{ flex: 1, padding: '0.55rem', borderRadius: '3px', background: `${btnBg}20`, color: btnBg, border: `1px solid ${btnBg}30`, cursor: 'pointer', fontFamily: F.dm, fontWeight: 600, fontSize: '0.74rem' }}>
+            {btnLabel}
+          </button>
+        </>
+      }>
+      {error && (
+        <div style={{ padding: '0.5rem 0.7rem', borderRadius: '3px', background: 'rgba(224,90,74,0.06)', border: '1px solid rgba(224,90,74,0.12)', fontSize: '0.7rem', color: C.redLight, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <Icon name="alert-circle" size={12} /> {error}
+        </div>
+      )}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label style={{ fontSize: '0.62rem', fontWeight: 600, color: 'rgba(245,240,232,0.35)', fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label} *</label>
+        <textarea rows={4} value={value} onChange={e => { setValue(e.target.value); setError(""); }} placeholder={placeholder} style={{ ...inputStyle, minHeight: 80 }} />
+      </div>
     </ModalShell>
   );
 }
-
 
 function VerdictModal({ complaint, onClose, onSubmit }) {
   const [type, setType] = useState("warning");
   const [fine, setFine] = useState("");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
-  function handleSubmit() { if (type === "fine" && (!fine || Number(fine) <= 0)) { setError("Enter valid fine amount"); return; } onSubmit({ verdict_type: type, fine_amount: type === "fine" ? Number(fine) : null, notes: notes.trim() || null }); onClose(); }
+  
+  function handleSubmit() {
+    if (type === "fine" && (!fine || Number(fine) <= 0)) { setError("Enter a valid fine amount"); return; }
+    onSubmit({ verdict_type: type, fine_amount: type === "fine" ? Number(fine) : null, notes: notes.trim() || null });
+    onClose();
+  }
+  
   return (
-    <ModalShell title="Issue Verdict" sub={complaint.subject} icon="warning" iconBg={{ background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.15)', color: '#f97316' }} onClose={onClose}
-      footer={<><button onClick={onClose} style={{ flex: 1, padding: '0.55rem', borderRadius: '3px', background: 'transparent', border: `1px solid ${C.border}`, color: 'rgba(245,240,232,0.4)', cursor: 'pointer', fontFamily: F.dm, fontSize: '0.74rem' }}>Cancel</button><button onClick={handleSubmit} style={{ flex: 1, padding: '0.55rem', borderRadius: '3px', background: '#f97316', color: C.white, border: 'none', cursor: 'pointer', fontFamily: F.dm, fontWeight: 600, fontSize: '0.74rem' }}>Issue Verdict</button></>}>
-      {error && <div style={{ padding: '0.5rem 0.7rem', borderRadius: '3px', background: 'rgba(224,90,74,0.06)', border: '1px solid rgba(224,90,74,0.12)', fontSize: '0.7rem', color: C.redLight }}>{error}</div>}
+    <ModalShell 
+      title="Issue Verdict" 
+      sub={complaint.subject} 
+      icon="gavel" 
+      iconBg={{ background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.15)', color: '#f97316' }} 
+      onClose={onClose}
+      footer={
+        <>
+          <button onClick={onClose} style={{ flex: 1, padding: '0.55rem', borderRadius: '3px', background: 'transparent', border: `1px solid ${C.border}`, color: 'rgba(245,240,232,0.4)', cursor: 'pointer', fontFamily: F.dm, fontSize: '0.74rem' }}>
+            Cancel
+          </button>
+          <button onClick={handleSubmit} style={{ flex: 1, padding: '0.55rem', borderRadius: '3px', background: 'rgba(249,115,22,0.12)', color: '#f97316', border: '1px solid rgba(249,115,22,0.2)', cursor: 'pointer', fontFamily: F.dm, fontWeight: 600, fontSize: '0.74rem' }}>
+            Issue Verdict
+          </button>
+        </>
+      }>
+      {error && (
+        <div style={{ padding: '0.5rem 0.7rem', borderRadius: '3px', background: 'rgba(224,90,74,0.06)', border: '1px solid rgba(224,90,74,0.12)', fontSize: '0.7rem', color: C.redLight, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <Icon name="alert-circle" size={12} /> {error}
+        </div>
+      )}
+      
+      {/* Verdict against info */}
+      {complaint.against_name && (
+        <div style={{ padding: '0.6rem 0.8rem', borderRadius: '3px', background: 'rgba(224,90,74,0.04)', border: '1px solid rgba(224,90,74,0.1)', fontSize: '0.72rem', color: C.redLight, fontFamily: F.dm }}>
+          This verdict will be issued against <strong>{complaint.against_name}</strong>
+          {complaint.against_unit_number && <> (Unit {complaint.against_unit_number})</>}
+        </div>
+      )}
+      
       <p style={{ fontSize: '0.6rem', fontWeight: 600, color: 'rgba(245,240,232,0.25)', fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Verdict Type</p>
       <div style={{ display: 'flex', gap: '0.5rem' }}>
-        {[{ id: "warning", label: "Warning" }, { id: "fine", label: "Fine" }].map(t => (
-          <button key={t.id} onClick={() => { setType(t.id); setError(""); }} style={{ flex: 1, padding: '0.6rem', borderRadius: '3px', border: `1px solid ${type === t.id ? '#f97316' : C.border}`, background: type === t.id ? 'rgba(249,115,22,0.06)' : 'transparent', color: type === t.id ? '#f97316' : 'rgba(245,240,232,0.4)', cursor: 'pointer', fontFamily: F.dm, fontSize: '0.78rem', fontWeight: 500 }}>{t.label}</button>
+        {[
+          { id: "warning", label: "Warning", icon: "alert-triangle" }, 
+          { id: "fine", label: "Fine", icon: "rand" }, 
+          { id: "dismissed", label: "Dismiss", icon: "x" }
+        ].map(t => (
+          <button 
+            key={t.id} 
+            onClick={() => { setType(t.id); setError(""); }} 
+            style={{ 
+              flex: 1, padding: '0.6rem', borderRadius: '3px', 
+              border: `1px solid ${type === t.id ? '#f97316' : C.border}`, 
+              background: type === t.id ? 'rgba(249,115,22,0.06)' : 'transparent', 
+              color: type === t.id ? '#f97316' : 'rgba(245,240,232,0.4)', 
+              cursor: 'pointer', fontFamily: F.dm, fontSize: '0.72rem', fontWeight: 500,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem',
+              transition: 'all 0.15s'
+            }}>
+            <Icon name={t.icon} size={12} /> {t.label}
+          </button>
         ))}
       </div>
-      {type === "fine" && <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}><label style={{ fontSize: '0.62rem', fontWeight: 600, color: 'rgba(245,240,232,0.35)', fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Fine Amount (R) *</label><input type="number" value={fine} onChange={e => { setFine(e.target.value); setError(""); }} placeholder="e.g. 500" style={inputStyle} /></div>}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}><label style={{ fontSize: '0.62rem', fontWeight: 600, color: 'rgba(245,240,232,0.35)', fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Notes</label><textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Details..." style={{ ...inputStyle, minHeight: 60 }} /></div>
+      
+      {type === "fine" && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <label style={{ fontSize: '0.62rem', fontWeight: 600, color: 'rgba(245,240,232,0.35)', fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Fine Amount (R) *</label>
+          <div style={{ position: 'relative' }}>
+            <span style={{ position: 'absolute', left: '0.8rem', top: '50%', transform: 'translateY(-50%)', color: 'rgba(245,240,232,0.3)', fontSize: '0.8rem', fontFamily: F.mono }}>R</span>
+            <input type="number" value={fine} onChange={e => { setFine(e.target.value); setError(""); }} placeholder="500" style={{ ...inputStyle, paddingLeft: '2rem' }} />
+          </div>
+        </div>
+      )}
+      
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <label style={{ fontSize: '0.62rem', fontWeight: 600, color: 'rgba(245,240,232,0.35)', fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Notes (optional)</label>
+        <textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Additional details about this verdict..." style={{ ...inputStyle, minHeight: 60 }} />
+      </div>
     </ModalShell>
   );
 }
-
 
 export default function CaretakerComplaintDetail() {
   useDocumentTitle("Complaint Detail");
@@ -101,9 +229,9 @@ export default function CaretakerComplaintDetail() {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [showVerdict, setShowVerdict] = useState(false);
-  const [showDismiss, setShowDismiss] = useState(false);
+  const [showClarify, setShowClarify] = useState(false);
+  const [showReject, setShowReject] = useState(false);
   const [showEscalate, setShowEscalate] = useState(false);
-  const [showResolve, setShowResolve] = useState(false);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerIndex, setViewerIndex] = useState(0);
 
@@ -111,9 +239,13 @@ export default function CaretakerComplaintDetail() {
     setLoading(true); setError("");
     try {
       const token = localStorage.getItem("token");
-      const { data } = await axios.get(`${API}/complaints/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      const { data } = await axios.get(`${API}/caretaker/complaints/${id}`, { 
+        headers: { Authorization: `Bearer ${token}` } 
+      });
       setComplaint(data.complaint);
-    } catch (err) { setError(err.response?.data?.error || "Failed to load"); }
+    } catch (err) { 
+      setError(err.response?.data?.error || "Failed to load complaint details"); 
+    }
     finally { setLoading(false); }
   }, [id]);
 
@@ -123,117 +255,541 @@ export default function CaretakerComplaintDetail() {
     setSaving(true);
     try {
       const token = localStorage.getItem("token");
-      await axios.put(`${API}${endpoint}`, payload, { headers: { Authorization: `Bearer ${token}` } });
+      const method = endpoint.includes('/verdict') ? 'post' : 'put';
+      await axios({
+        method,
+        url: `${API}/caretaker/complaints/${id}${endpoint}`,
+        data: payload,
+        headers: { Authorization: `Bearer ${token}` },
+      });
       await fetchComplaint();
-      setShowVerdict(false); setShowDismiss(false); setShowEscalate(false); setShowResolve(false);
-      toast.success("Done!");
-    } catch (err) { toast.error(err.response?.data?.error || "Failed"); }
+      setShowVerdict(false); 
+      setShowClarify(false); 
+      setShowReject(false); 
+      setShowEscalate(false);
+      toast.success("Action completed successfully");
+    } catch (err) { 
+      toast.error(err.response?.data?.error || "Failed to complete action"); 
+    }
     finally { setSaving(false); }
   }
 
-  if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}><span style={{ width: 24, height: 24, border: '3px solid rgba(245,240,232,0.06)', borderTopColor: C.blue, borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} /></div>;
-  if (error || !complaint) return <div style={{ textAlign: 'center', padding: '4rem' }}><p style={{ color: 'rgba(245,240,232,0.4)', marginBottom: '1rem' }}>{error || "Not found"}</p><button onClick={() => navigate("/caretaker/complaints")} style={{ color: C.blue, background: 'none', border: 'none', cursor: 'pointer', fontFamily: F.mono }}>← Back</button></div>;
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', flexDirection: 'column', gap: '1rem' }}>
+        <span style={{ width: 28, height: 28, border: '3px solid rgba(245,240,232,0.06)', borderTopColor: C.gold, borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+        <span style={{ fontSize: '0.75rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono }}>Loading complaint...</span>
+      </div>
+    );
+  }
 
+  if (error || !complaint) {
+    return (
+      <div style={{ textAlign: 'center', padding: '4rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+        <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(224,90,74,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Icon name="alert-circle" size={22} color={C.redLight} />
+        </div>
+        <p style={{ color: 'rgba(245,240,232,0.4)', fontFamily: F.dm, fontSize: '0.85rem' }}>{error || "Complaint not found"}</p>
+        <button onClick={() => navigate("/caretaker/complaints")} style={{ color: C.gold, background: 'none', border: 'none', cursor: 'pointer', fontFamily: F.mono, fontSize: '0.75rem' }}>
+          ← Back to Complaints
+        </button>
+      </div>
+    );
+  }
+
+  const cfg = STATUS_CONFIG[complaint.status] ?? STATUS_CONFIG["open"];
+  const catCfg = CATEGORY_CONFIG[complaint.category] ?? CATEGORY_CONFIG.other;
+  const scopeIcon = SCOPE_ICONS[complaint.complaint_scope] || 'help-circle';
   const isSpecificTenant = complaint.complaint_scope === "specific_tenant";
+  const isCommonArea = complaint.complaint_scope === "common_area";
   const scopeLabel = SCOPE_LABELS[complaint.complaint_scope] || "Unknown";
   const hasAgainstParty = isSpecificTenant && complaint.against_name;
-  const canMarkUnderReview = complaint.status === "open";
-  const canIssueVerdict = complaint.status === "under_review" && hasAgainstParty;
-  const canMarkResolved = complaint.status === "under_review" && !hasAgainstParty;
-  const canDismiss = ["open", "under_review"].includes(complaint.status);
-  const canEscalate = ["open", "under_review"].includes(complaint.status);
-  const canReopen = ["resolved", "dismissed"].includes(complaint.status);
+  const verdict = complaint.verdict || null;
+  const isClosed = ["resolved", "rejected", "dismissed"].includes(complaint.status);
+  const isEscalated = complaint.status === "escalated";
+  const isAwaitingClarification = complaint.status === "awaiting_clarification";
+  
+  // Action permissions
+  const canReview = complaint.status === "open";
+  const canIssueVerdict = ["open", "under_review", "awaiting_clarification", "approved"].includes(complaint.status) && hasAgainstParty;
+  const canClarify = ["open", "under_review"].includes(complaint.status);
+  const canReject = ["open", "under_review", "awaiting_clarification"].includes(complaint.status);
+  const canEscalate = ["open", "under_review", "awaiting_clarification", "approved"].includes(complaint.status);
 
-  const S = { container: { maxWidth: 1200, padding: '1.5rem 1rem 3rem', margin: '-1rem -1.8rem' }, backBtn: { display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.72rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono, background: 'none', border: 'none', cursor: 'pointer', marginBottom: '1.2rem' }, sectionTitle: { fontSize: '0.68rem', fontWeight: 600, color: C.white, fontFamily: F.bebas, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: '0.7rem' } };
+  const S = { 
+    container: { maxWidth: 1200, padding: '1.5rem 1rem 3rem', margin: '-1rem -1.8rem' }, 
+    backBtn: { 
+      display: 'inline-flex', alignItems: 'center', gap: '0.4rem', 
+      fontSize: '0.72rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono, 
+      background: 'none', border: 'none', cursor: 'pointer', marginBottom: '1.2rem',
+      transition: 'color 0.15s'
+    }, 
+    sectionTitle: { 
+      fontSize: '0.62rem', fontWeight: 600, color: 'rgba(245,240,232,0.2)', 
+      fontFamily: F.mono, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '0.7rem' 
+    } 
+  };
 
   return (
     <div style={S.container}>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
-      {saving && <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div style={{ background: C.muted2, padding: '1rem 1.5rem', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '0.6rem' }}><span style={{ width: 16, height: 16, border: '2px solid rgba(245,240,232,0.06)', borderTopColor: C.blue, borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} /><span style={{ color: C.white, fontFamily: F.dm }}>Saving...</span></div></div>}
+      {/* Saving overlay */}
+      {saving && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: C.muted2, padding: '1rem 1.5rem', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '0.6rem', border: `1px solid ${C.border}` }}>
+            <span style={{ width: 16, height: 16, border: '2px solid rgba(245,240,232,0.06)', borderTopColor: C.gold, borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+            <span style={{ color: C.white, fontFamily: F.dm, fontSize: '0.8rem' }}>Processing...</span>
+          </div>
+        </div>
+      )}
 
-      {showVerdict && <VerdictModal complaint={complaint} onClose={() => setShowVerdict(false)} onSubmit={d => handleAction(`/caretaker/complaints/${id}/verdict`, d)} />}
-      {showDismiss && <TextActionModal title="Dismiss Complaint" sub={complaint.subject} icon="x-circle" iconBg={{ background: 'rgba(224,90,74,0.08)', border: '1px solid rgba(224,90,74,0.15)', color: C.redLight }} label="Reason for Dismissal" placeholder="Explain why..." btnLabel="Dismiss" btnBg={C.redLight} onClose={() => setShowDismiss(false)} onSubmit={v => handleAction(`/caretaker/complaints/${id}/dismiss`, { reason: v })} />}
-      {showEscalate && <TextActionModal title="Escalate to Landlord" sub={complaint.subject} icon="arrow-up" iconBg={{ background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.15)', color: C.purple }} label="Reason for Escalation" placeholder="Explain why..." btnLabel="Escalate" btnBg={C.purple} onClose={() => setShowEscalate(false)} onSubmit={v => handleAction(`/caretaker/complaints/${id}/escalate`, { reason: v })} />}
-      {showResolve && <TextActionModal title="Resolve Complaint" sub={complaint.subject} icon="check" iconBg={{ background: 'rgba(26,122,74,0.08)', border: '1px solid rgba(76,186,122,0.15)', color: C.greenLight }} label="Resolution Notes" placeholder="How was this resolved?" btnLabel="Mark Resolved" btnBg={C.greenLight} onClose={() => setShowResolve(false)} onSubmit={v => handleAction(`/caretaker/complaints/${id}/resolve`, { notes: v })} />}
+      {/* Modals */}
+      {showVerdict && <VerdictModal complaint={complaint} onClose={() => setShowVerdict(false)} onSubmit={d => handleAction("/verdict", d)} />}
+      {showClarify && (
+        <TextActionModal 
+          title="Request Clarification" 
+          sub={complaint.subject} 
+          icon="help-circle" 
+          iconBg={{ background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.15)', color: '#f97316' }} 
+          label="What do you need from the tenant?" 
+          placeholder="Describe what additional information is needed to process this complaint..." 
+          btnLabel="Request Clarification" 
+          btnBg="#f97316" 
+          onClose={() => setShowClarify(false)} 
+          onSubmit={v => handleAction("/clarify", { clarification_notes: v })} 
+        />
+      )}
+      {showReject && (
+        <TextActionModal 
+          title="Reject Complaint" 
+          sub={complaint.subject} 
+          icon="x-circle" 
+          iconBg={{ background: 'rgba(224,90,74,0.08)', border: '1px solid rgba(224,90,74,0.15)', color: C.redLight }} 
+          label="Reason for Rejection" 
+          placeholder="Explain why this complaint is being rejected..." 
+          btnLabel="Reject Complaint" 
+          btnBg={C.redLight} 
+          onClose={() => setShowReject(false)} 
+          onSubmit={v => handleAction("/reject", { reason: v })} 
+        />
+      )}
+      {showEscalate && (
+        <TextActionModal 
+          title="Escalate to Landlord" 
+          sub={complaint.subject} 
+          icon="trending-up" 
+          iconBg={{ background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.15)', color: C.purple }} 
+          label="Reason for Escalation" 
+          placeholder="Explain why the landlord needs to handle this complaint..." 
+          btnLabel="Escalate to Landlord" 
+          btnBg={C.purple} 
+          onClose={() => setShowEscalate(false)} 
+          onSubmit={v => handleAction("/escalate", { reason: v })} 
+        />
+      )}
 
-      <button onClick={() => navigate("/caretaker/complaints")} style={S.backBtn} onMouseEnter={e => e.currentTarget.style.color = C.white} onMouseLeave={e => e.currentTarget.style.color = 'rgba(245,240,232,0.3)'}><Icon name="chevron-left" size={13} /> Back</button>
+      {/* Back button */}
+      <button 
+        onClick={() => navigate("/caretaker/complaints")} 
+        style={S.backBtn}
+        onMouseEnter={e => e.currentTarget.style.color = C.white}
+        onMouseLeave={e => e.currentTarget.style.color = 'rgba(245,240,232,0.3)'}
+      >
+        <Icon name="chevronLeft" size={13} /> Back to Complaints
+      </button>
+
+      {/* Escalated banner */}
+      {isEscalated && (
+        <div style={{ 
+          display: 'flex', alignItems: 'center', gap: '0.6rem',
+          padding: '0.8rem 1rem', borderRadius: '4px', marginBottom: '1rem',
+          background: 'rgba(139,92,246,0.06)', border: '1px solid rgba(139,92,246,0.15)'
+        }}>
+          <Icon name="trending-up" size={16} color={C.purple} />
+          <div>
+            <p style={{ fontSize: '0.72rem', fontWeight: 600, color: C.purple, fontFamily: F.dm }}>Escalated to Landlord</p>
+            <p style={{ fontSize: '0.62rem', color: 'rgba(139,92,246,0.6)', fontFamily: F.mono }}>The landlord will review and make a final decision.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Awaiting clarification */}
+      {isAwaitingClarification && complaint.clarification_requested && (
+        <div style={{ 
+          display: 'flex', alignItems: 'center', gap: '0.6rem',
+          padding: '0.8rem 1rem', borderRadius: '4px', marginBottom: '1rem',
+          background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.15)'
+        }}>
+          <Icon name="clock" size={16} color="#f97316" />
+          <div>
+            <p style={{ fontSize: '0.72rem', fontWeight: 600, color: '#f97316', fontFamily: F.dm }}>Awaiting Tenant Response</p>
+            <p style={{ fontSize: '0.62rem', color: 'rgba(249,115,22,0.6)', fontFamily: F.mono }}>Clarification has been requested from the tenant.</p>
+          </div>
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.2rem' }}>
-        <style>{`@media (min-width: 1024px) { .comp-grid { grid-template-columns: 1fr 300px !important; } }`}</style>
+        <style>{`@media (min-width: 1024px) { .comp-grid { grid-template-columns: 1fr 320px !important; } }`}</style>
         <div className="comp-grid" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.2rem', alignItems: 'start' }}>
           
+          {/*LEFT COLUMN */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            
+            {/* Main card */}
             <div style={cardStyle}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.8rem', flexWrap: 'wrap' }}>
                 <StatusBadge status={complaint.status} />
-                <span style={{ fontSize: '0.6rem', fontWeight: 600, padding: '0.15rem 0.5rem', borderRadius: '3px', fontFamily: F.mono, color: 'rgba(245,240,232,0.4)', background: C.black, border: `1px solid ${C.border}` }}>{scopeLabel}</span>
+                <span style={{ 
+                  display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+                  fontSize: '0.58rem', fontWeight: 600, padding: '0.15rem 0.5rem', 
+                  borderRadius: '3px', fontFamily: F.mono, color: 'rgba(245,240,232,0.4)', 
+                  background: C.black, border: `1px solid ${C.border}` 
+                }}>
+                  <Icon name={scopeIcon} size={9} /> {scopeLabel}
+                </span>
+                <span style={{ 
+                  display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+                  fontSize: '0.58rem', fontWeight: 600, padding: '0.15rem 0.5rem', 
+                  borderRadius: '3px', fontFamily: F.mono, color: catCfg.color, 
+                  background: `${catCfg.color}10`, border: `1px solid ${catCfg.color}25` 
+                }}>
+                  <Icon name={catCfg.icon} size={9} /> {catCfg.label}
+                </span>
               </div>
-              <h2 style={{ fontSize: '1rem', fontWeight: 600, color: C.white, fontFamily: F.dm, marginBottom: '0.4rem' }}>{complaint.subject}</h2>
+              
+              <h2 style={{ fontSize: '1rem', fontWeight: 600, color: C.white, fontFamily: F.dm, marginBottom: '0.3rem' }}>{complaint.subject}</h2>
+              
               <p style={{ fontSize: '0.78rem', color: 'rgba(245,240,232,0.45)', lineHeight: 1.6 }}>{complaint.description}</p>
+              
+              {/* Common area location */}
+              {isCommonArea && complaint.common_area_location && (
+                <div style={{ marginTop: '0.8rem', padding: '0.6rem 0.8rem', borderRadius: '3px', background: 'rgba(232,160,18,0.04)', border: '1px solid rgba(232,160,18,0.1)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <Icon name="map-pin" size={12} color={C.gold} />
+                  <span style={{ fontSize: '0.7rem', color: C.gold, fontFamily: F.dm }}>{complaint.common_area_location}</span>
+                </div>
+              )}
+              
+              {/* Clarification notes */}
+              {complaint.clarification_requested && complaint.clarification_notes && (
+                <div style={{ marginTop: '0.8rem', padding: '0.6rem 0.8rem', borderRadius: '3px', background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.12)' }}>
+                  <p style={{ fontSize: '0.58rem', fontWeight: 600, color: '#f97316', fontFamily: F.mono, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: '0.2rem' }}>Clarification Requested</p>
+                  <p style={{ fontSize: '0.7rem', color: 'rgba(249,115,22,0.7)', lineHeight: 1.4 }}>{complaint.clarification_notes}</p>
+                </div>
+              )}
             </div>
 
+            {/* Parties */}
             <div style={cardStyle}>
               <h3 style={S.sectionTitle}>Parties Involved</h3>
               <div style={{ display: 'grid', gridTemplateColumns: hasAgainstParty ? '1fr 1fr 1fr' : '1fr 1fr', gap: '0.6rem' }}>
-                <div style={{ padding: '0.7rem', borderRadius: '3px', background: 'rgba(58,143,212,0.06)', border: '1px solid rgba(58,143,212,0.12)' }}><p style={{ fontSize: '0.58rem', fontWeight: 600, color: C.blue, fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '3px' }}>Filed By</p><p style={{ fontSize: '0.8rem', fontWeight: 600, color: C.white }}>{complaint.filed_by_name}</p></div>
-                {hasAgainstParty && <div style={{ padding: '0.7rem', borderRadius: '3px', background: 'rgba(224,90,74,0.06)', border: '1px solid rgba(224,90,74,0.12)' }}><p style={{ fontSize: '0.58rem', fontWeight: 600, color: C.redLight, fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '3px' }}>Against</p><p style={{ fontSize: '0.8rem', fontWeight: 600, color: C.white }}>{complaint.against_name}</p>{complaint.against_unit_number && <p style={{ fontSize: '0.62rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono }}>Unit {complaint.against_unit_number}</p>}</div>}
-                <div style={{ padding: '0.7rem', borderRadius: '3px', background: C.black, border: `1px solid ${C.border}` }}><p style={{ fontSize: '0.58rem', fontWeight: 600, color: 'rgba(245,240,232,0.3)', fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '3px' }}>Property</p><p style={{ fontSize: '0.8rem', fontWeight: 600, color: C.white }}>{complaint.property_name || "—"}</p></div>
+                <div style={{ padding: '0.7rem', borderRadius: '3px', background: 'rgba(58,143,212,0.06)', border: '1px solid rgba(58,143,212,0.12)' }}>
+                  <p style={{ fontSize: '0.55rem', fontWeight: 600, color: C.blue, fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '3px' }}>Filed By</p>
+                  <p style={{ fontSize: '0.8rem', fontWeight: 600, color: C.white, fontFamily: F.dm }}>{complaint.filed_by_name || "—"}</p>
+                  {complaint.filed_by_email && <p style={{ fontSize: '0.62rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono, marginTop: 2 }}>{complaint.filed_by_email}</p>}
+                </div>
+                {hasAgainstParty && (
+                  <div style={{ padding: '0.7rem', borderRadius: '3px', background: 'rgba(224,90,74,0.06)', border: '1px solid rgba(224,90,74,0.12)' }}>
+                    <p style={{ fontSize: '0.55rem', fontWeight: 600, color: C.redLight, fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '3px' }}>Against</p>
+                    <p style={{ fontSize: '0.8rem', fontWeight: 600, color: C.white, fontFamily: F.dm }}>{complaint.against_name}</p>
+                    {complaint.against_unit_number && <p style={{ fontSize: '0.62rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono, marginTop: 2 }}>Unit {complaint.against_unit_number}</p>}
+                  </div>
+                )}
+                <div style={{ padding: '0.7rem', borderRadius: '3px', background: C.black, border: `1px solid ${C.border}` }}>
+                  <p style={{ fontSize: '0.55rem', fontWeight: 600, color: 'rgba(245,240,232,0.3)', fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '3px' }}>Property</p>
+                  <p style={{ fontSize: '0.8rem', fontWeight: 600, color: C.white, fontFamily: F.dm }}>{complaint.property_name || "—"}</p>
+                  {complaint.property_address && <p style={{ fontSize: '0.62rem', color: 'rgba(245,240,232,0.25)', fontFamily: F.mono, marginTop: 2 }}>{complaint.property_address}</p>}
+                </div>
               </div>
             </div>
 
-            {complaint.evidence?.length > 0 && (
+            {/* Evidence */}
+            {complaint.evidence?.length > 0 ? (
               <div style={cardStyle}>
-                <h3 style={S.sectionTitle}>Evidence ({complaint.evidence.length})</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: '0.5rem' }}>
+                <h3 style={S.sectionTitle}>Evidence ({complaint.evidence.length} {complaint.evidence.length === 1 ? 'file' : 'files'})</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: '0.5rem' }}>
                   {complaint.evidence.map((item, idx) => (
-                    <button key={item.id || idx} onClick={() => { setViewerIndex(idx); setViewerOpen(true); }} style={{ aspectRatio: '1', borderRadius: '4px', overflow: 'hidden', border: `1px solid ${C.border}`, cursor: 'pointer', background: C.black }}>
-                      <img src={item.document_url?.startsWith('http') ? item.document_url : `${API}${item.document_url || ''}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <button 
+                      key={item.id || idx} 
+                      onClick={() => { setViewerIndex(idx); setViewerOpen(true); }} 
+                      style={{ 
+                        aspectRatio: '1', borderRadius: '4px', overflow: 'hidden', 
+                        border: `1px solid ${C.border}`, cursor: 'pointer', 
+                        background: C.black, position: 'relative',
+                        transition: 'border-color 0.15s'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.borderColor = C.gold}
+                      onMouseLeave={e => e.currentTarget.style.borderColor = C.border}
+                    >
+                      <img 
+                        src={item.document_url?.startsWith('http') ? item.document_url : `${API}${item.document_url || ''}`} 
+                        alt={item.label || `Evidence ${idx + 1}`} 
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        onError={e => { e.target.style.display = 'none'; }}
+                      />
+                      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '0.25rem 0.4rem', background: 'linear-gradient(transparent, rgba(0,0,0,0.8))' }}>
+                        <span style={{ fontSize: '0.55rem', color: 'rgba(255,255,255,0.7)', fontFamily: F.mono }}>{idx + 1}</span>
+                      </div>
                     </button>
                   ))}
                 </div>
               </div>
+            ) : (
+              <div style={{ ...cardStyle, textAlign: 'center', padding: '2rem' }}>
+                <Icon name="image" size={24} color="rgba(245,240,232,0.1)" />
+                <p style={{ fontSize: '0.7rem', color: 'rgba(245,240,232,0.25)', fontFamily: F.mono, marginTop: '0.5rem' }}>No evidence attached</p>
+              </div>
             )}
 
-            {complaint.resolution_notes && (
-              <div style={{ ...cardStyle, background: complaint.status === "resolved" ? 'rgba(26,122,74,0.04)' : 'rgba(224,90,74,0.04)', border: `1px solid ${complaint.status === "resolved" ? 'rgba(76,186,122,0.15)' : 'rgba(224,90,74,0.15)'}` }}>
-                <h3 style={{ ...S.sectionTitle, color: complaint.status === "resolved" ? C.greenLight : C.redLight }}>{complaint.status === "resolved" ? "Resolution" : "Dismissal Reason"}</h3>
-                <p style={{ fontSize: '0.78rem', color: complaint.status === "resolved" ? C.greenLight : C.redLight }}>{complaint.resolution_notes}</p>
+            {/* Verdict */}
+            {verdict && (
+              <div style={{ ...cardStyle, background: VERDICT_COLORS[verdict.verdict_type]?.bg, border: VERDICT_COLORS[verdict.verdict_type]?.border }}>
+                <h3 style={{ ...S.sectionTitle, color: VERDICT_COLORS[verdict.verdict_type]?.color, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <Icon name={VERDICT_COLORS[verdict.verdict_type]?.icon || 'check'} size={13} />
+                  Verdict: {VERDICT_LABELS[verdict.verdict_type] || verdict.verdict_type}
+                </h3>
+                {verdict.fine_amount > 0 && (
+                  <p style={{ fontSize: '1.2rem', fontWeight: 700, color: C.redLight, fontFamily: F.bebas, letterSpacing: '0.04em', marginBottom: '0.3rem' }}>
+                    {fmt(verdict.fine_amount)}
+                  </p>
+                )}
+                {verdict.notes && <p style={{ fontSize: '0.75rem', color: 'rgba(245,240,232,0.5)', lineHeight: 1.5 }}>{verdict.notes}</p>}
+                {verdict.issued_at && (
+                  <p style={{ fontSize: '0.6rem', color: 'rgba(245,240,232,0.25)', fontFamily: F.mono, marginTop: '0.5rem' }}>
+                    Issued {fmtDateTime(verdict.issued_at)}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Resolution / Rejection */}
+            {complaint.resolution_notes && !verdict && (
+              <div style={{ 
+                ...cardStyle, 
+                background: complaint.status === "rejected" ? 'rgba(224,90,74,0.04)' : 'rgba(26,122,74,0.04)', 
+                border: `1px solid ${complaint.status === "rejected" ? 'rgba(224,90,74,0.15)' : 'rgba(76,186,122,0.15)'}` 
+              }}>
+                <h3 style={{ ...S.sectionTitle, color: complaint.status === "rejected" ? C.redLight : C.greenLight }}>
+                  {complaint.status === "rejected" ? "Rejection Reason" : "Resolution"}
+                </h3>
+                <p style={{ fontSize: '0.78rem', color: complaint.status === "rejected" ? C.redLight : C.greenLight, lineHeight: 1.5 }}>
+                  {complaint.resolution_notes}
+                </p>
               </div>
             )}
           </div>
 
+          {/* RIGHT COLUMN */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+            
+            {/* Details */}
             <div style={cardStyle}>
               <h3 style={S.sectionTitle}>Details</h3>
-              {[["Category", complaint.category?.replace(/_/g, " ")], ["Scope", scopeLabel], ["Severity", `${complaint.severity}/5`], ["Submitted", fmtDate(complaint.created_at)]].map(([l, v]) => (
-                <div key={l} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.35rem 0', fontSize: '0.7rem' }}><span style={{ color: 'rgba(245,240,232,0.3)', fontFamily: F.mono }}>{l}</span><span style={{ color: C.white, fontWeight: 500 }}>{v}</span></div>
-              ))}
-            </div>
-
-            <div style={cardStyle}>
-              <h3 style={S.sectionTitle}>Actions</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                {canMarkUnderReview && <button onClick={() => handleAction(`/caretaker/complaints/${id}/review`, {})} style={btnStyle(C.gold, C.black)}>Mark Under Review</button>}
-                {canMarkResolved && <button onClick={() => setShowResolve(true)} style={btnStyle(C.greenLight, C.white)}>Mark Resolved</button>}
-                {canIssueVerdict && <button onClick={() => setShowVerdict(true)} style={btnStyle('#f97316', C.white)}>Issue Verdict</button>}
-                {canDismiss && <button onClick={() => setShowDismiss(true)} style={btnStyle(C.redLight, C.white)}>Dismiss</button>}
-                {canEscalate && <button onClick={() => setShowEscalate(true)} style={btnStyle(C.purple, C.white)}>Escalate to Landlord</button>}
-                {canReopen && <button onClick={() => handleAction(`/complaints/${id}/reopen`, { reason: "Caretaker reopened" })} style={btnStyle(C.blue, C.white)}>Reopen</button>}
-                {!canMarkUnderReview && !canMarkResolved && !canIssueVerdict && !canDismiss && !canEscalate && !canReopen && <p style={{ textAlign: 'center', color: 'rgba(245,240,232,0.2)', fontSize: '0.72rem', fontFamily: F.mono }}>No actions available</p>}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                {[
+                  ["Category", catCfg.label],
+                  ["Scope", scopeLabel],
+                  ["Severity", `${complaint.severity || 3}/5`],
+                  ["Submitted", fmtDate(complaint.created_at)],
+                  ...(complaint.resolved_at ? [["Resolved", fmtDateTime(complaint.resolved_at)]] : []),
+                ].map(([l, v]) => (
+                  <div key={l} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.4rem 0', borderBottom: `1px solid ${C.border}20` }}>
+                    <span style={{ color: 'rgba(245,240,232,0.3)', fontFamily: F.mono, fontSize: '0.68rem' }}>{l}</span>
+                    <span style={{ color: C.white, fontWeight: 500, fontSize: '0.7rem', fontFamily: F.dm }}>{v}</span>
+                  </div>
+                ))}
               </div>
             </div>
+
+            {/* Actions */}
+            {!isClosed && !isEscalated && (
+              <div style={cardStyle}>
+                <h3 style={S.sectionTitle}>Actions</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {canReview && (
+                    <button 
+                      onClick={() => handleAction("/review", {})} 
+                      style={{ 
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
+                        padding: '0.55rem', borderRadius: '3px', 
+                        background: 'rgba(232,160,18,0.12)', color: C.gold, 
+                        border: '1px solid rgba(232,160,18,0.15)', cursor: 'pointer', 
+                        fontFamily: F.dm, fontWeight: 600, fontSize: '0.7rem',
+                        transition: 'all 0.15s'
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(232,160,18,0.18)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(232,160,18,0.12)'; }}
+                    >
+                      <Icon name="search" size={12} /> Mark Under Review
+                    </button>
+                  )}
+                  {canClarify && (
+                    <button 
+                      onClick={() => setShowClarify(true)} 
+                      style={{ 
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
+                        padding: '0.55rem', borderRadius: '3px', 
+                        background: 'rgba(249,115,22,0.08)', color: '#f97316', 
+                        border: '1px solid rgba(249,115,22,0.12)', cursor: 'pointer', 
+                        fontFamily: F.dm, fontWeight: 600, fontSize: '0.7rem',
+                        transition: 'all 0.15s'
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(249,115,22,0.14)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(249,115,22,0.08)'; }}
+                    >
+                      <Icon name="help-circle" size={12} /> Request Clarification
+                    </button>
+                  )}
+                  {canIssueVerdict && (
+                    <button 
+                      onClick={() => setShowVerdict(true)} 
+                      style={{ 
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
+                        padding: '0.55rem', borderRadius: '3px', 
+                        background: 'rgba(249,115,22,0.08)', color: '#f97316', 
+                        border: '1px solid rgba(249,115,22,0.12)', cursor: 'pointer', 
+                        fontFamily: F.dm, fontWeight: 600, fontSize: '0.7rem',
+                        transition: 'all 0.15s'
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(249,115,22,0.14)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(249,115,22,0.08)'; }}
+                    >
+                      <Icon name="gavel" size={12} /> Issue Verdict
+                    </button>
+                  )}
+                  {canReject && (
+                    <button 
+                      onClick={() => setShowReject(true)} 
+                      style={{ 
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
+                        padding: '0.55rem', borderRadius: '3px', 
+                        background: 'rgba(224,90,74,0.08)', color: C.redLight, 
+                        border: '1px solid rgba(224,90,74,0.12)', cursor: 'pointer', 
+                        fontFamily: F.dm, fontWeight: 600, fontSize: '0.7rem',
+                        transition: 'all 0.15s'
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(224,90,74,0.14)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(224,90,74,0.08)'; }}
+                    >
+                      <Icon name="x-circle" size={12} /> Reject Complaint
+                    </button>
+                  )}
+                  {canEscalate && (
+                    <button 
+                      onClick={() => setShowEscalate(true)} 
+                      style={{ 
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
+                        padding: '0.55rem', borderRadius: '3px', 
+                        background: 'rgba(139,92,246,0.08)', color: C.purple, 
+                        border: '1px solid rgba(139,92,246,0.12)', cursor: 'pointer', 
+                        fontFamily: F.dm, fontWeight: 600, fontSize: '0.7rem',
+                        transition: 'all 0.15s'
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(139,92,246,0.14)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(139,92,246,0.08)'; }}
+                    >
+                      <Icon name="trending-up" size={12} /> Escalate to Landlord
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Closed status */}
+            {isClosed && (
+              <div style={{ ...cardStyle, textAlign: 'center' }}>
+                <div style={{ 
+                  width: 40, height: 40, borderRadius: '50%', 
+                  background: 'rgba(245,240,232,0.04)', border: '1px solid rgba(245,240,232,0.08)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  margin: '0 auto 0.6rem'
+                }}>
+                  <Icon name="check" size={18} color="rgba(245,240,232,0.3)" />
+                </div>
+                <p style={{ fontSize: '0.72rem', color: 'rgba(245,240,232,0.35)', fontFamily: F.dm }}>
+                  This complaint has been <strong style={{ color: 'rgba(245,240,232,0.5)' }}>{complaint.status.replace(/_/g, " ")}</strong>.
+                </p>
+                {complaint.resolved_at && (
+                  <p style={{ fontSize: '0.62rem', color: 'rgba(245,240,232,0.2)', fontFamily: F.mono, marginTop: '0.3rem' }}>
+                    {fmtDateTime(complaint.resolved_at)}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Escalated status */}
+            {isEscalated && (
+              <div style={{ ...cardStyle, textAlign: 'center' }}>
+                <div style={{ 
+                  width: 40, height: 40, borderRadius: '50%', 
+                  background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.15)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  margin: '0 auto 0.6rem'
+                }}>
+                  <Icon name="trending-up" size={18} color={C.purple} />
+                </div>
+                <p style={{ fontSize: '0.72rem', color: C.purple, fontFamily: F.dm }}>
+                  Awaiting landlord decision
+                </p>
+                <p style={{ fontSize: '0.62rem', color: 'rgba(139,92,246,0.5)', fontFamily: F.mono, marginTop: '0.3rem' }}>
+                  The landlord has been notified
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
+      {/* Image viewer */}
       {viewerOpen && complaint.evidence?.length > 0 && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(0,0,0,0.95)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setViewerOpen(false)}>
-          <button onClick={() => setViewerOpen(false)} style={{ position: 'absolute', top: '1rem', right: '1rem', color: 'rgba(255,255,255,0.6)', background: 'none', border: 'none', cursor: 'pointer', zIndex: 10 }}><Icon name="x" size={22} /></button>
-          {viewerIndex > 0 && <button onClick={e => { e.stopPropagation(); setViewerIndex(v => v - 1); }} style={{ position: 'absolute', left: '1rem', color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none', cursor: 'pointer' }}><Icon name="chevron-left" size={22} /></button>}
-          {viewerIndex < complaint.evidence.length - 1 && <button onClick={e => { e.stopPropagation(); setViewerIndex(v => v + 1); }} style={{ position: 'absolute', right: '1rem', color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none', cursor: 'pointer' }}><Icon name="chevron-right" size={22} /></button>}
-          <img src={complaint.evidence[viewerIndex]?.document_url?.startsWith('http') ? complaint.evidence[viewerIndex].document_url : `${API}${complaint.evidence[viewerIndex]?.document_url}`} alt="" style={{ maxHeight: '85vh', maxWidth: '90%', objectFit: 'contain', borderRadius: '4px' }} onClick={e => e.stopPropagation()} />
-          <div style={{ position: 'absolute', bottom: '1.5rem', color: 'rgba(255,255,255,0.5)', fontSize: '0.8rem' }}>{viewerIndex + 1} / {complaint.evidence.length}</div>
+        <div 
+          style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(0,0,0,0.96)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} 
+          onClick={() => setViewerOpen(false)}
+        >
+          <button 
+            onClick={() => setViewerOpen(false)} 
+            style={{ position: 'absolute', top: '1.2rem', right: '1.2rem', color: 'rgba(255,255,255,0.6)', background: 'none', border: 'none', cursor: 'pointer', zIndex: 10, padding: '0.4rem' }}
+          >
+            <Icon name="x" size={24} />
+          </button>
+          
+          {viewerIndex > 0 && (
+            <button 
+              onClick={e => { e.stopPropagation(); setViewerIndex(v => v - 1); }} 
+              style={{ position: 'absolute', left: '1rem', color: 'rgba(255,255,255,0.5)', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '50%', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+            >
+              <Icon name="chevronLeft" size={22} />
+            </button>
+          )}
+          
+          {viewerIndex < complaint.evidence.length - 1 && (
+            <button 
+              onClick={e => { e.stopPropagation(); setViewerIndex(v => v + 1); }} 
+              style={{ position: 'absolute', right: '1rem', color: 'rgba(255,255,255,0.5)', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '50%', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+            >
+              <Icon name="chevron-right" size={22} />
+            </button>
+          )}
+          
+          <img 
+            src={complaint.evidence[viewerIndex]?.document_url?.startsWith('http') 
+              ? complaint.evidence[viewerIndex].document_url 
+              : `${API}${complaint.evidence[viewerIndex]?.document_url || ''}`} 
+            alt="" 
+            style={{ maxHeight: '85vh', maxWidth: '90%', objectFit: 'contain', borderRadius: '4px' }} 
+            onClick={e => e.stopPropagation()} 
+          />
+          
+          <div style={{ position: 'absolute', bottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+            <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.8rem', fontFamily: F.mono }}>
+              {viewerIndex + 1} / {complaint.evidence.length}
+            </span>
+            {complaint.evidence[viewerIndex]?.label && (
+              <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.7rem', fontFamily: F.dm }}>
+                {complaint.evidence[viewerIndex].label}
+              </span>
+            )}
+          </div>
         </div>
       )}
     </div>

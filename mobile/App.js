@@ -28,6 +28,10 @@ import Notifications from "./src/screens/notifications/Notifications";
 import NotificationDetail from "./src/screens/notifications/NotificationDetail";
 import Profile from "./src/screens/profile/Profile";
 import Settings from "./src/screens/settings/Settings";
+import CollectionsStatus from "./src/screens/payments/CollectionsStatus";
+import RequestRepaymentPlan from "./src/screens/payments/RequestRepaymentPlan";
+import RepaymentPlan from "./src/screens/payments/RepaymentPlan";
+import InvoiceDetail from "./src/screens/payments/InvoiceDetail";
 
 
 const Stack = createStackNavigator();
@@ -157,6 +161,10 @@ export default function App() {``
             <Stack.Screen name="NotificationDetail" component={NotificationDetail} />
             <Stack.Screen name="Profile" component={Profile} />
             <Stack.Screen name="Settings" component={Settings} />
+            <Stack.Screen name="CollectionsStatus"      component={CollectionsStatus} />
+            <Stack.Screen name="RequestRepaymentPlan"   component={RequestRepaymentPlan} />
+            <Stack.Screen name="RepaymentPlan"          component={RepaymentPlan} />
+            <Stack.Screen name="InvoiceDetail"          component={InvoiceDetail} />
           </>
         ) : (
           <>

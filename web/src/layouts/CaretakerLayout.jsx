@@ -1,4 +1,4 @@
-// CARETAKER LAYOUT — WITH ROLE PROTECTION
+// CARETAKER LAYOUT
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../App";
 import CaretakerSidebar from "../pages/caretaker/bars/CaretakerSidebar";

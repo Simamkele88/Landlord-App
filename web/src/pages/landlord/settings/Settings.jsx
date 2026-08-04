@@ -287,17 +287,21 @@ export default function Settings() {
   const flagChange = () => { if (!hasChanges) setHasChanges(true); };
 
   const saveChanges = async () => {
+    const totalWeight = paymentWeight + complaintsWeight + leaseWeight + maintenanceWeight + tenureWeight;
+    
+    if (totalWeight !== 100) {
+      toast.error(`Score weights must sum to 100%. Currently at ${totalWeight}%.`);
+      return;
+    }
+
     try {
       const token = localStorage.getItem("token");
       await axios.put(`${API}/landlord/settings`, {
-    
         first_name: firstName,
         last_name: lastName,
         company_name: companyName,
         email: email,
         phone: phone,
-        
-      
         notify_rent_reminders: rentReminders,
         notify_payment_received: paymentReceived,
         notify_lease_expiry: leaseExpiry,
@@ -306,25 +310,17 @@ export default function Settings() {
         notify_push: pushNotif,
         notify_email_digest: emailDigest,
         notify_marketing: marketingNotif,
-        
-      
         default_payment_frequency: defaultFrequency,
         default_due_day: Number(defaultDueDay),
         default_deposit_type: defaultDeposit,
         grace_period_days: Number(gracePeriod),
         auto_mark_late: autoLate,
         auto_send_collections: autoCollections,
-        
-      
         payout_schedule: payoutSchedule,
         vat_registered: vatRegistered,
         vat_number: vatNumber,
-        
-      
         show_phone_to_tenants: showPhone,
         share_data_contractors: shareData,
-        
-      
         score_payment_weight: paymentWeight,
         score_complaints_weight: complaintsWeight,
         score_lease_weight: leaseWeight,
@@ -342,9 +338,7 @@ export default function Settings() {
       });
       
       setHasChanges(false);
-      setShowToast(true);
       toast.success("Settings saved successfully.");
-      setTimeout(() => setShowToast(false), 2500);
     } catch (err) {
       toast.error(err.response?.data?.error || "Failed to save settings.");
     }
@@ -455,19 +449,19 @@ export default function Settings() {
               <Block title="Personal Information">
                 <div className="field-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <Field label="First Name">
-                    <input type="text" value={firstName} onChange={e => { setFirstName(e.target.value); flagChange(); }} style={inputStyle} />
+                    <input type="text" value={firstName} onChange={e => { setFirstName(e.target.value); flagChange(); }} autoComplete="given-name" style={inputStyle} />
                   </Field>
                   <Field label="Last Name">
-                    <input type="text" value={lastName} onChange={e => { setLastName(e.target.value); flagChange(); }} style={inputStyle} />
+                    <input type="text" value={lastName} onChange={e => { setLastName(e.target.value); flagChange(); }} autoComplete="family-name" style={inputStyle} />
                   </Field>
                 </div>
                 <Field label="Company / Trading Name" hint="Shown on receipts and tenant communications">
-                  <input type="text" value={companyName} onChange={e => { setCompanyName(e.target.value); flagChange(); }} style={inputStyle} />
+                  <input type="text" value={companyName} onChange={e => { setCompanyName(e.target.value); flagChange(); }} autoComplete="organization" style={inputStyle} />
                 </Field>
                 <Field label="SA ID Number" hint="Required for lease agreements and POPIA compliance">
                   <div style={{ position: 'relative' }}>
                     <Icon name="id-card" size={14} style={{ position: 'absolute', left: '0.9rem', top: '50%', transform: 'translateY(-50%)', color: 'rgba(245,240,232,0.2)' }} />
-                    <input type="text" value={idNumber} onChange={e => { setIdNumber(e.target.value); flagChange(); }} style={{ ...inputStyle, paddingLeft: '2.5rem' }} />
+                    <input type="text" value={idNumber} onChange={e => { setIdNumber(e.target.value); flagChange(); }} autoComplete="national-id" style={{ ...inputStyle, paddingLeft: '2.5rem' }} />
                   </div>
                 </Field>
               </Block>
@@ -476,13 +470,13 @@ export default function Settings() {
                 <Field label="Email Address">
                   <div style={{ position: 'relative' }}>
                     <Icon name="mail" size={14} style={{ position: 'absolute', left: '0.9rem', top: '50%', transform: 'translateY(-50%)', color: 'rgba(245,240,232,0.2)' }} />
-                    <input type="email" value={email} onChange={e => { setEmail(e.target.value); flagChange(); }} style={{ ...inputStyle, paddingLeft: '2.5rem' }} />
+                    <input type="email" value={email} onChange={e => { setEmail(e.target.value); flagChange(); }} autoComplete="email" style={{ ...inputStyle, paddingLeft: '2.5rem' }} />
                   </div>
                 </Field>
                 <Field label="Phone Number">
                   <div style={{ position: 'relative' }}>
                     <Icon name="phone" size={14} style={{ position: 'absolute', left: '0.9rem', top: '50%', transform: 'translateY(-50%)', color: 'rgba(245,240,232,0.2)' }} />
-                    <input type="tel" value={phone} onChange={e => { setPhone(e.target.value); flagChange(); }} style={{ ...inputStyle, paddingLeft: '2.5rem' }} />
+                    <input type="tel" value={phone} onChange={e => { setPhone(e.target.value); flagChange(); }} autoComplete="tel" style={{ ...inputStyle, paddingLeft: '2.5rem' }} />
                   </div>
                 </Field>
               </Block>
@@ -496,15 +490,15 @@ export default function Settings() {
                 <Field label="Current Password">
                   <div style={{ position: 'relative' }}>
                     <Icon name="lock" size={14} style={{ position: 'absolute', left: '0.9rem', top: '50%', transform: 'translateY(-50%)', color: 'rgba(245,240,232,0.2)' }} />
-                    <input type="password" placeholder="••••••••" onChange={flagChange} style={{ ...inputStyle, paddingLeft: '2.5rem' }} />
+                    <input type="password" placeholder="••••••••" onChange={flagChange} autoComplete="none" style={{ ...inputStyle, paddingLeft: '2.5rem' }} />
                   </div>
                 </Field>
                 <div className="field-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <Field label="New Password">
-                    <input type="password" placeholder="••••••••" onChange={flagChange} style={inputStyle} />
+                    <input type="password" placeholder="••••••••" onChange={flagChange} autoComplete="new-password" style={inputStyle} />
                   </Field>
                   <Field label="Confirm New Password">
-                    <input type="password" placeholder="••••••••" onChange={flagChange} style={inputStyle} />
+                    <input type="password" placeholder="••••••••" onChange={flagChange} autoComplete="new-password" style={inputStyle} />
                   </Field>
                 </div>
               </Block>

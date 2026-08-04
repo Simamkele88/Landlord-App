@@ -1,10 +1,11 @@
 // TENANT PROFILE & LEASE SCREEN
 import { useState, useEffect, useCallback } from "react";
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  SafeAreaView, StatusBar, ActivityIndicator, Alert,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet
+  , StatusBar, ActivityIndicator, Alert,
   TextInput,
 } from "react-native";
+import { safeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons, MaterialIcons, Feather, FontAwesome5 } from "@expo/vector-icons";
 import api from "../../utils/api";

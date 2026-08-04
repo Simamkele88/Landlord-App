@@ -23,7 +23,7 @@ router.get("/", requireAuth, requireLandlord, async (req, res) => {
       case 'rent-roll':
         result = await pool.query(
           `SELECT 
-            t.first_name || ' ' || t.last_name AS tenant,
+            usr.full_name AS tenant,
             u.unit_number AS unit,
             p.name AS property,
             l.rent_amount AS rent,
@@ -32,6 +32,7 @@ router.get("/", requireAuth, requireLandlord, async (req, res) => {
             COALESCE(i.remaining_balance, 0) AS balance,
             CASE WHEN l.status = 'active' THEN 'active' ELSE l.status END AS status
            FROM tenant t
+           JOIN users usr ON usr.id = t.user_id
            JOIN lease l ON l.tenant_id = t.id AND l.status = 'active'
            JOIN unit u ON u.id = l.unit_id
            JOIN property p ON p.id = u.property_id
@@ -48,7 +49,7 @@ router.get("/", requireAuth, requireLandlord, async (req, res) => {
 
       case 'collections': {
         let query = `SELECT 
-          t.first_name || ' ' || t.last_name AS tenant,
+          usr.full_name AS tenant,
           u.unit_number AS unit,
           pay.amount_paid AS amount,
           inv.due_date AS due,
@@ -57,6 +58,7 @@ router.get("/", requireAuth, requireLandlord, async (req, res) => {
           pay.status
          FROM payment pay
          JOIN tenant t ON t.id = pay.tenant_id
+         JOIN users usr ON usr.id = t.user_id
          LEFT JOIN invoice inv ON inv.id = pay.invoice_id
          LEFT JOIN unit u ON u.id = inv.unit_id
          WHERE pay.landlord_id = $1`;
@@ -82,7 +84,7 @@ router.get("/", requireAuth, requireLandlord, async (req, res) => {
       case 'arrears':
         result = await pool.query(
           `SELECT 
-            t.first_name || ' ' || t.last_name AS tenant,
+            usr.full_name AS tenant,
             u.unit_number AS unit,
             p.name AS property,
             COALESCE(i.remaining_balance, i.amount_due, 0) AS balance,
@@ -93,6 +95,7 @@ router.get("/", requireAuth, requireLandlord, async (req, res) => {
             (SELECT MAX(pay.payment_date) FROM payment pay WHERE pay.tenant_id = t.id AND pay.status = 'paid') AS "lastPayment",
             CASE WHEN col.id IS NOT NULL THEN 'collections' ELSE 'overdue' END AS "collectionsStatus"
            FROM tenant t
+           JOIN users usr ON usr.id = t.user_id
            JOIN lease l ON l.tenant_id = t.id AND l.status = 'active'
            JOIN unit u ON u.id = l.unit_id
            JOIN property p ON p.id = u.property_id

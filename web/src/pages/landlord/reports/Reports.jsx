@@ -421,11 +421,11 @@ export default function Reports() {
         headers: { Authorization: `Bearer ${token}` },
       });
       
-      // data is already an array from the backend
       setReportData(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Fetch report:", err);
-      generateMockData();
+      setReportData([]);
+      toast.error("Failed to load report data");
     } finally {
       setLoading(false);
     }
@@ -444,66 +444,6 @@ export default function Reports() {
     }
   }, [fetchReport, activeReport]);
 
-  function generateMockData() {
-    const properties = ["Hillbrow Heights", "Berea Flats", "Yeoville Corner"];
-    const tenants = ["Sipho Dlamini", "Lerato Mokoena", "Thabo Ndlovu", "Zandile Khumalo", "Michael Nkosi"];
-    const units = ["Unit 101", "Unit 102", "Unit 201", "Unit 301", "Unit 202"];
-
-    switch (activeReport) {
-      case 'rent-roll':
-        setReportData(tenants.map((t, i) => ({
-          tenant: t, unit: units[i], property: properties[i % 3],
-          rent: [5800, 6500, 4200, 7200, 3800][i], frequency: 'monthly',
-          leaseEnd: new Date(2026, [3, 6, 9, 12, 5][i], [15, 30, 1, 20, 10][i]).toISOString(),
-          balance: [0, 1500, 0, 0, 4200][i], status: [0, 2, 0, 0, 3].includes(i) ? 'Overdue' : 'Active',
-        })));
-        break;
-      case 'collections':
-        setReportData(Array.from({ length: 12 }, (_, i) => ({
-          tenant: tenants[i % 5], unit: units[i % 5],
-          amount: [5800, 6500, 4200, 7200, 5800, 6500, 4200, 7200, 5800, 6500, 4200, 7200][i],
-          due: new Date(2026, 3, 1).toISOString(), paid: i < 9 ? new Date(2026, 3, [2, 5, 1, 3, 7, 1, 4, 2, 8][i]).toISOString() : null,
-          method: ['EFT', 'Cash', 'EFT', 'EFT', 'Card', 'EFT', 'EFT', 'Cash', 'EFT'][i] || null,
-          status: i < 9 ? 'Paid' : i < 11 ? 'Late' : 'Pending Approval',
-        })));
-        break;
-      case 'arrears':
-        setReportData([
-          { tenant: "Zandile Khumalo", unit: "Unit 301", property: "Yeoville Corner", balance: 4200, daysOverdue: 75, lastPayment: new Date(2026, 1, 15).toISOString(), collectionsStatus: 'collections' },
-          { tenant: "Michael Nkosi", unit: "Unit 202", property: "Berea Flats", balance: 1500, daysOverdue: 35, lastPayment: new Date(2026, 2, 20).toISOString(), collectionsStatus: 'overdue' },
-          { tenant: "Thabo Ndlovu", unit: "Unit 102", property: "Hillbrow Heights", balance: 800, daysOverdue: 14, lastPayment: new Date(2026, 3, 1).toISOString(), collectionsStatus: 'overdue' },
-        ]);
-        break;
-      case 'maintenance':
-        setReportData([
-          { title: "Burst pipe repair", property: "Hillbrow Heights", category: "Plumbing", priority: "urgent", cost: 3200, date: new Date(2026, 3, 5).toISOString() },
-          { title: "DB Board upgrade", property: "Berea Flats", category: "Electrical", priority: "high", cost: 1800, date: new Date(2026, 2, 20).toISOString() },
-          { title: "Ceiling leak fix", property: "Yeoville Corner", category: "Structural", priority: "medium", cost: 950, date: new Date(2026, 3, 10).toISOString() },
-          { title: "Gate motor replacement", property: "Hillbrow Heights", category: "Security", priority: "high", cost: 4500, date: new Date(2026, 2, 15).toISOString() },
-          { title: "Geyser repair", property: "Berea Flats", category: "Plumbing", priority: "urgent", cost: 2800, date: new Date(2026, 3, 1).toISOString() },
-        ]);
-        break;
-      case 'occupancy':
-        setReportData([
-          { property: "Hillbrow Heights", total: 8, occupied: 7, vacant: 1, maintenance: 0 },
-          { property: "Berea Flats", total: 6, occupied: 5, vacant: 0, maintenance: 1 },
-          { property: "Yeoville Corner", total: 5, occupied: 4, vacant: 1, maintenance: 0 },
-        ]);
-        break;
-      case 'tenant-ledger':
-        if (selectedTenant) {
-          setReportData(Array.from({ length: 8 }, (_, i) => ({
-            period: `April 202${6 - Math.floor(i / 2)}`,
-            amount: [5800, 5800, 6000, 6000, 6200, 6200, 6500, 6500][i],
-            due: new Date(2026, 3 - i, 1).toISOString(),
-            paid: i < 6 ? new Date(2026, 3 - i, [2, 1, 5, 3, 7, 1][i]).toISOString() : null,
-            method: ['EFT', 'EFT', 'Cash', 'EFT', 'EFT', 'EFT'][i] || null,
-            status: i < 6 ? 'Paid' : i < 7 ? 'Late' : 'Pending Approval',
-          })));
-        }
-        break;
-    }
-  }
 
   function handleExport() {
     if (!reportData) return;
@@ -678,7 +618,9 @@ export default function Reports() {
                 }} style={{ ...selectStyle, width: 220 }}>
                   <option value="">Select a tenant...</option>
                   {tenants.map(t => (
-                    <option key={t.id} value={t.id}>{t.first_name} {t.last_name} — {t.unit_number ? `Unit ${t.unit_number}` : t.property_name}</option>
+                    <option key={t.id} value={t.id}>
+                      {t.full_name || `${t.first_name || ''} ${t.last_name || ''}`.trim()} — {t.unit_number ? `Unit ${t.unit_number}` : t.property_name || ''}
+                    </option>
                   ))}
                 </select>
               )}

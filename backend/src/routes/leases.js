@@ -17,9 +17,9 @@ router.get("/", requireAuth, requireLandlord, async (req, res) => {
 
     const result = await pool.query(
       `SELECT l.*, 
-              t.first_name || ' ' || t.last_name AS tenant_name,
-              u.email AS tenant_email,
-              u.phone AS tenant_phone,
+              usr.full_name AS tenant_name,
+              usr.email AS tenant_email,
+              usr.phone AS tenant_phone,
               un.unit_number,
               un.unit_type,
               p.name AS property_name,
@@ -35,7 +35,7 @@ router.get("/", requireAuth, requireLandlord, async (req, res) => {
        FROM lease l
        JOIN tenant t ON t.id = l.tenant_id
        JOIN unit un ON un.id = l.unit_id
-       JOIN user_ u ON u.id = t.user_id 
+       JOIN users usr ON usr.id = t.user_id 
        JOIN property p ON p.id = un.property_id
        WHERE l.landlord_id = $1
        ORDER BY l.status ASC, l.created_at DESC`,
@@ -54,12 +54,12 @@ router.get("/:id", requireAuth, requireLandlord, async (req, res) => {
   try {
     const landlordId = await getLandlordId(req.userId);
     if (!landlordId) return res.status(404).json({ error: "Landlord not found" });
-
+    
     const result = await pool.query(
       `SELECT l.*, 
-              t.first_name || ' ' || t.last_name AS tenant_name,
-              t.phone AS tenant_phone,
-              t.email AS tenant_email,
+              usr.full_name AS tenant_name,
+              usr.phone AS tenant_phone,
+              usr.email AS tenant_email,
               t.emergency_name, t.emergency_phone,
               u.unit_number, u.unit_type, u.floor_number, u.square_meters,
               u.bedrooms, u.bathrooms, u.furnished, u.parking_bay,
@@ -89,6 +89,7 @@ router.get("/:id", requireAuth, requireLandlord, async (req, res) => {
               ) AS payments
        FROM lease l
        JOIN tenant t ON t.id = l.tenant_id
+       JOIN users usr ON usr.id = t.user_id
        JOIN unit u ON u.id = l.unit_id
        JOIN property p ON p.id = u.property_id
        WHERE l.id = $1 AND l.landlord_id = $2`,
@@ -125,12 +126,10 @@ router.post("/", requireAuth, requireLandlord, async (req, res) => {
     const landlordId = await getLandlordId(req.userId);
     if (!landlordId) { await client.query("ROLLBACK"); return res.status(404).json({ error: "Landlord not found" }); }
 
-    // Check if unit is available
     const unitCheck = await client.query("SELECT id, status FROM unit WHERE id = $1", [unit_id]);
     if (!unitCheck.rows.length) { await client.query("ROLLBACK"); return res.status(404).json({ error: "Unit not found" }); }
     if (unitCheck.rows[0].status !== "vacant") { await client.query("ROLLBACK"); return res.status(409).json({ error: "Unit is not vacant" }); }
 
-    // Check tenant doesn't already have active lease
     const tenantCheck = await client.query(
       "SELECT id FROM lease WHERE tenant_id = $1 AND status = 'active'",
       [tenant_id]
@@ -159,7 +158,6 @@ router.post("/", requireAuth, requireLandlord, async (req, res) => {
       ]
     );
 
-    // Update unit status
     await client.query(
       "UPDATE unit SET status = 'occupied', current_tenant_id = $1, updated_at = NOW() WHERE id = $2",
       [tenant_id, unit_id]
@@ -168,10 +166,11 @@ router.post("/", requireAuth, requireLandlord, async (req, res) => {
     await client.query("COMMIT");
 
     const lease = await pool.query(
-      `SELECT l.*, t.first_name || ' ' || t.last_name AS tenant_name,
+      `SELECT l.*, usr.full_name AS tenant_name,
               u.unit_number, p.name AS property_name
        FROM lease l
        JOIN tenant t ON t.id = l.tenant_id
+       JOIN users usr ON usr.id = t.user_id
        JOIN unit u ON u.id = l.unit_id
        JOIN property p ON p.id = u.property_id
        WHERE l.id = $1`,
@@ -223,10 +222,11 @@ router.put("/:id", requireAuth, requireLandlord, async (req, res) => {
     );
 
     const result = await pool.query(
-      `SELECT l.*, t.first_name || ' ' || t.last_name AS tenant_name,
+      `SELECT l.*, usr.full_name AS tenant_name,
               u.unit_number, p.name AS property_name
        FROM lease l
        JOIN tenant t ON t.id = l.tenant_id
+       JOIN users usr ON usr.id = t.user_id
        JOIN unit u ON u.id = l.unit_id
        JOIN property p ON p.id = u.property_id
        WHERE l.id = $1`,
@@ -274,7 +274,6 @@ router.put("/:id/terminate", requireAuth, requireLandlord, async (req, res) => {
         [termination_reason, termination_date, termination_notes || null, vacate_date || null, id]
       );
 
-      // Free up the unit
       await client.query(
         "UPDATE unit SET status = 'vacant', current_tenant_id = NULL, updated_at = NOW() WHERE id = $1",
         [lease.unit_id]
@@ -350,11 +349,12 @@ router.get("/expiring", requireAuth, requireLandlord, async (req, res) => {
 
     const result = await pool.query(
       `SELECT l.*, 
-              t.first_name || ' ' || t.last_name AS tenant_name,
+              usr.full_name AS tenant_name,
               u.unit_number, p.name AS property_name,
               (l.lease_end_date - CURRENT_DATE) AS days_remaining
        FROM lease l
        JOIN tenant t ON t.id = l.tenant_id
+       JOIN users usr ON usr.id = t.user_id
        JOIN unit u ON u.id = l.unit_id
        JOIN property p ON p.id = u.property_id
        WHERE l.landlord_id = $1 AND l.status = 'active'

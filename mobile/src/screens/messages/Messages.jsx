@@ -1,4 +1,4 @@
-// TENANT MESSAGES SCREEN 
+// Tenant messages screen
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import { Ionicons, Feather } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import api from "../../utils/api";
 import { Image } from "react-native";
 
@@ -89,7 +90,7 @@ function ChatBubble({ message, isMine }) {
 
   function handleAttachmentPress(att) {
     const fullUrl = att.url?.startsWith("http") ? att.url : `${api.getBaseUrl()}${att.url}`;
-    
+
     if (att.mime_type?.startsWith("image/")) {
       setFullScreenImage(fullUrl);
     } else if (att.url) {
@@ -186,7 +187,7 @@ function ChatBubble({ message, isMine }) {
         </View>
       </View>
 
-      {/* FULL SCREEN IMAGE MODAL*/}
+      {/* Full screen image modal */}
       <Modal visible={!!fullScreenImage} transparent animationType="fade" onRequestClose={() => setFullScreenImage(null)}>
         <View style={{
           flex: 1, backgroundColor: "rgba(0,0,0,0.95)",
@@ -210,8 +211,10 @@ function ChatBubble({ message, isMine }) {
           <View style={{ flexDirection: "row", gap: 12, marginTop: 20 }}>
             <TouchableOpacity
               style={{
+                flex: 1,
                 paddingHorizontal: 20, paddingVertical: 12,
                 backgroundColor: C.gold, borderRadius: 8,
+                alignItems: "center", justifyContent: "center",
               }}
               onPress={() => {
                 if (fullScreenImage) Linking.openURL(fullScreenImage);
@@ -222,9 +225,11 @@ function ChatBubble({ message, isMine }) {
             </TouchableOpacity>
             <TouchableOpacity
               style={{
+                flex: 1,
                 paddingHorizontal: 20, paddingVertical: 12,
                 backgroundColor: "transparent", borderRadius: 8,
                 borderWidth: 1, borderColor: C.border,
+                alignItems: "center", justifyContent: "center",
               }}
               onPress={() => setFullScreenImage(null)}
             >
@@ -307,7 +312,7 @@ function NewMessageModal({ visible, onClose, onSend, recipients }) {
               ))}
             </ScrollView>
 
-            {/* Message input  */}
+            {/* Message input */}
             <Text style={S.modalLabel}>MESSAGE</Text>
             <TextInput
               style={S.modalInput}
@@ -317,7 +322,6 @@ function NewMessageModal({ visible, onClose, onSend, recipients }) {
               placeholderTextColor="rgba(245,240,232,0.2)"
               multiline
               maxLength={500}
-              color={C.white}
               textAlignVertical="top"
             />
 
@@ -341,6 +345,7 @@ function NewMessageModal({ visible, onClose, onSend, recipients }) {
 }
 
 export default function MessagesScreen() {
+  const tabBarHeight = useBottomTabBarHeight();
   const [conversations, setConversations]   = useState([]);
   const [activeConvo, setActiveConvo]       = useState(null);
   const [messageInput, setMessageInput]     = useState("");
@@ -560,7 +565,8 @@ export default function MessagesScreen() {
             {conversations.map(convo => (
               <ConversationItem key={convo.id} convo={convo} onPress={() => openConvo(convo)} />
             ))}
-            <View style={{ height: 24 }} />
+            {/* Spacer so the last item clears the floating tab bar */}
+            <View style={{ height: tabBarHeight + 24 }} />
           </ScrollView>
         )}
 
@@ -577,11 +583,7 @@ export default function MessagesScreen() {
   return (
     <SafeAreaView style={S.safe}>
       <StatusBar barStyle="light-content" backgroundColor={C.black} />
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
-      >
+      <View style={{ flex: 1 }}>
         {/* Chat header */}
         <View style={S.chatHeader}>
           <TouchableOpacity onPress={closeConvo} style={S.backBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -680,26 +682,33 @@ export default function MessagesScreen() {
           </View>
         )}
 
-        <View style={[S.inputBar, Platform.OS === "android" && { paddingBottom: keyboardHeight || 10 }]}>
+        {/* Input bar */}
+        <View
+          style={[
+            S.inputBar,
+            {
+              paddingBottom:
+                keyboardHeight > 0
+                  ? keyboardHeight
+                  : tabBarHeight + 10,
+            },
+          ]}
+        >
           <View style={S.inputRow}>
             <TouchableOpacity style={S.attachBtn} onPress={pickFile} activeOpacity={0.7}>
               <Ionicons name="attach" size={20} color="rgba(245,240,232,0.45)" />
             </TouchableOpacity>
 
-            {/* FIX: color + selectionColor ensure typed text is always visible */}
             <TextInput
               style={S.messageInput}
               value={messageInput}
               onChangeText={setMessageInput}
               placeholder="Type a message..."
               placeholderTextColor="rgba(245,240,232,0.25)"
-              color={C.white}                         
-              selectionColor={C.gold}                 
               multiline
               maxLength={500}
               returnKeyType="default"
               blurOnSubmit={false}
-              keyboardAppearance="dark"             
               onSubmitEditing={() => {}}
             />
 
@@ -721,7 +730,7 @@ export default function MessagesScreen() {
             </TouchableOpacity>
           </View>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -812,7 +821,7 @@ const S = StyleSheet.create({
 
   // Messages
   messagesScroll: { flex: 1 },
-  messagesPad: { paddingHorizontal: 14, paddingVertical: 12 },
+  messagesPad: { paddingHorizontal: 14, paddingVertical: 12, paddingBottom: 80 },
   dateDivider: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 18, marginTop: 6 },
   dateLine: { flex: 1, height: 1, backgroundColor: C.border },
   dateText: { fontSize: 10, color: "rgba(245,240,232,0.2)", fontFamily: F.mono, letterSpacing: 1, textTransform: "uppercase" },
@@ -840,28 +849,28 @@ const S = StyleSheet.create({
   attDownloadMine: { backgroundColor: "rgba(232,160,18,0.2)" },
   attDownloadTheirs: { backgroundColor: "rgba(58,143,212,0.15)" },
 
-  quickRepliesBar: { 
-    backgroundColor: C.muted2, 
-    borderTopWidth: 1, 
+  quickRepliesBar: {
+    backgroundColor: C.muted2,
+    borderTopWidth: 1,
     borderTopColor: C.border,
     paddingVertical: 6,
   },
-  quickRepliesContent: { 
-    paddingHorizontal: 12, 
-    gap: 8, 
+  quickRepliesContent: {
+    paddingHorizontal: 12,
+    gap: 8,
     alignItems: "center",
   },
-  quickReplyChip: { 
-    paddingHorizontal: 12, 
-    paddingVertical: 4, 
-    borderRadius: 12, 
-    backgroundColor: C.black, 
-    borderWidth: 1, 
+  quickReplyChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: C.black,
+    borderWidth: 1,
     borderColor: C.border,
   },
-  quickReplyText: { 
-    fontSize: 11, 
-    color: "rgba(245,240,232,0.5)", 
+  quickReplyText: {
+    fontSize: 11,
+    color: "rgba(245,240,232,0.5)",
     fontFamily: F.mono,
   },
   // Attachment previews
@@ -878,12 +887,23 @@ const S = StyleSheet.create({
   attachmentPreviewName: { fontSize: 11, color: "rgba(245,240,232,0.5)", fontFamily: F.mono, maxWidth: 100 },
 
   // Input bar
-  inputBar: { backgroundColor: C.muted2, borderTopWidth: 1, borderTopColor: C.border, paddingHorizontal: 12, paddingTop: 10, paddingBottom: 10 },
-  inputRow: { flexDirection: "row", alignItems: "flex-end", gap: 8 },
+  inputBar: {
+    backgroundColor: C.muted2,
+    borderTopWidth: 1,
+    borderTopColor: C.border,
+    paddingHorizontal: 12,
+    paddingTop: 10,
+  },
+  inputRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 8,
+  },
   attachBtn: {
     width: 40, height: 40, borderRadius: 20,
     backgroundColor: C.black, borderWidth: 1, borderColor: C.border,
     alignItems: "center", justifyContent: "center",
+    marginBottom: 2,
   },
 
   messageInput: {
@@ -897,10 +917,11 @@ const S = StyleSheet.create({
     paddingBottom: 10,
     fontSize: 14,
     fontFamily: F.dm,
+    color: C.white,
     maxHeight: 120,
     minHeight: 42,
   },
-  sendBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.gold, alignItems: "center", justifyContent: "center" },
+  sendBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.gold, alignItems: "center", justifyContent: "center", marginBottom: 2 },
   sendBtnDisabled: { backgroundColor: C.muted, borderWidth: 1, borderColor: C.border },
 
   // New message modal

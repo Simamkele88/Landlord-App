@@ -2,9 +2,10 @@
 import { useState } from "react";
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
-  StyleSheet, SafeAreaView, StatusBar, ActivityIndicator,
+  StyleSheet, StatusBar, ActivityIndicator,
   Alert, Switch,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons, MaterialIcons, Feather } from "@expo/vector-icons";
 import api from "../../utils/api";
@@ -103,6 +104,7 @@ export default function SettingsScreen() {
         body: JSON.stringify({ currentPassword, newPassword }),
       });
       const data = await response.json();
+      console.log("Change Password Response:", data);
       if (response.ok) {
         Alert.alert("Success", "Password changed successfully.");
         setCurrentPassword(""); setNewPassword(""); setConfirmPassword("");

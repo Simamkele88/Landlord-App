@@ -1,5 +1,4 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-// MODAL FOR REGISTERING A NEW TENANT BY THE LANDLORD 
 import { useState, useEffect } from "react";
 import { useToast } from "../../../contexts/ToastContext";
 import { Icon } from "../../../components/Icon";
@@ -105,6 +104,7 @@ function mapVacantUnit(u) {
 
 export function LandlordRegisterTenantModal({ onClose, onCreated }) {
   const toast = useToast();
+  const [step, setStep] = useState(1);
   const [form, setForm] = useState({
     first_name: "",
     last_name: "",
@@ -117,6 +117,11 @@ export function LandlordRegisterTenantModal({ onClose, onCreated }) {
     payment_due_day: "1",
     lease_start_date: "",
     lease_end_date: "",
+    water_included: false,
+    electricity_included: false,
+    internet_included: false,
+    late_fee_amount: "250",
+    grace_period_days: "5",
     special_note: "",
   });
   const [errors, setErrors] = useState({});
@@ -138,7 +143,6 @@ export function LandlordRegisterTenantModal({ onClose, onCreated }) {
       });
       const mapped = (data.units || []).map(mapVacantUnit);
       setUnits(mapped);
-      toast.success(`Loaded ${mapped.length} vacant unit${mapped.length !== 1 ? "s" : ""}`);
     } catch (err) {
       console.error("Failed to fetch vacant units:", err);
       toast.error("Failed to load vacant units. Please refresh and try again.");
@@ -151,13 +155,18 @@ export function LandlordRegisterTenantModal({ onClose, onCreated }) {
     setApiErr("");
   }
 
-  function validate() {
+  function validateStep1() {
     const e = {};
     if (!form.first_name.trim()) e.first_name = "Required";
     if (!form.last_name.trim()) e.last_name = "Required";
     if (!form.email.trim()) e.email = "Required";
     if (!/\S+@\S+\.\S+/.test(form.email)) e.email = "Invalid email";
     if (form.phone.trim() && !/^\d{7,15}$/.test(form.phone.trim())) e.phone = "Invalid phone number";
+    return e;
+  }
+
+  function validateStep2() {
+    const e = {};
     if (!form.unit_id) e.unit_id = "Select a unit";
     if (!form.rent_amount) e.rent_amount = "Required";
     if (isNaN(Number(form.rent_amount)) || Number(form.rent_amount) <= 0)
@@ -170,8 +179,15 @@ export function LandlordRegisterTenantModal({ onClose, onCreated }) {
     return e;
   }
 
+  function handleNext() {
+    const e = validateStep1();
+    if (Object.keys(e).length) { setErrors(e); return; }
+    setStep(2);
+    setErrors({});
+  }
+
   async function handleSubmit() {
-    const e = validate();
+    const e = validateStep2();
     if (Object.keys(e).length) { setErrors(e); return; }
 
     setLoading(true);
@@ -182,10 +198,23 @@ export function LandlordRegisterTenantModal({ onClose, onCreated }) {
       const { data } = await axios.post(
         `${API}/tenants/register`,
         {
-          ...form,
+          first_name: form.first_name,
+          last_name: form.last_name,
+          email: form.email,
+          phone: form.phone || null,
+          unit_id: form.unit_id,
           rent_amount: Number(form.rent_amount),
           deposit_amount: form.deposit_amount ? Number(form.deposit_amount) : Number(form.rent_amount),
+          payment_frequency: form.payment_frequency,
           payment_due_day: Number(form.payment_due_day),
+          lease_start_date: form.lease_start_date,
+          lease_end_date: form.lease_end_date,
+          water_included: form.water_included,
+          electricity_included: form.electricity_included,
+          internet_included: form.internet_included,
+          late_fee_amount: Number(form.late_fee_amount),
+          grace_period_days: Number(form.grace_period_days),
+          special_note: form.special_note || null,
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -209,6 +238,13 @@ export function LandlordRegisterTenantModal({ onClose, onCreated }) {
   function formatRent(n) {
     return n ? `R ${Number(n).toLocaleString("en-ZA")}` : "";
   }
+
+  const toggleStyle = (active) => ({
+    display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.8rem',
+    borderRadius: '3px', border: `1px solid ${active ? 'rgba(76,186,122,0.4)' : C.border}`,
+    background: active ? 'rgba(26,122,74,0.08)' : 'transparent',
+    cursor: 'pointer', transition: 'all 0.15s', flex: 1,
+  });
 
   
   if (done) {
@@ -260,14 +296,13 @@ export function LandlordRegisterTenantModal({ onClose, onCreated }) {
   return (
     <div style={modalOverlay}>
       <div style={{ ...modalShell, maxWidth: 520 }}>
-        {/* HEADER */}
         <div style={modalHeader}>
           <div>
             <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: C.white, fontFamily: F.bebas, letterSpacing: '0.04em' }}>
               Register New Tenant
             </h3>
             <p style={{ fontSize: '0.65rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono, marginTop: '0.15rem' }}>
-              The tenant will complete their own profile after first login
+              Step {step} of 2 — {step === 1 ? "Basic Info" : "Unit & Lease"}
             </p>
           </div>
           <button onClick={onClose} style={{
@@ -281,9 +316,7 @@ export function LandlordRegisterTenantModal({ onClose, onCreated }) {
           </button>
         </div>
 
-        {/* BODY */}
         <div style={modalBody}>
-          {/* API ERROR */}
           {apiErr && (
             <div style={{
               padding: '0.7rem 0.9rem', borderRadius: '3px',
@@ -294,100 +327,136 @@ export function LandlordRegisterTenantModal({ onClose, onCreated }) {
             </div>
           )}
 
-          {/* SECTION: BASIC INFO */}
-          <p style={{ ...sectionTitle, paddingTop: '0' }}>Basic Information</p>
+          {step === 1 && (
+            <>
+              <p style={{ ...sectionTitle, paddingTop: '0' }}>Basic Information</p>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem' }}>
-            <Field label="First Name" error={errors.first_name}>
-              <input style={inputStyle(errors.first_name)} value={form.first_name}
-                onChange={e => set("first_name", e.target.value)} placeholder="e.g. Sipho" />
-            </Field>
-            <Field label="Last Name" error={errors.last_name}>
-              <input style={inputStyle(errors.last_name)} value={form.last_name}
-                onChange={e => set("last_name", e.target.value)} placeholder="e.g. Dlamini" />
-            </Field>
-          </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem' }}>
+                <Field label="First Name" error={errors.first_name}>
+                  <input style={inputStyle(errors.first_name)} value={form.first_name}
+                    onChange={e => set("first_name", e.target.value)} placeholder="e.g. Sipho" />
+                </Field>
+                <Field label="Last Name" error={errors.last_name}>
+                  <input style={inputStyle(errors.last_name)} value={form.last_name}
+                    onChange={e => set("last_name", e.target.value)} placeholder="e.g. Dlamini" />
+                </Field>
+              </div>
 
-          <Field label="Email Address" error={errors.email}
-            hint="The tenant's welcome email and temporary password will be sent here">
-            <input type="email" style={inputStyle(errors.email)} value={form.email}
-              onChange={e => set("email", e.target.value)} placeholder="tenant@email.com" />
-          </Field>
+              <Field label="Email Address" error={errors.email}
+                hint="The tenant's welcome email and temporary password will be sent here">
+                <input type="email" style={inputStyle(errors.email)} value={form.email}
+                  onChange={e => set("email", e.target.value)} placeholder="tenant@email.com" />
+              </Field>
 
-          <Field label="Phone Number" error={errors.phone}>
-            <input type="tel" style={inputStyle(errors.phone)} value={form.phone}
-              onChange={e => set("phone", e.target.value)} placeholder="0821234567" />
-          </Field>
+              <Field label="Phone Number" error={errors.phone}>
+                <input type="tel" style={inputStyle(errors.phone)} value={form.phone}
+                  onChange={e => set("phone", e.target.value)} placeholder="0821234567" />
+              </Field>
 
-          <Field label="Special Notes" optional>
-            <textarea rows={2} style={{ ...inputStyle(false), resize: 'none', minHeight: 56 }}
-              value={form.special_note}
-              onChange={e => set("special_note", e.target.value)}
-              placeholder="Any notes for this tenant..." />
-          </Field>
+              <Field label="Special Notes" optional>
+                <textarea rows={2} style={{ ...inputStyle(false), resize: 'none', minHeight: 56 }}
+                  value={form.special_note}
+                  onChange={e => set("special_note", e.target.value)}
+                  placeholder="Any notes for this tenant..." />
+              </Field>
+            </>
+          )}
 
-          {/* SECTION: UNIT & LEASE */}
-          <p style={{ ...sectionTitle, paddingTop: '0.6rem' }}>Unit & Lease</p>
+          {step === 2 && (
+            <>
+              <p style={{ ...sectionTitle, paddingTop: '0' }}>Unit & Lease</p>
 
-          <Field label="Unit" error={errors.unit_id}>
-            <select style={selectStyle(errors.unit_id)} value={form.unit_id}
-              onChange={e => handleUnitChange(e.target.value)}>
-              <option value="">Select a vacant unit</option>
-              {units.map(u => (
-                <option key={u.id} value={u.id}>
-                  Unit {u.unit_number} — {u.property_name}
-                  {u.monthly_rent ? ` (${formatRent(u.monthly_rent)}/mo)` : ""}
-                </option>
-              ))}
-            </select>
-          </Field>
+              <Field label="Unit" error={errors.unit_id}>
+                <select style={selectStyle(errors.unit_id)} value={form.unit_id}
+                  onChange={e => handleUnitChange(e.target.value)}>
+                  <option value="">Select a vacant unit</option>
+                  {units.map(u => (
+                    <option key={u.id} value={u.id}>
+                      Unit {u.unit_number} — {u.property_name}
+                      {u.monthly_rent ? ` (${formatRent(u.monthly_rent)}/mo)` : ""}
+                    </option>
+                  ))}
+                </select>
+              </Field>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem' }}>
-            <Field label="Monthly Rent (R)" error={errors.rent_amount}>
-              <input type="number" min="0" style={inputStyle(errors.rent_amount)}
-                value={form.rent_amount} onChange={e => set("rent_amount", e.target.value)}
-                placeholder="e.g. 5800" />
-            </Field>
-            <Field label="Deposit Amount (R)" optional hint="Defaults to one month's rent">
-              <input type="number" min="0" style={inputStyle(false)}
-                value={form.deposit_amount} onChange={e => set("deposit_amount", e.target.value)}
-                placeholder={form.rent_amount || "Same as rent"} />
-            </Field>
-          </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem' }}>
+                <Field label="Monthly Rent (R)" error={errors.rent_amount}>
+                  <input type="number" min="0" style={inputStyle(errors.rent_amount)}
+                    value={form.rent_amount} onChange={e => set("rent_amount", e.target.value)}
+                    placeholder="e.g. 5800" />
+                </Field>
+                <Field label="Deposit Amount (R)" optional hint="Defaults to one month's rent">
+                  <input type="number" min="0" style={inputStyle(false)}
+                    value={form.deposit_amount} onChange={e => set("deposit_amount", e.target.value)}
+                    placeholder={form.rent_amount || "Same as rent"} />
+                </Field>
+              </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem' }}>
-            <Field label="Payment Frequency">
-              <select style={selectStyle(false)} value={form.payment_frequency}
-                onChange={e => set("payment_frequency", e.target.value)}>
-                {FREQUENCIES.map(f => (
-                  <option key={f} value={f}>{f.charAt(0).toUpperCase() + f.slice(1)}</option>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem' }}>
+                <Field label="Payment Frequency">
+                  <select style={selectStyle(false)} value={form.payment_frequency}
+                    onChange={e => set("payment_frequency", e.target.value)}>
+                    {FREQUENCIES.map(f => (
+                      <option key={f} value={f}>{f.charAt(0).toUpperCase() + f.slice(1)}</option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Payment Due Day" hint="Day of the month">
+                  <input type="number" min="1" max="31" style={inputStyle(false)}
+                    value={form.payment_due_day} onChange={e => set("payment_due_day", e.target.value)} />
+                </Field>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem' }}>
+                <Field label="Lease Start Date" error={errors.lease_start_date}>
+                  <input type="date" style={inputStyle(errors.lease_start_date)}
+                    value={form.lease_start_date} onChange={e => set("lease_start_date", e.target.value)} />
+                </Field>
+                <Field label="Lease End Date" error={errors.lease_end_date}>
+                  <input type="date" style={inputStyle(errors.lease_end_date)}
+                    value={form.lease_end_date} onChange={e => set("lease_end_date", e.target.value)} />
+                </Field>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem' }}>
+                <Field label="Late Fee (R)" hint="Charged after grace period">
+                  <input type="number" min="0" style={inputStyle(false)}
+                    value={form.late_fee_amount} onChange={e => set("late_fee_amount", e.target.value)} />
+                </Field>
+                <Field label="Grace Period (Days)" hint="Days before late fee applies">
+                  <input type="number" min="0" style={inputStyle(false)}
+                    value={form.grace_period_days} onChange={e => set("grace_period_days", e.target.value)} />
+                </Field>
+              </div>
+
+              <p style={{ ...sectionTitle, paddingTop: '0.4rem' }}>Included Utilities</p>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                {[
+                  { key: 'water_included', label: 'Water', icon: 'droplet' },
+                  { key: 'electricity_included', label: 'Electricity', icon: 'zap' },
+                  { key: 'internet_included', label: 'Internet', icon: 'wifi' },
+                ].map(u => (
+                  <button key={u.key} type="button" onClick={() => set(u.key, !form[u.key])}
+                    style={toggleStyle(form[u.key])}>
+                    <Icon name={u.icon} size={12} color={form[u.key] ? C.greenLight : 'rgba(245,240,232,0.3)'} />
+                    <span style={{ fontSize: '0.68rem', fontWeight: 500, color: form[u.key] ? C.greenLight : 'rgba(245,240,232,0.4)' }}>
+                      {u.label}
+                    </span>
+                    {form[u.key] && <Icon name="check" size={10} color={C.greenLight} style={{ marginLeft: 'auto' }} />}
+                  </button>
                 ))}
-              </select>
-            </Field>
-            <Field label="Payment Due Day" hint="Day of the month">
-              <input type="number" min="1" max="31" style={inputStyle(false)}
-                value={form.payment_due_day} onChange={e => set("payment_due_day", e.target.value)} />
-            </Field>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem' }}>
-            <Field label="Lease Start Date" error={errors.lease_start_date}>
-              <input type="date" style={inputStyle(errors.lease_start_date)}
-                value={form.lease_start_date} onChange={e => set("lease_start_date", e.target.value)} />
-            </Field>
-            <Field label="Lease End Date" error={errors.lease_end_date}>
-              <input type="date" style={inputStyle(errors.lease_end_date)}
-                value={form.lease_end_date} onChange={e => set("lease_end_date", e.target.value)} />
-            </Field>
-          </div>
+              </div>
+            </>
+          )}
         </div>
 
-        {/* FOOTER */}
         <div style={modalFooter}>
-          <button onClick={onClose} disabled={loading} style={{ ...btnGhost, flex: 1, textAlign: 'center' }}>
-            Cancel
+          <button onClick={step === 2 ? () => setStep(1) : onClose} disabled={loading}
+            style={{ ...btnGhost, flex: 1, textAlign: 'center' }}>
+            {step === 2 ? 'Back' : 'Cancel'}
           </button>
-          <button onClick={handleSubmit} disabled={loading} style={{ ...btnPrimary, flex: 1, justifyContent: 'center' }}>
+          <button onClick={step === 1 ? handleNext : handleSubmit} disabled={loading}
+            style={{ ...btnPrimary, flex: 1, justifyContent: 'center' }}>
             {loading ? (
               <>
                 <span style={{
@@ -397,8 +466,10 @@ export function LandlordRegisterTenantModal({ onClose, onCreated }) {
                 }} />
                 Registering...
               </>
+            ) : step === 1 ? (
+              'Next'
             ) : (
-              "Register Tenant"
+              'Register Tenant'
             )}
           </button>
         </div>

@@ -2,6 +2,15 @@ const express = require("express");
 const cors = require("cors");
 const path = require("path");
 const pool = require("./config/database");
+const cron = require("node-cron");
+const { runInvoiceAgingJob } = require("./jobs/invoiceAging");
+
+ cron.schedule("0 2 * * *", () => {
+  runInvoiceAgingJob().catch((err) =>
+    console.error("Scheduled invoice aging job failed:", err)
+  );
+ });
+
 
 // Import route files
 const authRoutes = require("./routes/auth");
@@ -12,7 +21,6 @@ const unitRoutes = require("./routes/units");
 const complaintRoutes = require("./routes/complaints");
 const uploadRoutes = require("./routes/uploads");
 const caretakerRoutes = require("./routes/caretaker");
-const landlordRoutes = require("./routes/landlord");
 const paymentSettingsRoutes = require("./routes/paymentSettings");
 const landlordSettingsRoutes = require("./routes/landlordSettings");
 const landlordPaymentRoutes = require("./routes/landlordPayments");
@@ -21,12 +29,12 @@ const notificationRoutes = require("./routes/notifications");
 const announcementRoutes = require("./routes/announcements");
 const reportRoutes = require("./routes/reports");
 const landlordCaretakerRoutes = require("./routes/landlordCaretakers");
-const billingRoutes = require("./routes/billing");
-const leaseRoutes = require("./routes/leases");
+const landlordComplaintRoutes = require("./routes/landlordComplaints");
+const caretakerComplaintRoutes = require("./routes/caretakerComplaints"); 
 const repaymentPlanRoutes = require("./routes/repaymentPlans");
 const collectionRoutes = require("./routes/collections");
-
-
+const leaseRoutes = require("./routes/leases");
+const landlordMaintenanceRoutes = require("./routes/landlordMaintenance");
 
 const app = express();
 
@@ -56,7 +64,6 @@ app.use("/units", unitRoutes);
 app.use("/complaints", complaintRoutes);
 app.use("/upload", uploadRoutes);
 app.use("/caretaker", caretakerRoutes);
-app.use("/landlord", landlordRoutes);
 app.use("/landlord/payment-settings", paymentSettingsRoutes);
 app.use("/landlord/settings", landlordSettingsRoutes);
 app.use("/landlord/payments", landlordPaymentRoutes);
@@ -65,11 +72,12 @@ app.use("/notifications", notificationRoutes);
 app.use("/announcements", announcementRoutes);
 app.use("/reports", reportRoutes);
 app.use("/landlord/caretakers", landlordCaretakerRoutes);
-app.use("/billing", billingRoutes);
-app.use("/leases", leaseRoutes);
+app.use("/landlord/complaints", landlordComplaintRoutes);
+app.use("/caretaker/complaints", caretakerComplaintRoutes);
 app.use("/repayment-plans", repaymentPlanRoutes);
 app.use("/collections", collectionRoutes);
-
+app.use("/leases", leaseRoutes);
+app.use("/landlord/maintenance", landlordMaintenanceRoutes);
 
 app.get("/uploads/maintenance/:filename", (req, res) => {
   const filePath = path.join(__dirname, '..', 'uploads', 'maintenance', req.params.filename);

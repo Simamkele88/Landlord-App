@@ -7,7 +7,6 @@ const pool = require("../config/database");
 const { requireAuth } = require("../middleware/auth");
 const { sendPushNotification } = require("../utils/notifications");
 
-// Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadDir = path.join(__dirname, "..", "..", "uploads", "messages");
@@ -50,33 +49,23 @@ router.get("/conversations", requireAuth, async (req, res) => {
       `SELECT DISTINCT ON (other_user_id)
         m.id,
         CASE WHEN m.sender_id = $1 THEN m.recipient_id ELSE m.sender_id END AS other_user_id,
-        CASE WHEN m.sender_id = $1 THEN 
-          COALESCE(t.first_name || ' ' || t.last_name, c.first_name || ' ' || c.last_name, l.first_name || ' ' || l.last_name, 'Unknown')
-        ELSE 
-          COALESCE(t2.first_name || ' ' || t2.last_name, c2.first_name || ' ' || c2.last_name, l2.first_name || ' ' || l2.last_name, 'Unknown')
-        END AS with_name,
+        CASE WHEN m.sender_id = $1 THEN u2.full_name ELSE u.full_name END AS with_name,
         CASE WHEN m.sender_id = $1 THEN u2.role ELSE u.role END AS with_role,
-        
         prop.name AS property,
         un.unit_number AS unit,
         m.body AS last_message,
         m.created_at AS last_message_at,
-        (SELECT COUNT(*) FROM message_ msg WHERE 
+        (SELECT COUNT(*) FROM message msg WHERE 
           (msg.recipient_id = $1 AND msg.sender_id = CASE WHEN m.sender_id = $1 THEN m.recipient_id ELSE m.sender_id END)
           AND msg.is_read = false) AS unread_count
-       FROM message_ m
-       JOIN user_ u ON u.id = m.sender_id
-       JOIN user_ u2 ON u2.id = m.recipient_id
-       LEFT JOIN tenant t ON t.user_id = m.recipient_id
-       LEFT JOIN caretaker c ON c.user_id = m.recipient_id
-       LEFT JOIN landlord l ON l.user_id = m.recipient_id
-       LEFT JOIN tenant t2 ON t2.user_id = m.sender_id
-       LEFT JOIN caretaker c2 ON c2.user_id = m.sender_id
-       LEFT JOIN landlord l2 ON l2.user_id = m.sender_id
-       LEFT JOIN property prop ON prop.id = m.property_id
+       FROM message m
+       JOIN users u ON u.id = m.sender_id
+       JOIN users u2 ON u2.id = m.recipient_id
+       LEFT JOIN tenant t ON t.user_id = CASE WHEN m.sender_id = $1 THEN m.recipient_id ELSE m.sender_id END
        LEFT JOIN unit un ON un.id = (
-         SELECT unit_id FROM lease WHERE tenant_id = COALESCE(t.id, t2.id) AND status = 'active' LIMIT 1
+         SELECT unit_id FROM lease WHERE tenant_id = t.id AND status = 'active' LIMIT 1
        )
+       LEFT JOIN property prop ON prop.id = m.property_id
        WHERE (m.sender_id = $1 OR m.recipient_id = $1)
          AND (m.sender_id != m.recipient_id)
        ORDER BY other_user_id, m.created_at DESC`,
@@ -89,7 +78,7 @@ router.get("/conversations", requireAuth, async (req, res) => {
         `SELECT m.id, m.sender_id, m.recipient_id, m.body, m.subject, 
                 m.message_type, m.is_read, m.created_at,
                 CASE WHEN m.sender_id = $1 THEN true ELSE false END AS is_mine
-         FROM message_ m
+         FROM message m
          WHERE (m.sender_id = $1 AND m.recipient_id = $2)
             OR (m.sender_id = $2 AND m.recipient_id = $1)
          ORDER BY m.created_at ASC`,
@@ -102,7 +91,7 @@ router.get("/conversations", requireAuth, async (req, res) => {
         const attachResult = await pool.query(
           `SELECT ma.message_id, d.id, d.document_name, d.document_url, d.mime_type, d.file_size
            FROM message_attachment ma
-           JOIN document_ d ON d.id = ma.document_id
+           JOIN document d ON d.id = ma.document_id
            WHERE ma.message_id = ANY($1)`,
           [messageIds]
         );
@@ -156,16 +145,16 @@ router.get("/conversations", requireAuth, async (req, res) => {
 router.get("/recipients", requireAuth, async (req, res) => {
   try {
     const userId = req.userId;
-    const userRes = await pool.query("SELECT role FROM user_ WHERE id = $1", [userId]);
+    const userRes = await pool.query("SELECT role FROM users WHERE id = $1", [userId]);
     const role = userRes.rows[0]?.role;
     let recipients = [];
 
     if (role === 'landlord') {
       const tenants = await pool.query(
-        `SELECT u.id AS user_id, t.first_name || ' ' || t.last_name AS name, 'tenant' AS role, 
+        `SELECT u.id AS user_id, u.full_name AS name, 'tenant' AS role, 
                 prop.name AS property, un.unit_number AS unit
          FROM tenant t
-         JOIN user_ u ON u.id = t.user_id
+         JOIN users u ON u.id = t.user_id
          JOIN lease l ON l.tenant_id = t.id AND l.status = 'active'
          LEFT JOIN unit un ON un.id = l.unit_id
          LEFT JOIN property prop ON prop.id = un.property_id
@@ -175,10 +164,10 @@ router.get("/recipients", requireAuth, async (req, res) => {
       recipients.push(...tenants.rows);
 
       const caretakers = await pool.query(
-        `SELECT u.id AS user_id, c.first_name || ' ' || c.last_name AS name, 'caretaker' AS role,
+        `SELECT u.id AS user_id, u.full_name AS name, 'caretaker' AS role,
                 prop.name AS property, NULL AS unit
          FROM caretaker c
-         JOIN user_ u ON u.id = c.user_id
+         JOIN users u ON u.id = c.user_id
          LEFT JOIN property prop ON prop.id = c.assigned_property
          WHERE c.landlord_id = (SELECT id FROM landlord WHERE user_id = $1)`,
         [userId]
@@ -196,9 +185,9 @@ router.get("/recipients", requireAuth, async (req, res) => {
 
       if (landlordId) {
         const landlords = await pool.query(
-          `SELECT u.id AS user_id, l.first_name || ' ' || l.last_name AS name, 'landlord' AS role,
+          `SELECT u.id AS user_id, u.full_name AS name, 'landlord' AS role,
                   NULL AS property, NULL AS unit
-           FROM landlord l JOIN user_ u ON u.id = l.user_id WHERE l.id = $1`,
+           FROM landlord l JOIN users u ON u.id = l.user_id WHERE l.id = $1`,
           [landlordId]
         );
         recipients.push(...landlords.rows);
@@ -206,10 +195,10 @@ router.get("/recipients", requireAuth, async (req, res) => {
 
       if (propertyId) {
         const tenants = await pool.query(
-          `SELECT u.id AS user_id, t.first_name || ' ' || t.last_name AS name, 'tenant' AS role,
+          `SELECT u.id AS user_id, u.full_name AS name, 'tenant' AS role,
                   prop.name AS property, un.unit_number AS unit
            FROM tenant t
-           JOIN user_ u ON u.id = t.user_id
+           JOIN users u ON u.id = t.user_id
            JOIN lease l ON l.tenant_id = t.id AND l.status = 'active'
            JOIN unit un ON un.id = l.unit_id
            JOIN property prop ON prop.id = un.property_id
@@ -221,29 +210,41 @@ router.get("/recipients", requireAuth, async (req, res) => {
     }
 
     if (role === 'tenant') {
-      const tenantRes = await pool.query(
-        "SELECT landlord_id FROM tenant WHERE user_id = $1",
+      const tenantRes1 = await pool.query(
+        "SELECT id FROM tenant WHERE user_id = $1",
         [userId]
       );
-      const landlordId = tenantRes.rows[0]?.landlord_id;
+      const tenantId = tenantRes1.rows[0]?.id;
+      
+      const unitRes = await pool.query(
+        "SELECT property_id FROM unit WHERE current_tenant_id = $1",
+        [tenantId]
+      );
+      const propertyId = unitRes.rows[0]?.property_id;
+
+      const tenantRes2 = await pool.query(
+        "SELECT landlord_id FROM tenant WHERE id = $1",
+        [tenantId]
+      );
+      const landlordId = tenantRes2.rows[0]?.landlord_id;
 
       if (landlordId) {
         const landlords = await pool.query(
-          `SELECT u.id AS user_id, l.first_name || ' ' || l.last_name AS name, 'landlord' AS role,
+          `SELECT u.id AS user_id, u.full_name AS name, 'landlord' AS role,
                   NULL AS property, NULL AS unit
-           FROM landlord l JOIN user_ u ON u.id = l.user_id WHERE l.id = $1`,
+           FROM landlord l JOIN users u ON u.id = l.user_id WHERE l.id = $1`,
           [landlordId]
         );
         recipients.push(...landlords.rows);
 
         const caretakers = await pool.query(
-          `SELECT u.id AS user_id, c.first_name || ' ' || c.last_name AS name, 'caretaker' AS role,
+          `SELECT u.id AS user_id, u.full_name AS name, 'caretaker' AS role,
                   prop.name AS property, NULL AS unit
            FROM caretaker c
-           JOIN user_ u ON u.id = c.user_id
+           JOIN users u ON u.id = c.user_id
            LEFT JOIN property prop ON prop.id = c.assigned_property
-           WHERE c.landlord_id = $1`,
-          [landlordId]
+           WHERE c.landlord_id = $1 AND c.assigned_property = $2`,
+          [landlordId, propertyId]
         );
         recipients.push(...caretakers.rows);
       }
@@ -267,20 +268,16 @@ router.post("/", requireAuth, async (req, res) => {
     }
 
     const result = await pool.query(
-      `INSERT INTO message_ (sender_id, recipient_id, property_id, subject, body, message_type, priority, created_at)
+      `INSERT INTO message (sender_id, recipient_id, property_id, subject, body, message_type, priority, created_at)
        VALUES ($1, $2, $3, $4, $5, 'direct', 'normal', NOW())
        RETURNING *`,
       [userId, recipient_id, property_id || null, subject || null, message]
     );
 
-    // ── SEND PUSH NOTIFICATION ──────────────────────────────
+    // full_name is universal on users now — no more COALESCE across
+    // landlord/tenant/caretaker just to find a display name
     const senderResult = await pool.query(
-      `SELECT COALESCE(
-        (SELECT first_name || ' ' || last_name FROM landlord WHERE user_id = $1),
-        (SELECT first_name || ' ' || last_name FROM tenant WHERE user_id = $1),
-        (SELECT first_name || ' ' || last_name FROM caretaker WHERE user_id = $1),
-        'Someone'
-      ) AS sender_name`,
+      "SELECT full_name AS sender_name FROM users WHERE id = $1",
       [userId]
     );
     const senderName = senderResult.rows[0]?.sender_name || "Someone";
@@ -294,7 +291,7 @@ router.post("/", requireAuth, async (req, res) => {
     );
 
     await pool.query(
-      `INSERT INTO notification (user_id, type, title, message_, related_entity_id, related_entity_type, created_at)
+      `INSERT INTO notification (user_id, type, title, body, related_entity_id, related_entity_type, created_at)
        VALUES ($1, 'message_received', $2, $3, $4, 'message', NOW())`,
       [recipient_id, `New message from ${senderName}`, preview, result.rows[0].id]
     );
@@ -323,7 +320,7 @@ router.post("/:conversationId/reply", requireAuth, upload.array("attachments", 5
       await client.query("BEGIN");
 
       const result = await client.query(
-        `INSERT INTO message_ (sender_id, recipient_id, body, message_type, priority, created_at)
+        `INSERT INTO message (sender_id, recipient_id, body, message_type, priority, created_at)
          VALUES ($1, $2, $3, 'direct', 'normal', NOW())
          RETURNING *`,
         [userId, conversationId, message || ""]
@@ -334,7 +331,7 @@ router.post("/:conversationId/reply", requireAuth, upload.array("attachments", 5
 
       for (const file of files) {
         const docResult = await client.query(
-          `INSERT INTO document_ (uploaded_by, document_type, document_name, document_url, file_size, mime_type)
+          `INSERT INTO document (uploaded_by, document_type, document_name, document_url, file_size, mime_type)
            VALUES ($1, 'other', $2, $3, $4, $5)
            RETURNING id, document_name, document_url, file_size, mime_type`,
           [userId, file.originalname, `/uploads/messages/${file.filename}`, file.size, file.mimetype]
@@ -356,31 +353,22 @@ router.post("/:conversationId/reply", requireAuth, upload.array("attachments", 5
 
       await client.query("COMMIT");
 
-      // ── SEND PUSH NOTIFICATION TO RECIPIENT ──────────────────
-      // Get sender name
       const senderResult = await pool.query(
-        `SELECT COALESCE(
-          (SELECT first_name || ' ' || last_name FROM landlord WHERE user_id = $1),
-          (SELECT first_name || ' ' || last_name FROM tenant WHERE user_id = $1),
-          (SELECT first_name || ' ' || last_name FROM caretaker WHERE user_id = $1),
-          'Someone'
-        ) AS sender_name`,
+        "SELECT full_name AS sender_name FROM users WHERE id = $1",
         [userId]
       );
       const senderName = senderResult.rows[0]?.sender_name || "Someone";
       const preview = message ? message.substring(0, 100) : "📎 Attachment";
 
-      // Send push to the recipient
       await sendPushNotification(
-        conversationId,  // recipient's user_id
+        conversationId,
         `New message from ${senderName}`,
         preview,
         { type: "message_received", conversationId: userId }
       );
 
-      // Also create a notification in the database
       await pool.query(
-        `INSERT INTO notification (user_id, type, title, message_, related_entity_id, related_entity_type, created_at)
+        `INSERT INTO notification (user_id, type, title, body, related_entity_id, related_entity_type, created_at)
          VALUES ($1, 'message_received', $2, $3, $4, 'message', NOW())`,
         [conversationId, `New message from ${senderName}`, preview, messageId]
       );
@@ -404,7 +392,7 @@ router.post("/:conversationId/reply", requireAuth, upload.array("attachments", 5
 // PUT /messages/:id/read - Mark single message as read
 router.put("/:id/read", requireAuth, async (req, res) => {
   try {
-    await pool.query("UPDATE message_ SET is_read = true WHERE id = $1", [req.params.id]);
+    await pool.query("UPDATE message SET is_read = true WHERE id = $1", [req.params.id]);
     res.json({ message: "Marked as read" });
   } catch (err) {
     console.error("Mark read:", err);
@@ -417,7 +405,7 @@ router.put("/read-all/:conversationId", requireAuth, async (req, res) => {
   try {
     const userId = req.userId;
     await pool.query(
-      `UPDATE message_ SET is_read = true 
+      `UPDATE message SET is_read = true 
        WHERE recipient_id = $1 AND sender_id = $2 AND is_read = false`,
       [userId, req.params.conversationId]
     );

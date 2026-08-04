@@ -24,9 +24,9 @@ router.get("/", requireAuth, requireLandlord, async (req, res) => {
     const result = await pool.query(
       `SELECT 
         c.id,
-        c.first_name,
-        c.last_name,
-        c.phone,
+        u.first_name,
+        u.last_name,
+        u.phone,
         c.is_active,
         c.assigned_property AS assigned_property_id,
         c.created_at,
@@ -48,7 +48,7 @@ router.get("/", requireAuth, requireLandlord, async (req, res) => {
           0
         ) AS open_complaint_count
        FROM caretaker c
-       JOIN user_ u ON u.id = c.user_id
+       JOIN users u ON u.id = c.user_id
        LEFT JOIN property p ON p.id = c.assigned_property
        WHERE c.landlord_id = $1
        ORDER BY c.created_at DESC`,
@@ -90,9 +90,8 @@ router.post("/", requireAuth, requireLandlord, async (req, res) => {
       return res.status(404).json({ error: "Landlord record not found" });
     }
 
-    // Check if email already exists
     const existingUser = await client.query(
-      "SELECT id FROM user_ WHERE email = $1",
+      "SELECT id FROM users WHERE email = $1",
       [email.trim().toLowerCase()]
     );
     if (existingUser.rows.length > 0) {
@@ -100,7 +99,6 @@ router.post("/", requireAuth, requireLandlord, async (req, res) => {
       return res.status(409).json({ error: "A user with this email already exists" });
     }
 
-    // If property is specified, verify it belongs to this landlord
     if (assigned_property) {
       const propertyCheck = await client.query(
         "SELECT id, caretaker_id FROM property WHERE id = $1 AND landlord_id = $2",
@@ -116,28 +114,25 @@ router.post("/", requireAuth, requireLandlord, async (req, res) => {
       }
     }
 
-    // Create user
     const tempPassword = generateTempPassword();
     const hashedPassword = await bcrypt.hash(tempPassword, 12);
 
     const userResult = await client.query(
-      `INSERT INTO user_ (email, phone, password_hash, role, must_change_password, status, created_at, updated_at)
-       VALUES ($1, $2, $3, 'caretaker', true, 'active', NOW(), NOW())
+      `INSERT INTO users (email, phone, password_hash, role, first_name, last_name, must_change_password, status, created_at, updated_at)
+       VALUES ($1, $2, $3, 'caretaker', $4, $5, true, 'active', NOW(), NOW())
        RETURNING id`,
-      [email.trim().toLowerCase(), phone || null, hashedPassword]
+      [email.trim().toLowerCase(), phone || null, hashedPassword, first_name.trim(), last_name.trim()]
     );
     const userId = userResult.rows[0].id;
 
-    // Create caretaker profile
     const caretakerResult = await client.query(
-      `INSERT INTO caretaker (user_id, landlord_id, first_name, last_name, phone, assigned_property, is_active, created_by, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, true, $7, NOW(), NOW())
-       RETURNING id, first_name, last_name, phone, assigned_property, is_active, created_at`,
-      [userId, landlordId, first_name.trim(), last_name.trim(), phone || null, assigned_property || null, req.userId]
+      `INSERT INTO caretaker (user_id, landlord_id, assigned_property, is_active, created_by, created_at, updated_at)
+       VALUES ($1, $2, $3, true, $4, NOW(), NOW())
+       RETURNING id, assigned_property, is_active, created_at`,
+      [userId, landlordId, assigned_property || null, req.userId]
     );
     const caretaker = caretakerResult.rows[0];
 
-    // Assign property
     if (assigned_property) {
       await client.query(
         "UPDATE property SET caretaker_id = $1, updated_at = NOW() WHERE id = $2",
@@ -145,7 +140,6 @@ router.post("/", requireAuth, requireLandlord, async (req, res) => {
       );
     }
 
-    // Save temp password
     await client.query(
       `INSERT INTO temp_password (user_id, password_hash, expires_at, created_at)
        VALUES ($1, $2, NOW() + INTERVAL '7 days', NOW())`,
@@ -154,13 +148,10 @@ router.post("/", requireAuth, requireLandlord, async (req, res) => {
 
     await client.query("COMMIT");
 
-    // Send welcome email
     await sendWelcomeEmail(email, `${first_name} ${last_name}`, tempPassword, "caretaker");
 
-    // Audit log
     await auditLog(req.userId, "CREATE", "caretaker", caretaker.id, null, { first_name, last_name, email, assigned_property }, req);
 
-    // Notify caretaker
     await createNotification(
       userId, "account_created", "Welcome to Chihwa Rentals",
       `Your caretaker account has been created. Please check your email for login details.`,
@@ -171,6 +162,8 @@ router.post("/", requireAuth, requireLandlord, async (req, res) => {
       message: "Caretaker registered successfully",
       caretaker: {
         ...caretaker,
+        first_name: first_name.trim(),
+        last_name: last_name.trim(),
         email: email.trim().toLowerCase(),
         status: "active",
         name: `${first_name} ${last_name}`,
@@ -203,7 +196,6 @@ router.put("/:id/assign-property", requireAuth, requireLandlord, async (req, res
     try {
       await client.query("BEGIN");
 
-      // Verify caretaker
       const caretakerCheck = await client.query(
         "SELECT * FROM caretaker WHERE id = $1 AND landlord_id = $2",
         [id, landlordId]
@@ -215,7 +207,6 @@ router.put("/:id/assign-property", requireAuth, requireLandlord, async (req, res
 
       const caretaker = caretakerCheck.rows[0];
 
-      // Verify property
       const propertyCheck = await client.query(
         "SELECT id, caretaker_id, name FROM property WHERE id = $1 AND landlord_id = $2",
         [property_id, landlordId]
@@ -225,13 +216,11 @@ router.put("/:id/assign-property", requireAuth, requireLandlord, async (req, res
         return res.status(404).json({ error: "Property not found" });
       }
 
-      // Check if property already has another caretaker
       if (propertyCheck.rows[0].caretaker_id && propertyCheck.rows[0].caretaker_id !== id) {
         await client.query("ROLLBACK");
         return res.status(409).json({ error: "This property already has a different caretaker" });
       }
 
-      // Remove from old property
       if (caretaker.assigned_property && caretaker.assigned_property !== property_id) {
         await client.query(
           "UPDATE property SET caretaker_id = NULL, updated_at = NOW() WHERE id = $1",
@@ -239,7 +228,6 @@ router.put("/:id/assign-property", requireAuth, requireLandlord, async (req, res
         );
       }
 
-      // Assign to new property
       await client.query(
         "UPDATE caretaker SET assigned_property = $1, updated_at = NOW() WHERE id = $2",
         [property_id, id]
@@ -282,7 +270,7 @@ router.put("/:id/toggle-status", requireAuth, requireLandlord, async (req, res) 
     const { id } = req.params;
 
     const caretakerCheck = await pool.query(
-      "SELECT c.*, u.id AS user_id FROM caretaker c JOIN user_ u ON u.id = c.user_id WHERE c.id = $1 AND c.landlord_id = $2",
+      "SELECT c.*, u.id AS user_id FROM caretaker c JOIN users u ON u.id = c.user_id WHERE c.id = $1 AND c.landlord_id = $2",
       [id, landlordId]
     );
     if (!caretakerCheck.rows.length) {
@@ -297,7 +285,7 @@ router.put("/:id/toggle-status", requireAuth, requireLandlord, async (req, res) 
       await client.query("BEGIN");
 
       await client.query("UPDATE caretaker SET is_active = $1, updated_at = NOW() WHERE id = $2", [newStatus, id]);
-      await client.query("UPDATE user_ SET status = $1, updated_at = NOW() WHERE id = $2", [newStatus ? 'active' : 'inactive', caretaker.user_id]);
+      await client.query("UPDATE users SET status = $1, updated_at = NOW() WHERE id = $2", [newStatus ? 'active' : 'inactive', caretaker.user_id]);
 
       await client.query("COMMIT");
 

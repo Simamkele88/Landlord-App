@@ -1,6 +1,5 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable no-empty */
-// LANDLORD NOTIFICATIONS PAGE
 import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import useDocumentTitle from "../../../hooks/useDocumentTitle";
@@ -117,7 +116,7 @@ export default function NotificationsPage() {
     const q = searchQuery.toLowerCase();
     const matchSearch = !q || 
       (n.title || "").toLowerCase().includes(q) || 
-      (n.message_ || "").toLowerCase().includes(q);
+      (n.body || "").toLowerCase().includes(q);
     return matchFilter && matchSearch;
   });
 
@@ -154,10 +153,8 @@ export default function NotificationsPage() {
       ) : (
         <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
 
-          {/*  NOTIFICATIONS LIST PANEL */}
           <div className="notif-panel" style={{ width: 380, minWidth: 300, borderRight: `1px solid ${C.border}`, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: C.muted2, flexShrink: 0 }}>
             
-            {/* Header */}
             <div style={{ padding: '1.2rem 1.2rem 0.8rem', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.8rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -192,7 +189,6 @@ export default function NotificationsPage() {
                 </div>
               </div>
 
-              {/* Filter chips */}
               <div style={{ display: 'flex', gap: '0.3rem', marginBottom: '0.6rem', flexWrap: 'wrap' }}>
                 {FILTERS.map(f => (
                   <button key={f.key} onClick={() => setFilter(f.key)} style={{
@@ -207,7 +203,6 @@ export default function NotificationsPage() {
                 ))}
               </div>
 
-              {/* Search */}
               <div style={{ position: 'relative' }}>
                 <Icon name="search" size={13} style={{ position: 'absolute', left: '0.65rem', top: '50%', transform: 'translateY(-50%)', color: 'rgba(245,240,232,0.2)' }} />
                 <input
@@ -220,7 +215,6 @@ export default function NotificationsPage() {
               </div>
             </div>
 
-            {/* Notification List */}
             <div className="notif-list" style={{ flex: 1, overflowY: 'auto' }}>
               {filtered.length === 0 ? (
                 <div style={{ padding: '3rem 1rem', textAlign: 'center', color: 'rgba(245,240,232,0.2)' }}>
@@ -258,7 +252,7 @@ export default function NotificationsPage() {
                           )}
                         </div>
                         <p style={{ fontSize: '0.72rem', color: 'rgba(245,240,232,0.4)', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                          {notif.message_}
+                          {notif.body}
                         </p>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginTop: '0.3rem' }}>
                           <span style={{ fontSize: '0.6rem', color: 'rgba(245,240,232,0.2)', fontFamily: F.mono }}>
@@ -280,11 +274,9 @@ export default function NotificationsPage() {
             </div>
           </div>
 
-          {/* NOTIFICATION DETAIL PANEL */}
           <div className={`detail-panel ${activeNotification ? 'active' : ''}`} style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: C.black }}>
             {activeNotification ? (
               <>
-                {/* Detail Header */}
                 <div style={{ padding: '1rem 1.5rem', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: '0.8rem', flexShrink: 0, background: C.muted2 }}>
                   <button onClick={() => setActiveNotification(null)} style={{
                     padding: '0.2rem', borderRadius: '3px', background: 'transparent', border: 'none',
@@ -317,21 +309,18 @@ export default function NotificationsPage() {
                   </span>
                 </div>
 
-                {/* Detail Body */}
                 <div className="notif-detail" style={{ flex: 1, overflowY: 'auto', padding: '1.5rem' }}>
-                  {/* Message Content */}
                   <div style={{ marginBottom: '1.5rem' }}>
                     <div style={{
                       background: C.muted2, border: `1px solid ${C.border}`, borderRadius: '6px',
                       padding: '1.2rem 1.5rem', animation: 'fadeIn 0.3s ease',
                     }}>
                       <p style={{ fontSize: '0.9rem', color: C.white, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
-                        {activeNotification.message_}
+                        {activeNotification.body}
                       </p>
                     </div>
                   </div>
 
-                  {/* Metadata Card */}
                   <div style={{ marginBottom: '1.5rem' }}>
                     <p style={{
                       fontSize: '0.6rem', fontWeight: 600, color: 'rgba(245,240,232,0.3)',
@@ -366,7 +355,6 @@ export default function NotificationsPage() {
                     </div>
                   </div>
 
-                  {/* Action Buttons */}
                   <div style={{ display: 'flex', gap: '0.8rem' }}>
                     {!activeNotification.is_read && (
                       <button onClick={() => markRead(activeNotification.id)} style={{
@@ -393,7 +381,6 @@ export default function NotificationsPage() {
                 </div>
               </>
             ) : (
-              /* Empty State */
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'rgba(245,240,232,0.1)', gap: '0.8rem' }}>
                 <div style={{
                   width: 80, height: 80, borderRadius: '50%',

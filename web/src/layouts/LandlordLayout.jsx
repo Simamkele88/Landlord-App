@@ -1,4 +1,4 @@
-// LANDLORD LAYOUT — WITH ROLE PROTECTION
+// LANDLORD LAYOUT 
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../App";
 import LandlordSidebar from "../pages/landlord/bars/LandlordSidebar";

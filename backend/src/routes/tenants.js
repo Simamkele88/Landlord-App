@@ -8,6 +8,36 @@ const { sendWelcomeEmail } = require("../utils/email");
 const { auditLog } = require("../utils/audit");
 const { generateTempPassword } = require("../utils/helpers");
 
+async function checkInvoiceNotCoveredByPlan(invoiceId, tenantId) {
+  const plan = await pool.query(
+    `SELECT rp.id, rp.start_date, rp.total_amount, rp.status
+     FROM repayment_plan rp
+     WHERE rp.tenant_id = $1
+       AND rp.status = 'active'
+     ORDER BY rp.created_at DESC
+     LIMIT 1`,
+    [tenantId]
+  );
+ 
+  if (!plan.rows.length) return null; 
+
+  if (invoiceId) {
+    const inv = await pool.query(
+      `SELECT id, status, remaining_balance FROM invoice WHERE id = $1`,
+      [invoiceId]
+    );
+    if (inv.rows.length && ["sent","unpaid","overdue","partial"].includes(inv.rows[0].status)) {
+      return {
+        blocked: true,
+        repayment_plan_id: plan.rows[0].id,
+        message: "This invoice is covered by an active repayment plan. Please make payments through your repayment plan schedule.",
+      };
+    }
+  }
+ 
+  return null;
+}
+
 // POST /tenants/register - Landlord registers a new tenant
 router.post("/register", requireAuth, requireLandlord, async (req, res) => {
   const {
@@ -25,7 +55,7 @@ router.post("/register", requireAuth, requireLandlord, async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    const existing = await client.query("SELECT id FROM user_ WHERE email=$1", [email.trim().toLowerCase()]);
+    const existing = await client.query("SELECT id FROM users WHERE email=$1", [email.trim().toLowerCase()]);
     if (existing.rows.length) {
       await client.query("ROLLBACK");
       return res.status(409).json({ error: "A user with this email already exists" });
@@ -52,16 +82,16 @@ router.post("/register", requireAuth, requireLandlord, async (req, res) => {
     const hashed = await bcrypt.hash(tempPassword, 12);
 
     const userRes = await client.query(
-      `INSERT INTO user_ (email, phone, password_hash, role, must_change_password, status, created_at, updated_at)
-       VALUES ($1,$2,$3,'tenant',true,'active',NOW(),NOW()) RETURNING id`,
-      [email.trim().toLowerCase(), phone || null, hashed]
+      `INSERT INTO users (email, phone, password_hash, role, first_name, last_name, must_change_password, status, created_at, updated_at)
+       VALUES ($1,$2,$3,'tenant',$4,$5,true,'active',NOW(),NOW()) RETURNING id`,
+      [email.trim().toLowerCase(), phone || null, hashed, first_name, last_name]
     );
     const userId = userRes.rows[0].id;
 
     const tenantRes = await client.query(
-      `INSERT INTO tenant (user_id, landlord_id, first_name, last_name, special_note, profile_completed, created_by, created_at, updated_at)
-       VALUES ($1,$2,$3,$4,$5,false,$6,NOW(),NOW()) RETURNING id`,
-      [userId, landlordId, first_name, last_name, special_note || null, req.userId]
+      `INSERT INTO tenant (user_id, landlord_id, special_note, profile_completed, created_by, created_at, updated_at)
+       VALUES ($1,$2,$3,false,$4,NOW(),NOW()) RETURNING id`,
+      [userId, landlordId, special_note || null, req.userId]
     );
     const tenantId = tenantRes.rows[0].id;
 
@@ -90,7 +120,7 @@ router.post("/register", requireAuth, requireLandlord, async (req, res) => {
     );
 
     await client.query(
-      `INSERT INTO tenant_payment_history (tenant_id, on_time_payments, late_payments, missed_payments, partial_payment, last_calculated)
+      `INSERT INTO tenant_payment_history (tenant_id, on_time_payments, late_payments, missed_payments, partial_payments, last_calculated)
        VALUES ($1,0,0,0,0,NOW())`,
       [tenantId]
     );
@@ -113,6 +143,36 @@ router.post("/register", requireAuth, requireLandlord, async (req, res) => {
     res.status(500).json({ error: "Server error while registering tenant" });
   } finally {
     client.release();
+  }
+});
+
+// GET /tenants/me - Get current tenant info
+router.get("/me", requireAuth, requireTenant, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT t.*, u.email, u.phone, u.must_change_password,
+              u.first_name, u.last_name, u.profile_image_url,
+              un.unit_number, un.floor_number, p.name AS property_name,
+              COALESCE(ph.partial_payments, 0) AS partial_payments_count,
+              COALESCE(ph.on_time_payments, 0) AS on_time_payments_count,
+              COALESCE(ph.late_payments, 0) AS late_payments_count,
+              COALESCE(ph.missed_payments, 0) AS missed_payments_count,
+              (SELECT COUNT(*) FROM invoice i 
+               WHERE i.tenant_id = t.id AND i.status = 'partial') AS active_partial_invoices
+       FROM tenant t 
+       JOIN users u ON u.id = t.user_id 
+       LEFT JOIN lease l ON l.tenant_id = t.id AND l.status = 'active'
+       LEFT JOIN unit un ON un.id = l.unit_id
+       LEFT JOIN property p ON p.id = un.property_id
+       LEFT JOIN tenant_payment_history ph ON ph.tenant_id = t.id
+       WHERE u.id = $1`,
+      [req.userId]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: "Tenant not found" });
+    res.json({ tenant: result.rows[0] });
+  } catch (err) {
+    console.error("Get tenant me:", err);
+    res.status(500).json({ error: "Server error" });
   }
 });
 
@@ -168,94 +228,7 @@ router.patch("/me/profile", requireAuth, requireTenant, async (req, res) => {
   }
 });
 
-// GET /tenants/me - Get current tenant info
-router.get("/me", requireAuth, requireTenant, async (req, res) => {
-  try {
-    const result = await pool.query(
-      `SELECT t.*, u.email, u.phone, u.must_change_password,
-              un.unit_number, un.floor_number, p.name AS property_name
-       FROM tenant t 
-       JOIN user_ u ON u.id = t.user_id 
-       LEFT JOIN lease l ON l.tenant_id = t.id AND l.status = 'active'
-       LEFT JOIN unit un ON un.id = l.unit_id
-       LEFT JOIN property p ON p.id = un.property_id
-       WHERE u.id = $1`,
-      [req.userId]
-    );
-    if (!result.rows.length) return res.status(404).json({ error: "Tenant not found" });
-    res.json({ tenant: result.rows[0] });
-  } catch (err) {
-    console.error("Get tenant me:", err);
-    res.status(500).json({ error: "Server error" });
-  }
-});
-
-// GET /tenants - Get all tenants for a landlord
-router.get("/", requireAuth, requireLandlord, async (req, res) => {
-  try {
-    const landlordRes = await pool.query("SELECT id FROM landlord WHERE user_id=$1", [req.userId]);
-    if (!landlordRes.rows.length) return res.status(404).json({ error: "Landlord not found" });
-    const landlordId = landlordRes.rows[0].id;
-
-    const result = await pool.query(
-      `SELECT t.id, t.first_name, t.last_name, 
-              t.profile_completed, t.reliability_score, t.reliability_score_count,
-              t.special_note, t.has_pets, t.number_of_occupants, t.tenant_since,
-              u.email, u.phone, u.email_verified, u.phone_verified, u.status AS user_status, u.last_login,
-              l.id AS lease_id, l.lease_start_date, l.lease_end_date,
-              l.rent_amount, l.deposit_amount, l.payment_frequency,
-              l.payment_due_day, l.status AS lease_status,
-              un.id AS unit_id, un.unit_number, un.floor_number,
-              p.id AS property_id, p.name AS property_name,
-              COALESCE(ph.on_time_payments,0) AS on_time_payments,
-              COALESCE(ph.late_payments,0) AS late_payments,
-              COALESCE(ph.missed_payments,0) AS missed_payments,
-              COALESCE(
-                (SELECT SUM(i.remaining_balance) FROM invoice i
-                 WHERE i.tenant_id = t.id AND i.status IN ('overdue','sent')), 0
-              ) AS outstanding_balance
-       FROM tenant t
-       JOIN user_ u ON u.id = t.user_id
-       LEFT JOIN lease l ON l.tenant_id = t.id AND l.status = 'active'
-       LEFT JOIN unit un ON un.id = l.unit_id
-       LEFT JOIN property p ON p.id = un.property_id
-       LEFT JOIN tenant_payment_history ph ON ph.tenant_id = t.id
-       WHERE t.landlord_id = $1
-       ORDER BY t.created_at DESC`,
-      [landlordId]
-    );
-    res.json({ tenants: result.rows });
-  } catch (err) {
-    console.error("Get tenants:", err);
-    res.status(500).json({ error: "Server error" });
-  }
-});
-
-// GET /tenants/:id - Get a specific tenant's info
-router.get("/:id", requireAuth, requireLandlord, async (req, res) => {
-  try {
-    const result = await pool.query(
-      `SELECT t.*, u.email, u.phone, u.status, u.last_login,
-              l.id AS lease_id, l.lease_start_date, l.lease_end_date,
-              l.rent_amount, l.deposit_amount, l.status AS lease_status,
-              un.unit_number, p.name AS property_name
-       FROM tenant t
-       JOIN user_ u ON u.id = t.user_id
-       LEFT JOIN lease l ON l.tenant_id = t.id AND l.status = 'active'
-       LEFT JOIN unit un ON un.id = l.unit_id
-       LEFT JOIN property p ON p.id = un.property_id
-       WHERE t.id = $1`,
-      [req.params.id]
-    );
-    if (!result.rows.length) return res.status(404).json({ error: "Tenant not found" });
-    res.json({ tenant: result.rows[0] });
-  } catch (err) {
-    console.error("Get tenant:", err);
-    res.status(500).json({ error: "Server error" });
-  }
-});
-
-// GET /tenants/me/invoices - Get tenant's invoices
+// GET /tenants/me/invoices - Get tenant's invoices with payment summary
 router.get("/me/invoices", requireAuth, requireTenant, async (req, res) => {
   try {
     const tenantRes = await pool.query("SELECT id FROM tenant WHERE user_id=$1", [req.userId]);
@@ -263,48 +236,52 @@ router.get("/me/invoices", requireAuth, requireTenant, async (req, res) => {
     const tenantId = tenantRes.rows[0].id;
 
     const result = await pool.query(
-      `SELECT i.*, p.name AS property_name, u.unit_number
+      `SELECT 
+        i.*, 
+        p.name AS property_name, 
+        u.unit_number,
+        COALESCE(ips.payment_count, 0) AS payment_count,
+        COALESCE(ips.pending_amount, 0) AS pending_amount,
+        COALESCE(ips.approved_amount, 0) AS approved_amount,
+        COALESCE(ips.rejected_amount, 0) AS rejected_amount,
+        ips.last_payment_date,
+        ips.payments AS payment_details,
+        CASE 
+          WHEN i.status = 'partial' THEN true 
+          ELSE false 
+        END AS has_partial_payment
        FROM invoice i
        LEFT JOIN unit u ON u.id = i.unit_id
        LEFT JOIN property p ON p.id = u.property_id
+       LEFT JOIN public.invoice_payment_summary ips ON ips.invoice_id = i.id
        WHERE i.tenant_id = $1
        ORDER BY i.due_date DESC
        LIMIT 24`,
       [tenantId]
     );
 
-    res.json({ invoices: result.rows });
+    const invoices = result.rows;
+    const summary = {
+      total: invoices.length,
+      paid: invoices.filter(i => i.status === 'paid').length,
+      partial: invoices.filter(i => i.status === 'partial').length,
+      overdue: invoices.filter(i => i.status === 'overdue').length,
+      unpaid: invoices.filter(i => i.status === 'sent' || i.status === 'unpaid').length,
+      total_remaining: invoices.reduce((sum, i) => sum + Number(i.remaining_balance || 0), 0),
+      total_pending_payments: invoices.reduce((sum, i) => sum + Number(i.pending_amount || 0), 0)
+    };
+
+    res.json({ 
+      invoices: result.rows,
+      summary
+    });
   } catch (err) {
     console.error("Get tenant invoices:", err);
     res.status(500).json({ error: "Server error" });
   }
 });
 
-// GET /tenants/me/invoices/:id - Get single invoice
-router.get("/me/invoices/:id", requireAuth, requireTenant, async (req, res) => {
-  try {
-    const tenantRes = await pool.query("SELECT id FROM tenant WHERE user_id=$1", [req.userId]);
-    if (!tenantRes.rows.length) return res.status(404).json({ error: "Tenant not found" });
-    const tenantId = tenantRes.rows[0].id;
-
-    const result = await pool.query(
-      `SELECT i.*, p.name AS property_name, u.unit_number
-       FROM invoice i
-       LEFT JOIN unit u ON u.id = i.unit_id
-       LEFT JOIN property p ON p.id = u.property_id
-       WHERE i.id = $1 AND i.tenant_id = $2`,
-      [req.params.id, tenantId]
-    );
-
-    if (!result.rows.length) return res.status(404).json({ error: "Invoice not found" });
-    res.json({ invoice: result.rows[0] });
-  } catch (err) {
-    console.error("Get invoice:", err);
-    res.status(500).json({ error: "Server error" });
-  }
-});
-
-// GET /tenants/me/payments - Get payment history
+// GET /tenants/me/payments - Get payment history with invoice_payments data
 router.get("/me/payments", requireAuth, requireTenant, async (req, res) => {
   try {
     const tenantRes = await pool.query("SELECT id FROM tenant WHERE user_id=$1", [req.userId]);
@@ -312,16 +289,46 @@ router.get("/me/payments", requireAuth, requireTenant, async (req, res) => {
     const tenantId = tenantRes.rows[0].id;
 
     const result = await pool.query(
-      `SELECT pay.*, inv.invoice_number, inv.billing_period_start, inv.billing_period_end, inv.due_date
+      `SELECT 
+        pay.*, 
+        inv.invoice_number, 
+        inv.billing_period_start, 
+        inv.billing_period_end, 
+        inv.due_date,
+        inv.status AS invoice_status,
+        inv.remaining_balance,
+        r.receipt_number, 
+        r.receipt_url,
+        ip.status AS payment_approval_status,
+        ip.allocated_rent,
+        ip.allocated_utilities,
+        ip.allocated_late_fees
        FROM payment pay
        LEFT JOIN invoice inv ON inv.id = pay.invoice_id
+       LEFT JOIN receipt r ON r.payment_id = pay.id
+       LEFT JOIN public.invoice_payments ip ON ip.payment_id = pay.id
        WHERE pay.tenant_id = $1
        ORDER BY pay.created_at DESC
        LIMIT 50`,
       [tenantId]
     );
 
-    res.json({ payments: result.rows });
+    const payments = result.rows;
+    const summary = {
+      total_paid: payments
+        .filter(p => p.status === 'paid' || p.status === 'late')
+        .reduce((sum, p) => sum + Number(p.amount_paid), 0),
+      pending: payments.filter(p => p.status === 'pending' || p.status === 'pending_approval').length,
+      approved: payments.filter(p => p.status === 'paid' || p.status === 'late').length,
+      rejected: payments.filter(p => p.status === 'rejected').length,
+      partial_payments: payments.filter(p => p.payment_approval_status === 'approved' && 
+        p.invoice_status === 'partial').length
+    };
+
+    res.json({ 
+      payments: result.rows,
+      summary
+    });
   } catch (err) {
     console.error("Get tenant payments:", err);
     res.status(500).json({ error: "Server error" });
@@ -335,15 +342,24 @@ router.post("/me/payments", requireAuth, requireTenant, async (req, res) => {
     if (!tenantRes.rows.length) return res.status(404).json({ error: "Tenant not found" });
     const tenantId = tenantRes.rows[0].id;
 
-    const { invoice_id, amount_paid, payment_method, bank_reference, proof_of_payment_url, auto_approve } = req.body;
+    const { 
+      invoice_id, 
+      amount_paid, 
+      payment_method, 
+      bank_reference, 
+      proof_of_payment_url, 
+      auto_approve,
+      allocated_rent,
+      allocated_utilities,
+      allocated_late_fees
+    } = req.body;
 
     if (!invoice_id || !amount_paid) {
       return res.status(400).json({ error: "Invoice ID and amount are required" });
     }
 
-    // Verify invoice belongs to tenant
     const invCheck = await pool.query(
-      "SELECT id, landlord_id, lease_id, amount_due FROM invoice WHERE id = $1 AND tenant_id = $2",
+      "SELECT id, landlord_id, lease_id, amount_due, paid_amount, remaining_balance, status FROM invoice WHERE id = $1 AND tenant_id = $2",
       [invoice_id, tenantId]
     );
     if (!invCheck.rows.length) {
@@ -351,24 +367,56 @@ router.post("/me/payments", requireAuth, requireTenant, async (req, res) => {
     }
 
     const invoice = invCheck.rows[0];
+    
+    if (invoice.status === 'paid') {
+      return res.status(400).json({ error: "This invoice has already been paid in full" });
+    }
+    
+    const remaining = Number(invoice.remaining_balance);
+    if (amount_paid > remaining && remaining > 0) {
+      return res.status(400).json({ 
+        error: `Amount exceeds remaining balance. Remaining: R${remaining.toFixed(2)}`,
+        remaining_balance: remaining
+      });
+    }
 
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
 
-      // Auto-approve for in-app card payments
+      const planBlock = await checkInvoiceNotCoveredByPlan(invoice_id, tenantId);
+      if (planBlock?.blocked) {
+        await client.query("ROLLBACK");
+        return res.status(400).json({
+          error: planBlock.message,
+          repayment_plan_id: planBlock.repayment_plan_id,
+        });
+      }
+
       const status = auto_approve ? 'paid' : 'pending';
+      
+      let allocRent = allocated_rent || amount_paid;
+      let allocUtilities = allocated_utilities || 0;
+      let allocLateFees = allocated_late_fees || 0;
+      
+      if (allocRent + allocUtilities + allocLateFees !== amount_paid) {
+        allocRent = amount_paid;
+        allocUtilities = 0;
+        allocLateFees = 0;
+      }
       
       const paymentResult = await client.query(
         `INSERT INTO payment (invoice_id, tenant_id, lease_id, landlord_id, amount_paid, 
           payment_method, bank_reference, proof_of_payment_url, status,
+          allocated_rent, allocated_utilities, allocated_late_fees,
           approved_by, approved_at, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), NOW())
          RETURNING *`,
         [
           invoice_id, tenantId, invoice.lease_id, invoice.landlord_id, 
           amount_paid, payment_method || 'bank_transfer', bank_reference || null, 
           proof_of_payment_url || null, status,
+          allocRent, allocUtilities, allocLateFees,
           auto_approve ? req.userId : null,
           auto_approve ? new Date().toISOString() : null
         ]
@@ -376,80 +424,138 @@ router.post("/me/payments", requireAuth, requireTenant, async (req, res) => {
 
       const payment = paymentResult.rows[0];
 
-      if (auto_approve) {
-        // Update invoice to paid
+      const rejectResult = await client.query(
+        `UPDATE payment 
+         SET status = 'rejected', 
+             rejection_reason = 'Auto-rejected: Newer payment submitted',
+             updated_at = NOW()
+         WHERE invoice_id = $1 
+           AND tenant_id = $2
+           AND id != $3
+           AND status IN ('pending', 'pending_approval')
+         RETURNING id, amount_paid`,
+        [invoice_id, tenantId, payment.id]
+      );
+
+      if (rejectResult.rows.length > 0) {
+        const rejectedIds = rejectResult.rows.map(r => r.id);
         await client.query(
-          `UPDATE invoice SET 
-            status = 'paid', 
-            paid_amount = $1, 
-            paid_date = CURRENT_DATE,
-            remaining_balance = 0
-           WHERE id = $2`,
-          [amount_paid, invoice_id]
+          `UPDATE public.invoice_payments 
+           SET status = 'rejected', updated_at = NOW()
+           WHERE payment_id = ANY($1)`,
+          [rejectedIds]
         );
 
-        // Generate receipt
-        const receiptNo = `RCP-${Date.now().toString().slice(-6)}`;
+        for (const rejected of rejectResult.rows) {
+          await client.query(
+            `INSERT INTO notification (user_id, type, title, body, related_entity_id, related_entity_type, created_at)
+             VALUES ($1, 'payment_rejected', 'Previous Payment Auto-Cancelled', $2, $3, 'payment', NOW())`,
+            [req.userId,
+             `Your previous payment of R${Number(rejected.amount_paid).toFixed(2)} for this invoice was automatically cancelled because you submitted a new payment.`,
+             rejected.id]
+          );
+        }
+      }
+
+      await client.query(
+        `INSERT INTO public.invoice_payments (
+          invoice_id, payment_id, amount, payment_date,
+          method, reference, status,
+          allocated_rent, allocated_utilities, allocated_late_fees,
+          notes
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+        [
+          invoice_id,
+          payment.id,
+          amount_paid,
+          payment.payment_date,
+          payment_method || 'bank_transfer',
+          bank_reference || null,
+          status === 'paid' ? 'approved' : 'pending',
+          allocRent,
+          allocUtilities,
+          allocLateFees,
+          null
+        ]
+      );
+
+      let receiptNo = null;
+      let newInvoiceStatus = invoice.status;
+      let remainingBalance = remaining;
+
+      if (auto_approve) {
+        const invStatusResult = await client.query(
+          `SELECT public.recalculate_invoice_status($1) AS new_status`,
+          [invoice_id]
+        );
+        const invBalance = await client.query(
+          `SELECT remaining_balance FROM invoice WHERE id = $1`,
+          [invoice_id]
+        );
+        newInvoiceStatus = invStatusResult.rows[0].new_status;
+        remainingBalance = Number(invBalance.rows[0].remaining_balance);
+
+        receiptNo = `RCP-${Date.now().toString().slice(-6)}`;
         await client.query(
           `INSERT INTO receipt (payment_id, tenant_id, receipt_number, receipt_url, issued_by, issued_at)
            VALUES ($1, $2, $3, $4, $5, NOW())`,
           [payment.id, tenantId, receiptNo, `/uploads/receipts/${receiptNo}.pdf`, req.userId]
         );
 
-        // Update tenant payment history
-        await client.query(
-          `UPDATE tenant_payment_history SET 
-            on_time_payments = on_time_payments + 1,
-            last_calculated = NOW()
-           WHERE tenant_id = $1`,
-          [tenantId]
-        );
+        await client.query(`SELECT public.recalculate_payment_history($1)`, [tenantId]);
+        await client.query(`SELECT public.recalculate_tenant_score($1, NULL)`, [tenantId]);
 
-        // Create notification for landlord
         const landlordUser = await pool.query(
           "SELECT user_id FROM landlord WHERE id = $1",
           [invoice.landlord_id]
         );
+
+        const landlordMsg = newInvoiceStatus === 'partial'
+          ? `Partial in-app card payment of R${amount_paid} received. Balance remaining: R${remainingBalance.toFixed(2)}. Receipt: ${receiptNo}`
+          : `In-app card payment of R${amount_paid} received and auto-approved. Receipt: ${receiptNo}`;
+        const tenantMsg = newInvoiceStatus === 'partial'
+          ? `Your in-app payment of R${amount_paid} was received. R${remainingBalance.toFixed(2)} still outstanding on this invoice. Receipt: ${receiptNo}`
+          : `Your in-app payment of R${amount_paid} has been approved. Receipt: ${receiptNo}`;
+
         if (landlordUser.rows.length) {
           await client.query(
-            `INSERT INTO notification (user_id, type, title, message_, related_entity_id, related_entity_type, created_at)
-             VALUES ($1, 'payment_received', 'Payment Received', $2, $3, 'payment', NOW())`,
-            [landlordUser.rows[0].user_id, 
-             `In-app card payment of R${amount_paid} received and auto-approved. Receipt: ${receiptNo}`,
+            `INSERT INTO notification (user_id, type, title, body, related_entity_id, related_entity_type, created_at)
+             VALUES ($1, 'payment_received', $2, $3, $4, 'payment', NOW())`,
+            [landlordUser.rows[0].user_id,
+             newInvoiceStatus === 'partial' ? 'Partial Payment Received' : 'Payment Received',
+             landlordMsg,
              payment.id]
           );
         }
 
-        // Notify tenant
         await client.query(
-          `INSERT INTO notification (user_id, type, title, message_, related_entity_id, related_entity_type, created_at)
-           VALUES ($1, 'payment_approved', 'Payment Approved', $2, $3, 'payment', NOW())`,
-          [req.userId, 
-           `Your in-app payment of R${amount_paid} has been approved. Receipt: ${receiptNo}`,
+          `INSERT INTO notification (user_id, type, title, body, related_entity_id, related_entity_type, created_at)
+           VALUES ($1, 'payment_approved', $2, $3, $4, 'payment', NOW())`,
+          [req.userId,
+           newInvoiceStatus === 'partial' ? 'Partial Payment Received' : 'Payment Approved',
+           tenantMsg,
            payment.id]
         );
       } else {
-        // For EFT/proof payments - create notification for landlord review
         const landlordUser = await pool.query(
           "SELECT user_id FROM landlord WHERE id = $1",
           [invoice.landlord_id]
         );
         if (landlordUser.rows.length) {
           await client.query(
-            `INSERT INTO notification (user_id, type, title, message_, related_entity_id, related_entity_type, created_at)
+            `INSERT INTO notification (user_id, type, title, body, related_entity_id, related_entity_type, created_at)
              VALUES ($1, 'payment_received', 'Payment Needs Review', $2, $3, 'payment', NOW())`,
             [landlordUser.rows[0].user_id, 
-             `Payment of R${amount_paid} submitted and requires your approval.`,
+             `Payment of R${amount_paid} submitted and requires your approval.${rejectResult.rows.length > 0 ? ` ${rejectResult.rows.length} previous pending payment(s) were auto-cancelled.` : ''}`,
              payment.id]
           );
         }
 
-        // Notify tenant
         await client.query(
-          `INSERT INTO notification (user_id, type, title, message_, related_entity_id, related_entity_type, created_at)
+          `INSERT INTO notification (user_id, type, title, body, related_entity_id, related_entity_type, created_at)
            VALUES ($1, 'payment_received', 'Payment Submitted', $2, $3, 'payment', NOW())`,
           [req.userId, 
-           `Your payment of R${amount_paid} has been submitted and is pending landlord approval.`,
+           `Your payment of R${amount_paid} has been submitted and is pending landlord approval.${rejectResult.rows.length > 0 ? ` Your ${rejectResult.rows.length} previous pending payment(s) were auto-cancelled.` : ''}`,
            payment.id]
         );
       }
@@ -460,8 +566,11 @@ router.post("/me/payments", requireAuth, requireTenant, async (req, res) => {
         message: auto_approve ? "Payment approved" : "Payment submitted for approval", 
         payment: {
           ...payment,
-          receipt_no: auto_approve ? `RCP-${Date.now().toString().slice(-6)}` : null,
-        }
+          receipt_no: receiptNo,
+        },
+        auto_cancelled_count: rejectResult.rows.length,
+        invoice_status: newInvoiceStatus,
+        remaining_balance: remainingBalance
       });
     } catch (err) {
       await client.query("ROLLBACK");
@@ -482,44 +591,60 @@ router.get("/me/dashboard", requireAuth, requireTenant, async (req, res) => {
     if (!tenantRes.rows.length) return res.status(404).json({ error: "Tenant not found" });
     const tenantId = tenantRes.rows[0].id;
 
-    // Get current invoice
-    const currentInvoice = await pool.query(
-      `SELECT * FROM invoice WHERE tenant_id = $1 AND status IN ('sent', 'overdue')
-       ORDER BY due_date ASC LIMIT 1`,
-      [tenantId]
-    );
-
-    // Get active lease
-    const lease = await pool.query(
-      `SELECT l.*, u.unit_number, p.name AS property_name
-       FROM lease l
-       JOIN unit u ON u.id = l.unit_id
-       JOIN property p ON p.id = u.property_id
-       WHERE l.tenant_id = $1 AND l.status = 'active'
-       LIMIT 1`,
-      [tenantId]
-    );
-
-    // Get open maintenance requests count
-    const maintenanceCount = await pool.query(
-      `SELECT COUNT(*) FROM maintenance_request 
-       WHERE tenant_id = $1 AND status NOT IN ('completed', 'cancelled')`,
-      [tenantId]
-    );
-
-    // Get open complaints count
-    const complaintCount = await pool.query(
-      `SELECT COUNT(*) FROM complaint 
-       WHERE filed_by_tenant_id = $1 AND status NOT IN ('resolved', 'dismissed', 'rejected')`,
-      [tenantId]
-    );
-
-    // Get unread messages count
-    const unreadMessages = await pool.query(
-      `SELECT COUNT(*) FROM message_ 
-       WHERE recipient_id = $1 AND is_read = false`,
-      [req.userId]
-    );
+    const [currentInvoice, lease, maintenanceCount, complaintCount, unreadMessages, paymentStats, tenantInfo] = await Promise.all([
+      pool.query(
+        `SELECT 
+          i.*,
+          COALESCE(ips.payment_count, 0) AS payment_count,
+          COALESCE(ips.pending_amount, 0) AS pending_amount,
+          COALESCE(ips.approved_amount, 0) AS approved_amount
+         FROM invoice i
+         LEFT JOIN public.invoice_payment_summary ips ON ips.invoice_id = i.id
+         WHERE i.tenant_id = $1 AND i.status IN ('sent', 'overdue', 'partial')
+         ORDER BY i.due_date ASC LIMIT 1`,
+        [tenantId]
+      ),
+      pool.query(
+        `SELECT l.*, u.unit_number, p.name AS property_name
+         FROM lease l
+         JOIN unit u ON u.id = l.unit_id
+         JOIN property p ON p.id = u.property_id
+         WHERE l.tenant_id = $1 AND l.status = 'active'
+         LIMIT 1`,
+        [tenantId]
+      ),
+      pool.query(
+        `SELECT COUNT(*) FROM maintenance_request 
+         WHERE tenant_id = $1 AND status NOT IN ('completed', 'closed', 'cancelled')`,
+        [tenantId]
+      ),
+      pool.query(
+        `SELECT COUNT(*) FROM complaint 
+         WHERE filed_by_tenant_id = $1 AND status NOT IN ('resolved', 'dismissed', 'rejected')`,
+        [tenantId]
+      ),
+      pool.query(
+        `SELECT COUNT(*) FROM message 
+         WHERE recipient_id = $1 AND is_read = false`,
+        [req.userId]
+      ),
+      pool.query(
+        `SELECT 
+          COUNT(*) FILTER (WHERE status = 'partial') AS partial_invoices,
+          COALESCE(SUM(remaining_balance), 0) AS total_outstanding
+         FROM invoice
+         WHERE tenant_id = $1 AND status IN ('sent', 'overdue', 'partial')`,
+        [tenantId]
+      ),
+      pool.query(
+        `SELECT t.reliability_score, t.standing, u.first_name, u.last_name,
+                u.email, u.phone
+         FROM tenant t
+         JOIN users u ON u.id = t.user_id
+         WHERE t.id = $1`,
+        [tenantId]
+      ),
+    ]);
 
     res.json({
       current_invoice: currentInvoice.rows[0] || null,
@@ -527,10 +652,183 @@ router.get("/me/dashboard", requireAuth, requireTenant, async (req, res) => {
       open_maintenance: parseInt(maintenanceCount.rows[0].count) || 0,
       open_complaints: parseInt(complaintCount.rows[0].count) || 0,
       unread_messages: parseInt(unreadMessages.rows[0].count) || 0,
+      payment_stats: paymentStats.rows[0] || { pending_payments: 0, partial_invoices: 0, total_outstanding: 0 },
+      tenant: tenantInfo.rows[0] || null,
     });
   } catch (err) {
     console.error("Tenant dashboard:", err);
     res.status(500).json({ error: "Server error" });
   }
 });
+
+// GET /tenants/me/invoices/:id - Get single invoice with payment summary
+router.get("/me/invoices/:id", requireAuth, requireTenant, async (req, res) => {
+  try {
+    const tenantRes = await pool.query("SELECT id FROM tenant WHERE user_id=$1", [req.userId]);
+    if (!tenantRes.rows.length) return res.status(404).json({ error: "Tenant not found" });
+    const tenantId = tenantRes.rows[0].id;
+
+    const result = await pool.query(
+      `SELECT 
+        i.*, 
+        p.name AS property_name, 
+        u.unit_number,
+        COALESCE(ips.payment_count, 0) AS payment_count,
+        COALESCE(ips.pending_amount, 0) AS pending_amount,
+        COALESCE(ips.approved_amount, 0) AS approved_amount,
+        COALESCE(ips.rejected_amount, 0) AS rejected_amount,
+        ips.last_payment_date,
+        ips.payments AS payment_details,
+        CASE 
+          WHEN i.status = 'partial' THEN true 
+          ELSE false 
+        END AS has_partial_payment
+       FROM invoice i
+       LEFT JOIN unit u ON u.id = i.unit_id
+       LEFT JOIN property p ON p.id = u.property_id
+       LEFT JOIN public.invoice_payment_summary ips ON ips.invoice_id = i.id
+       WHERE i.id = $1 AND i.tenant_id = $2`,
+      [req.params.id, tenantId]
+    );
+
+    if (!result.rows.length) return res.status(404).json({ error: "Invoice not found" });
+    
+    const invoice = result.rows[0];
+    const can_pay = invoice.status !== 'paid' && 
+                    invoice.remaining_balance > 0 &&
+                    invoice.status !== 'cancelled' &&
+                    invoice.status !== 'void';
+
+    res.json({ 
+      invoice: {
+        ...invoice,
+        can_make_payment: can_pay,
+        payment_progress: invoice.amount_due > 0 
+          ? Math.round((Number(invoice.approved_amount) / Number(invoice.amount_due)) * 100)
+          : 0
+      }
+    });
+  } catch (err) {
+    console.error("Get invoice:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// GET /tenants/me/invoices/:id/receipt - Get receipt(s) for an invoice
+router.get("/me/invoices/:id/receipt", requireAuth, requireTenant, async (req, res) => {
+  try {
+    const tenantRes = await pool.query("SELECT id FROM tenant WHERE user_id=$1", [req.userId]);
+    if (!tenantRes.rows.length) return res.status(404).json({ error: "Tenant not found" });
+    const tenantId = tenantRes.rows[0].id;
+
+    const invoiceRes = await pool.query(
+      `SELECT i.*, p.name AS property_name, u.unit_number
+       FROM invoice i
+       LEFT JOIN unit u ON u.id = i.unit_id
+       LEFT JOIN property p ON p.id = u.property_id
+       WHERE i.id = $1 AND i.tenant_id = $2`,
+      [req.params.id, tenantId]
+    );
+    if (!invoiceRes.rows.length) return res.status(404).json({ error: "Invoice not found" });
+
+    const receiptsRes = await pool.query(
+      `SELECT r.*, pay.amount_paid, pay.payment_method, pay.payment_date,
+              ip.allocated_rent, ip.allocated_utilities, ip.allocated_late_fees,
+              ip.status AS payment_approval_status
+       FROM receipt r
+       JOIN payment pay ON pay.id = r.payment_id
+       LEFT JOIN public.invoice_payments ip ON ip.payment_id = pay.id
+       WHERE pay.invoice_id = $1 AND pay.tenant_id = $2
+       ORDER BY r.issued_at ASC`,
+      [req.params.id, tenantId]
+    );
+
+    if (!receiptsRes.rows.length) {
+      return res.status(404).json({ error: "No receipt found for this invoice yet" });
+    }
+
+    res.json({ 
+      invoice: invoiceRes.rows[0], 
+      receipts: receiptsRes.rows,
+      total_paid: receiptsRes.rows.reduce((sum, r) => sum + Number(r.amount_paid), 0)
+    });
+  } catch (err) {
+    console.error("Get invoice receipt:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// GET /tenants - Get all tenants for a landlord
+router.get("/", requireAuth, requireLandlord, async (req, res) => {
+  try {
+    const landlordRes = await pool.query("SELECT id FROM landlord WHERE user_id=$1", [req.userId]);
+    if (!landlordRes.rows.length) return res.status(404).json({ error: "Landlord not found" });
+    const landlordId = landlordRes.rows[0].id;
+
+    const result = await pool.query(
+      `SELECT t.id, u.first_name, u.last_name, 
+              t.profile_completed, t.reliability_score, t.reliability_score_value,
+              t.special_note, t.has_pets, t.number_of_occupants, t.tenant_since,
+              u.email, u.phone, u.email_verified, u.phone_verified, u.status AS user_status, u.last_login,
+              l.id AS lease_id, l.lease_start_date, l.lease_end_date,
+              l.rent_amount, l.deposit_amount, l.payment_frequency,
+              l.payment_due_day, l.status AS lease_status,
+              un.id AS unit_id, un.unit_number, un.floor_number,
+              p.id AS property_id, p.name AS property_name,
+              COALESCE(ph.on_time_payments,0) AS on_time_payments,
+              COALESCE(ph.late_payments,0) AS late_payments,
+              COALESCE(ph.missed_payments,0) AS missed_payments,
+              COALESCE(ph.partial_payments,0) AS partial_payments,
+              COALESCE(
+                (SELECT SUM(i.remaining_balance) FROM invoice i
+                 WHERE i.tenant_id = t.id AND i.status IN ('overdue','sent','partial')), 0
+              ) AS outstanding_balance,
+              (SELECT COUNT(*) FROM invoice i 
+               WHERE i.tenant_id = t.id AND i.status = 'partial') AS partial_invoice_count
+       FROM tenant t
+       JOIN users u ON u.id = t.user_id
+       LEFT JOIN lease l ON l.tenant_id = t.id AND l.status = 'active'
+       LEFT JOIN unit un ON un.id = l.unit_id
+       LEFT JOIN property p ON p.id = un.property_id
+       LEFT JOIN tenant_payment_history ph ON ph.tenant_id = t.id
+       WHERE t.landlord_id = $1
+       ORDER BY t.created_at DESC`,
+      [landlordId]
+    );
+    res.json({ tenants: result.rows });
+  } catch (err) {
+    console.error("Get tenants:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// GET /tenants/:id - Get a specific tenant's info
+router.get("/:id", requireAuth, requireLandlord, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT t.*, u.email, u.phone, u.status, u.last_login,
+              u.first_name, u.last_name, u.profile_image_url,
+              l.id AS lease_id, l.lease_start_date, l.lease_end_date,
+              l.rent_amount, l.deposit_amount, l.status AS lease_status,
+              un.unit_number, p.name AS property_name,
+              COALESCE(ph.partial_payments,0) AS partial_payments_count,
+              (SELECT COUNT(*) FROM invoice i 
+               WHERE i.tenant_id = t.id AND i.status = 'partial') AS partial_invoice_count
+       FROM tenant t
+       JOIN users u ON u.id = t.user_id
+       LEFT JOIN lease l ON l.tenant_id = t.id AND l.status = 'active'
+       LEFT JOIN unit un ON un.id = l.unit_id
+       LEFT JOIN property p ON p.id = un.property_id
+       LEFT JOIN tenant_payment_history ph ON ph.tenant_id = t.id
+       WHERE t.id = $1`,
+      [req.params.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: "Tenant not found" });
+    res.json({ tenant: result.rows[0] });
+  } catch (err) {
+    console.error("Get tenant:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 module.exports = router;

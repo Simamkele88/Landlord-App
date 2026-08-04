@@ -228,7 +228,6 @@ export default function ComplaintNew() {
             <TouchableOpacity key={idx} style={[S.unitOption, selectedUnit?.unit_number === unit.unit_number && S.unitOptionActive]}
               onPress={() => { setSelectedUnit(unit); setShowUnitPicker(false); setErrors(e => ({ ...e, unit: undefined })); }}>
               <View style={S.unitOptionLeft}><Ionicons name="home" size={15} color={C.gold} /><Text style={S.unitOptionTitle}>Unit {unit.unit_number}</Text></View>
-              {unit.tenant_name && <Text style={S.unitOptionTenant}>{unit.tenant_name}</Text>}
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -343,17 +342,14 @@ export default function ComplaintNew() {
           </TouchableOpacity>
         )}
 
-        {/* DISCLAIMER */}
-        <View style={S.infoBox}>
-          <Ionicons name="information-circle" size={13} color={C.blue} />
-          <Text style={S.infoText}>Your complaint will be reviewed by the caretaker and landlord. False or malicious complaints may result in disciplinary action.</Text>
-        </View>
       </ScrollView>
 
       {/* FOOTER */}
       <View style={S.footer}>
-        <TouchableOpacity style={$btnGhost} onPress={() => navigation.goBack()}><Text style={S.btnGhostText}>Cancel</Text></TouchableOpacity>
-        <TouchableOpacity style={[$btnGold, (loading || uploading) && { opacity: 0.6 }]} onPress={handleSubmit} disabled={loading || uploading}>
+        <TouchableOpacity style={[$btnGhost, { flex: 1 }]} onPress={() => navigation.goBack()}>
+          <Text style={S.btnGhostText}>Cancel</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[$btnGold, { flex: 1 }, (loading || uploading) && { opacity: 0.6 }]} onPress={handleSubmit} disabled={loading || uploading}>
           {loading ? <ActivityIndicator color={C.black} size="small" /> : <Text style={S.btnGoldText}>SUBMIT COMPLAINT</Text>}
         </TouchableOpacity>
       </View>

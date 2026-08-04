@@ -60,7 +60,7 @@ router.post("/maintenance-photo-base64", requireAuth, async (req, res) => {
       
       if (tenant.rows.length) {
         const docResult = await pool.query(
-          `INSERT INTO document_ (tenant_id, uploaded_by, document_type, document_name, document_url, file_size, mime_type)
+          `INSERT INTO document (tenant_id, uploaded_by, document_type, document_name, document_url, file_size, mime_type)
            VALUES ($1, $2, 'maintenance_photo', $3, $4, $5, $6) RETURNING id`,
           [tenant.rows[0].id, req.userId, fileName || `Maintenance photo`, `/uploads/maintenance/${filename}`, buffer.length, imageType]
         );
@@ -85,7 +85,7 @@ router.post("/maintenance-photo-base64", requireAuth, async (req, res) => {
   }
 });
 
-// POST /upload - Generic file upload for complaint evidence
+// POST /upload - Generic file upload
 router.post("/", requireAuth, async (req, res) => {
   console.log("Upload request received");
   
@@ -117,11 +117,22 @@ router.post("/", requireAuth, async (req, res) => {
     }
     
     const type = uploadType || 'maintenance';
-    const folderName = type === 'complaint' ? 'complaints' : 'maintenance';
-    const documentType = type === 'complaint' ? 'complaint_evidence' : 'maintenance_photo';
+    let folderName, documentType;
+    
+    if (type === 'complaint') {
+      folderName = 'complaints';
+      documentType = 'complaint_evidence';
+    } else if (type === 'payment') {
+      folderName = 'payments';
+      documentType = 'payment_proof';
+    } else {
+      folderName = 'maintenance';
+      documentType = 'maintenance_photo';
+    }
     
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const ext = imageType.includes('png') ? '.png' : '.jpg';
+    const ext = imageType.includes('png') ? '.png' : 
+                imageType.includes('pdf') ? '.pdf' : '.jpg';
     const filename = `${folderName}-${uniqueSuffix}${ext}`;
     
     const uploadDir = path.join(__dirname, '..', '..', 'uploads', folderName);
@@ -141,9 +152,9 @@ router.post("/", requireAuth, async (req, res) => {
       }
       
       const docResult = await pool.query(
-        `INSERT INTO document_ (tenant_id, uploaded_by, document_type, document_name, document_url, file_size, mime_type)
+        `INSERT INTO document (tenant_id, uploaded_by, document_type, document_name, document_url, file_size, mime_type)
          VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
-        [tenantId, req.userId, documentType, fileName || `${type} photo`, `/uploads/${folderName}/${filename}`, buffer.length, imageType]
+        [tenantId, req.userId, documentType, fileName || `${type} proof`, `/uploads/${folderName}/${filename}`, buffer.length, imageType]
       );
       documentId = docResult.rows[0].id;
     } catch (dbErr) {
@@ -153,7 +164,7 @@ router.post("/", requireAuth, async (req, res) => {
     return res.json({
       success: true,
       document_url: `/uploads/${folderName}/${filename}`,
-      document_name: fileName || `${type} photo`,
+      document_name: fileName || `${type} proof`,
       file_size: buffer.length,
       mime_type: imageType,
       document_id: documentId

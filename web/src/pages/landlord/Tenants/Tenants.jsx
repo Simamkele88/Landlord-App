@@ -1,7 +1,5 @@
 /* eslint-disable react-hooks/purity */
 /* eslint-disable no-unused-vars */
-// LANDLORD TENANTS PAGE 
-
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -20,17 +18,32 @@ const TERMINATION_REASONS = [
   "Property damage", "End of lease — not renewing", "Mutual agreement", "Other",
 ];
 
+const REASON_MAP = {
+  "Non-payment of rent": "non_payment",
+  "Repeated late payments": "non_payment",
+  "Breach of property rules": "breach_of_contract",
+  "Property damage": "property_damage",
+  "End of lease — not renewing": "lease_end",
+  "Mutual agreement": "mutual_agreement",
+  "Other": "other",
+};
+
 const scoreConfig = {
   "reliable":      { color: C.greenLight, bg: 'rgba(26,122,74,0.1)',   border: '1px solid rgba(76,186,122,0.2)',  dot: C.greenLight, icon: 'check'  },
   "moderate risk": { color: C.gold,       bg: 'rgba(232,160,18,0.08)',  border: '1px solid rgba(232,160,18,0.2)',  dot: C.gold,       icon: 'warning' },
   "high risk":     { color: C.redLight,   bg: 'rgba(224,90,74,0.1)',    border: '1px solid rgba(224,90,74,0.2)',   dot: C.redLight,   icon: 'warning' },
 };
 
-const propertyAccents = {
-  "Hillbrow Heights": { dot: C.blue,       headerBg: 'rgba(58,143,212,0.06)',  border: '1px solid rgba(58,143,212,0.15)'  },
-  "Berea Flats":      { dot: C.purple,     headerBg: 'rgba(139,92,246,0.06)',  border: '1px solid rgba(139,92,246,0.15)' },
-  "Yeoville Corner":  { dot: C.greenLight, headerBg: 'rgba(26,122,74,0.06)',   border: '1px solid rgba(76,186,122,0.15)' },
+const standingConfig = {
+  "good_standing":   { color: C.greenLight, label: "Good" },
+  "warning_issued":  { color: C.gold,       label: "Warning" },
+  "fine_issued":     { color: C.gold,       label: "Fined" },
+  "final_warning":   { color: C.redLight,   label: "Final Warning" },
+  "eviction_notice": { color: C.redLight,   label: "Eviction Notice" },
+  "evicted":         { color: C.redLight,   label: "Evicted" },
 };
+
+
 
 function format(n) { return n ? `R ${Number(n).toLocaleString("en-ZA")}` : "—"; }
 function initials(name = "") { return (name || "").split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase(); }
@@ -78,7 +91,7 @@ const btnGhost = {
 };
 
 const btnDanger = {
-  background: C.red, color: C.white, border: 'none',
+  background: C.redLight, color: C.white, border: 'none',
   padding: '0.6rem 1.4rem', fontSize: '0.76rem', fontWeight: 600,
   fontFamily: F.dm, letterSpacing: '0.04em', borderRadius: '3px',
   cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
@@ -126,9 +139,10 @@ function mapTenantFromAPI(t) {
     userId: t.user_id,
     firstName: t.first_name || "",
     lastName: t.last_name || "",
-    name: `${t.first_name || ""} ${t.last_name || ""}`.trim(),
+    name: t.full_name || `${t.first_name || ""} ${t.last_name || ""}`.trim(),
     email: t.email || "",
     phone: t.phone || "",
+    profileImage: t.profile_image_url || "",
     idNumber: t.id_number || "",
     dateOfBirth: t.date_of_birth || "",
     employmentStatus: t.employment_status || "",
@@ -141,6 +155,8 @@ function mapTenantFromAPI(t) {
     leaseEnd: t.lease_end_date || "",
     status: t.lease_status === "active" ? "Active" : "Inactive",
     reliabilityScore: (t.reliability_score || "reliable").replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()),
+    reliabilityScoreValue: t.reliability_score_value || null,
+    standing: t.standing || "good_standing",
     paymentHistory: {
       onTime: Number(t.on_time_payments) || 0,
       late: Number(t.late_payments) || 0,
@@ -166,6 +182,23 @@ function ScoreBadge({ score }) {
   );
 }
 
+function StandingBadge({ standing }) {
+  const cfg = standingConfig[standing] ?? standingConfig["good_standing"];
+  if (standing === "good_standing") return null;
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+      fontSize: '0.55rem', fontWeight: 700, padding: '0.1rem 0.4rem',
+      borderRadius: '2px', fontFamily: F.mono, letterSpacing: '0.04em',
+      textTransform: 'uppercase', color: cfg.color,
+      background: `${cfg.color}14`, border: `1px solid ${cfg.color}30`,
+    }}>
+      <span style={{ width: 4, height: 4, borderRadius: '50%', background: cfg.color }} />
+      {cfg.label}
+    </span>
+  );
+}
+
 function ScoreBar({ label, value, max, color }) {
   return (
     <div>
@@ -175,55 +208,6 @@ function ScoreBar({ label, value, max, color }) {
       </div>
       <div style={{ width: '100%', height: 4, borderRadius: '2px', background: 'rgba(245,240,232,0.08)' }}>
         <div style={{ height: 4, borderRadius: '2px', background: color, width: `${Math.min((value / max) * 100, 100)}%` }} />
-      </div>
-    </div>
-  );
-}
-
-function PaymentPunchRow({ paymentHistory }) {
-  const { onTime, late, missed } = paymentHistory;
-  const marks = [...Array(onTime).fill({ c: C.greenLight, l: "on-time" }),
-                 ...Array(late).fill({ c: C.gold, l: "late" }),
-                 ...Array(missed).fill({ c: C.redLight, l: "missed" })].slice(-14);
-  return (
-    <div style={{ display: 'flex', gap: '3px' }}>
-      {marks.map((m, i) => (
-        <span key={i} title={m.l} style={{
-          width: 7, height: 7, borderRadius: '1px',
-          background: m.c, opacity: 0.85,
-        }} />
-      ))}
-    </div>
-  );
-}
-
-function LeaseTicker({ leaseStart, leaseEnd }) {
-  if (!leaseStart || !leaseEnd) return null;
-  const start = new Date(leaseStart).getTime();
-  const end = new Date(leaseEnd).getTime();
-  const now = Date.now();
-  const pct = Math.min(100, Math.max(0, ((now - start) / (end - start)) * 100));
-  const daysLeft = Math.ceil((end - now) / 86400000);
-  const color = daysLeft < 0 ? C.redLight : daysLeft < 60 ? C.gold : C.blue;
-  const TOTAL = 24;
-  const filled = Math.round((pct / 100) * TOTAL);
-  return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem' }}>
-        <span style={{ fontSize: '0.6rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono, letterSpacing: '0.04em', textTransform: 'uppercase' }}>Lease</span>
-        <span style={{ fontSize: '0.62rem', color, fontFamily: F.mono, fontWeight: 600 }}>
-          {daysLeft < 0 ? "Expired" : `${daysLeft}d left`}
-        </span>
-      </div>
-      <div style={{ display: 'flex', gap: '2px', alignItems: 'flex-end', height: 10 }}>
-        {Array.from({ length: TOTAL }).map((_, i) => (
-          <span key={i} style={{
-            flex: 1,
-            height: i % 6 === 0 ? 10 : 6,
-            background: i < filled ? color : 'rgba(245,240,232,0.08)',
-            borderRadius: '1px',
-          }} />
-        ))}
       </div>
     </div>
   );
@@ -298,7 +282,18 @@ function EditTenantModal({ tenant, onClose, onSave }) {
     setLoading(true);
     try {
       const token = localStorage.getItem("token");
-      await axios.put(`${API}/tenants/${tenant.id}`, form, { headers: { Authorization: `Bearer ${token}` } });
+      await axios.put(`${API}/users/${tenant.userId}`, {
+        first_name: form.first_name,
+        last_name: form.last_name,
+        email: form.email,
+        phone: form.phone,
+      }, { headers: { Authorization: `Bearer ${token}` } });
+      await axios.put(`${API}/tenants/${tenant.id}`, {
+        id_number: form.id_number,
+        date_of_birth: form.date_of_birth,
+        employment_status: form.employment_status,
+        monthly_income: form.monthly_income ? Number(form.monthly_income) : null,
+      }, { headers: { Authorization: `Bearer ${token}` } });
       toast.success("Tenant updated!");
       onSave();
       onClose();
@@ -402,10 +397,19 @@ function ProfileModal({ tenant, onClose, onEdit, onRepayment, onRenewal, onTermi
           </button>
         </div>
         <div style={modalBody}>
-          {/* Reliability Score Card */}
           <div style={{ padding: '1rem', borderRadius: '4px', background: cfg.bg, border: cfg.border }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.8rem' }}>
-              <p style={{ fontSize: '0.78rem', fontWeight: 700, color: cfg.color, fontFamily: F.bebas, letterSpacing: '0.03em' }}>Reliability Score: {tenant.reliabilityScore}</p>
+              <div>
+                <p style={{ fontSize: '0.78rem', fontWeight: 700, color: cfg.color, fontFamily: F.bebas, letterSpacing: '0.03em' }}>
+                  Reliability Score: {tenant.reliabilityScore}
+                  {tenant.reliabilityScoreValue != null && (
+                    <span style={{ fontSize: '0.62rem', fontWeight: 400, color: 'rgba(245,240,232,0.3)', fontFamily: F.mono, marginLeft: '0.4rem' }}>
+                      {tenant.reliabilityScoreValue}/100
+                    </span>
+                  )}
+                </p>
+                <StandingBadge standing={tenant.standing} />
+              </div>
               <ScoreBadge score={tenant.reliabilityScore} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -416,7 +420,6 @@ function ProfileModal({ tenant, onClose, onEdit, onRepayment, onRenewal, onTermi
             <p style={{ fontSize: '0.62rem', color: 'rgba(245,240,232,0.25)', fontFamily: F.mono, marginTop: '0.5rem' }}>{total} total payment periods tracked</p>
           </div>
 
-          {/* Alerts */}
           {(expiring || expired) && (
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', padding: '0.7rem 0.9rem', borderRadius: '3px', background: expired ? 'rgba(224,90,74,0.08)' : 'rgba(232,160,18,0.06)', border: `1px solid ${expired ? 'rgba(224,90,74,0.2)' : 'rgba(232,160,18,0.15)'}`, color: expired ? C.redLight : C.gold, fontSize: '0.72rem', fontWeight: 500 }}>
               <Icon name="warning" size={14} style={{ flexShrink: 0, marginTop: '1px' }} />
@@ -430,7 +433,6 @@ function ProfileModal({ tenant, onClose, onEdit, onRepayment, onRenewal, onTermi
             </div>
           )}
 
-          {/* Tenant Info Table */}
           <div>
             <p style={{ fontSize: '0.6rem', fontWeight: 600, color: 'rgba(245,240,232,0.3)', fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Tenant Info</p>
             <div style={{ borderRadius: '3px', border: `1px solid ${C.border}`, overflow: 'hidden' }}>
@@ -452,7 +454,6 @@ function ProfileModal({ tenant, onClose, onEdit, onRepayment, onRenewal, onTermi
             </div>
           </div>
 
-          {/* Lease Actions */}
           <div>
             <p style={{ fontSize: '0.6rem', fontWeight: 600, color: 'rgba(245,240,232,0.3)', fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Lease Actions</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -529,18 +530,19 @@ function TenantCard({ tenant, onProfile, onEdit, onRepayment, onRenewal, onDelet
       <ReliabilityStamp score={tenant.reliabilityScore} />
 
       <div style={{ padding: '1.1rem' }}>
-        {/* Identity */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1rem', paddingRight: '4.5rem' }}>
           <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(232,160,18,0.12)', color: C.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: F.bebas, fontSize: '0.68rem', flexShrink: 0 }}>
             {initials(tenant.name)}
           </div>
           <div style={{ minWidth: 0 }}>
-            <p style={{ fontSize: '0.85rem', fontWeight: 600, color: C.white, fontFamily: F.dm, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tenant.name}</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <p style={{ fontSize: '0.85rem', fontWeight: 600, color: C.white, fontFamily: F.dm, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tenant.name}</p>
+              <StandingBadge standing={tenant.standing} />
+            </div>
             <p style={{ fontSize: '0.65rem', color: 'rgba(245,240,232,0.35)', fontFamily: F.mono, marginTop: '1px' }}>{tenant.unit} · {tenant.property}</p>
           </div>
         </div>
 
-        {/* Rent / balance */}
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '1rem', marginBottom: '0.6rem' }}>
           <div>
             <span style={{ fontSize: '1.05rem', fontWeight: 700, color: C.white, fontFamily: F.bebas, letterSpacing: '0.02em' }}>{format(tenant.rentAmount)}</span>
@@ -555,19 +557,16 @@ function TenantCard({ tenant, onProfile, onEdit, onRepayment, onRenewal, onDelet
           )}
         </div>
 
-        {/* Lease dates */}
         <p style={{ fontSize: '0.68rem', color: isExpired ? C.redLight : isExpiring ? C.gold : 'rgba(245,240,232,0.35)', fontFamily: F.mono, marginBottom: '0.5rem' }}>
           {isExpired ? "Lease expired: " : "Lease ends: "}
           {formatDate(tenant.leaseEnd)}
         </p>
 
-        {/* Payment summary */}
         <p style={{ fontSize: '0.68rem', color: 'rgba(245,240,232,0.35)', fontFamily: F.mono, marginBottom: '1rem' }}>
           {tenant.paymentHistory.onTime}/{total || 0} payments on time
           {tenant.paymentHistory.missed > 0 && <span style={{ color: C.redLight }}> · {tenant.paymentHistory.missed} missed</span>}
         </p>
 
-        {/* Actions */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', flexWrap: 'wrap', paddingTop: '0.8rem', borderTop: `1px solid ${C.border}` }}>
           <button onClick={() => navigate(`/landlord/tenants/${tenant.id}`)} style={actionBtnStyle('rgba(58,143,212,0.12)', C.blue)}
             onMouseEnter={e => e.currentTarget.style.background = 'rgba(58,143,212,0.22)'}
@@ -614,7 +613,7 @@ function PropertyGroup({ property, tenants, accent, onProfile, onEdit, onRepayme
   const [collapsed, setCollapsed] = useState(false);
   const totalRent = tenants.reduce((s, t) => s + t.rentAmount, 0);
   const totalBalance = tenants.reduce((s, t) => s + t.balance, 0);
-  const alerts = tenants.filter(t => t.balance > 0 || leaseExpiresSoon(t.leaseEnd) || leaseExpired(t.leaseEnd) || t.reliabilityScore === "High Risk").length;
+  const alerts = tenants.filter(t => t.balance > 0 || leaseExpiresSoon(t.leaseEnd) || leaseExpired(t.leaseEnd) || t.reliabilityScore === "High Risk" || t.standing !== "good_standing").length;
 
   return (
     <div style={{ marginBottom: '1.5rem' }}>
@@ -661,7 +660,10 @@ function PropertyGroup({ property, tenants, accent, onProfile, onEdit, onRepayme
                   {initials(t.name)}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: '0.78rem', fontWeight: 600, color: C.white, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.name}</p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <p style={{ fontSize: '0.78rem', fontWeight: 600, color: C.white, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.name}</p>
+                    <StandingBadge standing={t.standing} />
+                  </div>
                   <p style={{ fontSize: '0.62rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono }}>{t.unit}</p>
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
@@ -724,7 +726,7 @@ function DeleteModal({ tenant, onClose, onConfirm }) {
 function RepaymentModal({ tenant, onClose, onConfirm }) {
   const [instalments, setInstalments] = useState("3");
   const [startDate, setStartDate] = useState("");
-  const [frequency, setFrequency] = useState("Monthly");
+  const [frequency, setFrequency] = useState("monthly");
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const instNum = Math.max(1, Number(instalments) || 1);
@@ -733,7 +735,7 @@ function RepaymentModal({ tenant, onClose, onConfirm }) {
   const schedule = Array.from({ length: instNum }, (_, i) => {
     if (!startDate) return null;
     const d = new Date(startDate);
-    if (frequency === "Monthly") d.setMonth(d.getMonth() + i);
+    if (frequency === "monthly") d.setMonth(d.getMonth() + i);
     else d.setDate(d.getDate() + i * 7);
     const isLast = i === instNum - 1;
     return { no: i + 1, date: d.toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" }), amount: isLast ? tenant.balance - amountPerPeriod * (instNum - 1) : amountPerPeriod };
@@ -775,7 +777,6 @@ function RepaymentModal({ tenant, onClose, onConfirm }) {
           </button>
         </div>
         <div style={modalBody}>
-          {/* Balance */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.9rem 1rem', borderRadius: '4px', background: 'rgba(224,90,74,0.06)', border: '1px solid rgba(224,90,74,0.2)' }}>
             <div>
               <p style={{ fontSize: '0.58rem', fontWeight: 600, color: C.redLight, fontFamily: F.mono, letterSpacing: '0.04em', textTransform: 'uppercase' }}>Outstanding Balance</p>
@@ -791,10 +792,13 @@ function RepaymentModal({ tenant, onClose, onConfirm }) {
 
           <Field label="Payment Frequency">
             <div style={{ display: 'flex', gap: '0.5rem' }}>
-              {["Monthly", "Weekly"].map(f => (
-                <label key={f} style={radioStyle(frequency === f)}>
-                  <input type="radio" style={{ accentColor: C.blue, width: 14, height: 14 }} checked={frequency === f} onChange={() => setFrequency(f)} />
-                  <span style={{ fontSize: '0.75rem', fontWeight: 500, color: C.white }}>{f}</span>
+              {[
+                { label: "Monthly", value: "monthly" },
+                { label: "Weekly", value: "weekly" },
+              ].map(f => (
+                <label key={f.value} style={radioStyle(frequency === f.value)}>
+                  <input type="radio" style={{ accentColor: C.blue, width: 14, height: 14 }} checked={frequency === f.value} onChange={() => setFrequency(f.value)} />
+                  <span style={{ fontSize: '0.75rem', fontWeight: 500, color: C.white }}>{f.label}</span>
                 </label>
               ))}
             </div>
@@ -916,7 +920,14 @@ function TerminationModal({ tenant, onClose, onConfirm }) {
   const canProceed = reason !== "" && vacateDate !== "" && confirmed;
 
   function validate() { const e = {}; if (!reason) e.reason = "Please select a reason"; if (!vacateDate) e.vacateDate = "Required"; return e; }
-  function handleConfirm() { const e = validate(); if (Object.keys(e).length) { setErrors(e); return; } setLoading(true); setTimeout(() => { onConfirm(tenant.id, { reason: reason === "Other" ? customNote : reason, vacateDate }); setLoading(false); onClose(); }, 1200); }
+  function handleConfirm() {
+    const e = validate();
+    if (Object.keys(e).length) { setErrors(e); return; }
+    setLoading(true);
+    const mappedReason = REASON_MAP[reason] || "other";
+    const notes = reason === "Other" ? customNote : reason;
+    setTimeout(() => { onConfirm(tenant.id, { reason: mappedReason, notes, vacateDate }); setLoading(false); onClose(); }, 1200);
+  }
 
   return (
     <div style={modalOverlay}>
@@ -1043,7 +1054,14 @@ export default function Tenants() {
     const matchScore = filter === "All" || t.reliabilityScore === filter;
     const q = search.toLowerCase();
     return matchScore && (!q || [t.name, t.email, t.phone, t.unit, t.property].some(s => (s || "").toLowerCase().includes(q)));
+    
   });
+
+  const propertyAccents = {
+    "Hillbrow Heights": { dot: C.gold, headerBg: 'rgba(232,160,18,0.06)', border: '1px solid rgba(232,160,18,0.15)' },
+    "Berea Flats": { dot: C.blue, headerBg: 'rgba(58,143,212,0.06)', border: '1px solid rgba(58,143,212,0.15)' },
+    "Yeoville Corner": { dot: C.purple, headerBg: 'rgba(139,92,246,0.06)', border: '1px solid rgba(139,92,246,0.15)' },
+  };
 
   const grouped = PROPERTIES.reduce((acc, prop) => {
     const group = filtered.filter(t => t.property === prop);
@@ -1051,7 +1069,7 @@ export default function Tenants() {
     return acc;
   }, {});
   
-  const needsAttention = tenants.filter(t => t.balance > 0 || leaseExpiresSoon(t.leaseEnd) || leaseExpired(t.leaseEnd) || t.reliabilityScore === "High Risk").length;
+  const needsAttention = tenants.filter(t => t.balance > 0 || leaseExpiresSoon(t.leaseEnd) || leaseExpired(t.leaseEnd) || t.reliabilityScore === "High Risk" || t.standing !== "good_standing").length;
 
   
   const S = {
@@ -1081,7 +1099,7 @@ export default function Tenants() {
         @media (min-width: 640px) { .tenants-grid { grid-template-columns: repeat(2, 1fr) !important; } }
         @media (min-width: 1024px) { .tenants-grid { grid-template-columns: repeat(3, 1fr) !important; } }
         @media (min-width: 1280px) { .tenants-grid { grid-template-columns: repeat(3, 1fr) !important; } }
-        input:focus, select:focus { border-color: ${C.borderFocus} !important; }
+        input:focus, select:focus { border-color: ${C.border} !important; }
       `}</style>
 
       {editTenant && <EditTenantModal tenant={editTenant} onClose={() => setEditTenant(null)} onSave={fetchTenants} />}
@@ -1161,7 +1179,7 @@ export default function Tenants() {
           )}
 
           {Object.entries(grouped).map(([property, group]) => (
-            <PropertyGroup key={property} property={property} tenants={group} accent={propertyAccents[property] ?? propertyAccents["Hillbrow Heights"]} viewMode={viewMode}
+            <PropertyGroup key={property} property={property} tenants={group} accent={propertyAccents[property]} viewMode={viewMode}
               onProfile={setProfile} onEdit={setEditTenant} onRepayment={setRepayment} onRenewal={setRenewal} onDelete={setDelete} navigate={navigate} />
           ))}
 

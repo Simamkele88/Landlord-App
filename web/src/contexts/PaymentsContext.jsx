@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-// PAYMENTS CONTEXT - MANAGES PAYMENT DATA AND ACTIONS
+// PAYMENTS CONTEXT 
 import { createContext, useContext, useState } from 'react';
 
 const PaymentsContext = createContext(null);
@@ -24,7 +24,7 @@ const INITIAL_PAYMENTS = [
   { id: 8, tenant: "Zanele Moyo", unit: "Unit 1A", property: "Berea Flats", amount: 7500, due: "2026-04-01", paid: null, method: null, proof: false, status: "Late" },
 ];
 
-// PAYMENTS PROVIDER - MANAGES PAYMENT STATE AND ACTIONS
+// PAYMENTS PROVIDER 
 export function PaymentsProvider({ children }) {
   const [payments, setPayments] = useState(INITIAL_PAYMENTS);
 

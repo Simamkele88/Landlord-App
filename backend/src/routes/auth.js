@@ -11,8 +11,7 @@ const { generateTempPassword, generateResetCode } = require("../utils/helpers");
 router.post("/push-token", requireAuth, async (req, res) => {
   try {
     const { token, platform } = req.body;
-    
-    // Store the token in a push_tokens table
+
     await pool.query(
       `INSERT INTO push_tokens (user_id, token, platform, created_at) 
        VALUES ($1, $2, $3, NOW()) 
@@ -27,7 +26,7 @@ router.post("/push-token", requireAuth, async (req, res) => {
   }
 });
 
-// POST /auth/landlord/login - LANDLORD LOGIN (must be before /login)
+// POST /auth/landlord/login - LANDLORD LOGIN 
 router.post("/landlord/login", async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password || typeof email !== "string" || typeof password !== "string") {
@@ -35,9 +34,10 @@ router.post("/landlord/login", async (req, res) => {
   }
   try {
     const result = await pool.query(
-      `SELECT l.*, u.password_hash, u.id AS user_id, u.status
+      `SELECT l.*, u.password_hash, u.id AS user_id, u.status,
+              u.first_name, u.last_name, u.phone
        FROM landlord l
-       JOIN user_ u ON u.id = l.user_id
+       JOIN users u ON u.id = l.user_id
        WHERE u.email = $1`,
       [email.trim().toLowerCase()]
     );
@@ -52,7 +52,7 @@ router.post("/landlord/login", async (req, res) => {
     const match = await bcrypt.compare(password, landlord.password_hash);
     if (!match) return res.status(401).json({ error: "Invalid email or password" });
 
-    await pool.query("UPDATE user_ SET last_login = NOW() WHERE id = $1", [landlord.user_id]);
+    await pool.query("UPDATE users SET last_login = NOW() WHERE id = $1", [landlord.user_id]);
 
     const token = generateToken(landlord.user_id, "landlord");
     res.json({
@@ -81,7 +81,7 @@ router.post("/login", async (req, res) => {
   }
   try {
     const result = await pool.query(
-      "SELECT * FROM user_ WHERE email = $1",
+      "SELECT * FROM users WHERE email = $1",
       [email.trim().toLowerCase()]
     );
 
@@ -101,29 +101,16 @@ router.post("/login", async (req, res) => {
     );
 
     let profileComplete = true;
-    let firstName = "";
-    let lastName = "";
 
     if (user.role === "tenant") {
       const tenantRes = await pool.query(
-        "SELECT profile_completed, first_name, last_name FROM tenant WHERE user_id = $1",
+        "SELECT profile_completed FROM tenant WHERE user_id = $1",
         [user.id]
       );
       profileComplete = tenantRes.rows[0]?.profile_completed ?? false;
-      firstName = tenantRes.rows[0]?.first_name ?? "";
-      lastName = tenantRes.rows[0]?.last_name ?? "";
     }
 
-    if (user.role === "caretaker") {
-      const caretakerRes = await pool.query(
-        "SELECT first_name, last_name FROM caretaker WHERE user_id = $1",
-        [user.id]
-      );
-      firstName = caretakerRes.rows[0]?.first_name ?? "";
-      lastName = caretakerRes.rows[0]?.last_name ?? "";
-    }
-
-    await pool.query("UPDATE user_ SET last_login = NOW() WHERE id = $1", [user.id]);
+    await pool.query("UPDATE users SET last_login = NOW() WHERE id = $1", [user.id]);
 
     const token = generateToken(user.id, user.role);
     res.json({
@@ -135,8 +122,8 @@ router.post("/login", async (req, res) => {
         role:                 user.role,
         must_change_password: user.must_change_password,
         profile_completed:    profileComplete,
-        first_name:           firstName,
-        last_name:            lastName,
+        first_name:           user.first_name,
+        last_name:            user.last_name,
       },
     });
   } catch (err) {
@@ -155,7 +142,7 @@ router.post("/change-password", requireAuth, async (req, res) => {
     return res.status(400).json({ error: "Password must be at least 8 characters" });
   }
   try {
-    const result = await pool.query("SELECT password_hash FROM user_ WHERE id = $1", [req.userId]);
+    const result = await pool.query("SELECT password_hash FROM users WHERE id = $1", [req.userId]);
     if (!result.rows.length) return res.status(404).json({ error: "User not found" });
 
     const match = await bcrypt.compare(currentPassword, result.rows[0].password_hash);
@@ -166,7 +153,7 @@ router.post("/change-password", requireAuth, async (req, res) => {
 
     const hashed = await bcrypt.hash(newPassword, 12);
     await pool.query(
-      "UPDATE user_ SET password_hash=$1, must_change_password=false, updated_at=NOW() WHERE id=$2",
+      "UPDATE users SET password_hash=$1, must_change_password=false, updated_at=NOW() WHERE id=$2",
       [hashed, req.userId]
     );
     await pool.query(
@@ -186,11 +173,7 @@ router.post("/forgot-password", async (req, res) => {
   if (!email) return res.status(400).json({ error: "Email is required" });
   try {
     const result = await pool.query(
-      `SELECT u.id, u.email, COALESCE(t.first_name || ' ' || t.last_name, c.first_name || ' ' || c.last_name) AS full_name
-       FROM user_ u
-       LEFT JOIN tenant t ON t.user_id = u.id
-       LEFT JOIN caretaker c ON c.user_id = u.id
-       WHERE u.email = $1`,
+      `SELECT id, email, full_name FROM users WHERE email = $1`,
       [email.trim().toLowerCase()]
     );
 
@@ -257,7 +240,7 @@ router.post("/reset-password", async (req, res) => {
     const hashed = await bcrypt.hash(newPassword, 12);
 
     await pool.query(
-      "UPDATE user_ SET password_hash=$1, must_change_password=false, updated_at=NOW() WHERE email=$2",
+      "UPDATE users SET password_hash=$1, must_change_password=false, updated_at=NOW() WHERE email=$2",
       [hashed, reset.email]
     );
     await pool.query("UPDATE password_reset SET used=true WHERE id=$1", [reset.id]);
@@ -275,23 +258,24 @@ router.get("/me", requireAuth, async (req, res) => {
     if (req.userRole === "landlord") {
       result = await pool.query(
         `SELECT l.id AS landlord_id, u.id, u.email, u.phone, u.last_login,
-                l.first_name, l.last_name, l.company_name, l.profile_image_url
-         FROM landlord l JOIN user_ u ON u.id = l.user_id WHERE u.id = $1`,
+                u.first_name, u.last_name, u.profile_image_url,
+                l.company_name
+         FROM landlord l JOIN users u ON u.id = l.user_id WHERE u.id = $1`,
         [req.userId]
       );
     } else if (req.userRole === "tenant") {
       result = await pool.query(
         `SELECT t.id AS tenant_id, u.id, u.email, u.phone, u.must_change_password,
-                t.first_name, t.last_name, t.profile_image_url, t.profile_completed,
-                t.reliability_score
-         FROM tenant t JOIN user_ u ON u.id = t.user_id WHERE u.id = $1`,
+                u.first_name, u.last_name, u.profile_image_url,
+                t.profile_completed, t.reliability_score
+         FROM tenant t JOIN users u ON u.id = t.user_id WHERE u.id = $1`,
         [req.userId]
       );
     } else {
       result = await pool.query(
         `SELECT c.id AS caretaker_id, u.id, u.email, u.phone, u.must_change_password,
-                c.first_name, c.last_name, c.profile_image_url
-         FROM caretaker c JOIN user_ u ON u.id = c.user_id WHERE u.id = $1`,
+                u.first_name, u.last_name, u.profile_image_url
+         FROM caretaker c JOIN users u ON u.id = c.user_id WHERE u.id = $1`,
         [req.userId]
       );
     }

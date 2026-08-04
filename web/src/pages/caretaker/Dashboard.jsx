@@ -129,32 +129,17 @@ export default function CaretakerDashboard() {
   const [dashboard, setDashboard] = useState(null);
 
   const fetchDashboard = useCallback(async () => {
-    setLoading(true);
-    try {
-      const token = localStorage.getItem("token");
-      const { data } = await axios.get(`${API}/caretaker/dashboard`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setDashboard(data);
-    } catch (err) {
-      setDashboard({
-        caretaker_name: "David Nkosi",
-        property_name: "Hillbrow Heights",
-        property_address: "12 Mutual Road, Hillbrow",
-        stats: {
-          open_maintenance: 8, in_progress: 3, open_complaints: 2,
-          pending_verdicts: 1, total_tenants: 7, total_units: 8,
-        },
-        recent_activity: [
-          { type: 'maintenance', title: 'Burst pipe under kitchen sink', detail: 'Unit 4A · Sipho Dlamini', time: '2h ago', status: 'needs_repair', priority: 'Urgent' },
-          { type: 'maintenance', title: 'Broken window latch', detail: 'Unit 2B · Lerato Mokoena', time: '3d ago', status: 'in_progress', priority: 'Medium' },
-          { type: 'complaint', title: 'Noise violation — Unit 1A vs 3B', detail: 'Under review by caretaker', time: '1d ago', status: 'under_review', priority: null },
-          { type: 'maintenance', title: 'Cracked ceiling in lounge', detail: 'Unit 3A · Nomsa Khumalo', time: '5d ago', status: 'needs_repair', priority: 'High' },
-          { type: 'complaint', title: 'Parking dispute — Common Area', detail: 'Filed by Thabo Ndlovu', time: '4d ago', status: 'open', priority: null },
-        ],
-      });
-    } finally { setLoading(false); }
-  }, []);
+  setLoading(true);
+  try {
+    const token = localStorage.getItem("token");
+    const { data } = await axios.get(`${API}/caretaker/dashboard`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    setDashboard(data);
+  } catch (err) {
+    console.error("Dashboard fetch failed:", err);
+  } finally { setLoading(false); }
+}, []);
 
   useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
 
@@ -234,7 +219,7 @@ export default function CaretakerDashboard() {
                 background: 'none', border: 'none', cursor: 'pointer',
                 fontFamily: F.mono, letterSpacing: '0.04em',
               }}>
-                View All →
+                View All 
               </button>
             </div>
 

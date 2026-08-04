@@ -234,6 +234,12 @@ export default function DashboardLayout() {
         { icon: 'messages', label: 'Messages', path: '/caretaker/messages' },
       ],
     },
+    {
+      title: "Insights",
+      items: [
+        { icon: 'bell', label: 'Notifications', path: '/caretaker/notifications', badge: unreadNotifications, badgeColor: unreadNotifications > 0 ? 'red' : 'gold' },
+      ],
+    },
   ];
 
   const navGroups = isLandlord ? LANDLORD_NAV : CARETAKER_NAV;

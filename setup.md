@@ -1,218 +1,30 @@
-# Chihwa Rentals - Setup Guide
+# Chihwa Rentals setup
 
-## Prerequisites
-- Node.js installed 
-- Git installed
-- Expo CLI: `npm install -g expo-cli eas-cli`
+## Backend setup
 
----
+### STEP 1
 
-## Step 1: Clone the Repository
+- Firstly you go to pgAdmin, create a new database (chihwa_rentals).
+- Go to the table_schemas.sql and copy it
+- Go to pgAdmin and the database you created, right click the tables - then say query tools, paste the code there and execute the script.
+- Now go to LETS_SEE.sql, copy the contents, clear the query and past it there and execute it.
+- Now everything is fine, the password to all accounts is Wekeza2004#, change it to whatever you want.
+- If you wanna view the data in the tables, go to that table, right click and then View/Edit data and then all rows.
 
-```bash
-git clone <your-repo-url>
-cd again
-Step 2: Install Dependencies
-bash
-# Backend
-cd backend
-npm install
+### STEP 2
 
-# Mobile
-cd ../mobile
-npm install
+- Now you have everything in the database set up, go to the files in the backend folder and go to the database.js and .env files change the password of postgres to be the password of your postgress.
+- Now perfect the backend should work, if it doesn't work then `npm install`.
+- Now the backend is good to go, goodluck😉.
+- open a terminal and cd to backend and then `npm run dev`.
 
-# Web
-cd ../web
-npm install
-Step 3: Set Up Environment Variables
-Create a .env file in the backend folder:
+## Frondend Set
 
-env
-DATABASE_URL=postgresql://postgres:Wekeza2004@%23@aws-0-us-east-1.pooler.supabase.com:5432/postgres
-JWT_SECRET=chihwa-rentals-jwt-secret-key-2026
-PORT=4000
-Step 4: Run the Project Locally
-Open 3 separate terminals:
+- Here everything should be fine I don't see any problem, just `npm run dev` and if it doesn't work that then just `npm install`. 
 
-Terminal 1 — Backend
-bash
-cd backend
-npm start
-Should show: Server running on port 4000
+### Mobile setup
 
-Terminal 2 — Mobile (Development)
-bash
-cd mobile
-npx expo start
-Scan the QR code with Expo Go app or press a for Android emulator.
-
-Terminal 3 — Web (Development)
-bash
-cd web
-npm start
-Opens in browser 
-
-Step 5: API URL Configuration
-The mobile app API URL is in mobile/src/utils/api.js. Update it when backend is deployed:
-
-javascript
-const API_URL = "https://your-backend.onrender.com";
-Step 6: Create Accounts
-Run the SQL queries below in Supabase SQL Editor (https://supabase.com/dashboard → your project → SQL Editor).
-
- Create a Landlord
-sql
--- 1. Create user login
-INSERT INTO public.user_ (id, email, phone, password_hash, role, email_verified, status)
-VALUES (
-  gen_random_uuid(),
-  'landlord@example.com',
-  '0600000000',
-  '$2b$12$aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', -- bcrypt hash of your password
-  'landlord',
-  true,
-  'active'
-)
-RETURNING id; -- SAVE THIS UUID
-
--- 2. Create landlord profile (replace UUID from above)
-INSERT INTO public.landlord (id, user_id, first_name, last_name, company_name, address_line1, city, province, postal_code, country)
-VALUES (
-  gen_random_uuid(),
-  'UUID-FROM-STEP-1',
-  'YourFirstName',
-  'YourLastName',
-  'Your Company',
-  'Your Address',
-  'Your City',
-  'Your Province',
-  0000,
-  'South Africa'
-);
- Create a Caretaker
-sql
--- 1. Create user login
-INSERT INTO public.user_ (id, email, phone, password_hash, role, email_verified, status)
-VALUES (
-  gen_random_uuid(),
-  'caretaker@example.com',
-  '0710000000',
-  '$2b$12$bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', -- bcrypt hash
-  'caretaker',
-  true,
-  'active'
-)
-RETURNING id; -- SAVE THIS UUID
-
--- 2. Create caretaker profile
-INSERT INTO public.caretaker (id, user_id, landlord_id, first_name, last_name, id_number, address, emergency_contact, hire_date)
-VALUES (
-  gen_random_uuid(),
-  'UUID-FROM-STEP-1',
-  'LANDLORD-UUID-HERE',
-  'YourFirstName',
-  'YourLastName',
-  '0000000000000',
-  'Your Address',
-  '0710000000',
-  CURRENT_DATE
-);
- Create a Tenant
-sql
--- 1. Create user login
-INSERT INTO public.user_ (id, email, phone, password_hash, role, email_verified, status)
-VALUES (
-  gen_random_uuid(),
-  'tenant@example.com',
-  '0810000000',
-  '$2b$12$cccccccccccccccccccccccccccccccccccccccccccccccccccccccccc', -- bcrypt hash
-  'tenant',
-  true,
-  'active'
-)
-RETURNING id; -- SAVE THIS UUID
-
--- 2. Create tenant profile
-INSERT INTO public.tenant (
-  id, user_id, landlord_id, first_name, last_name, date_of_birth, gender,
-  nationality, marital_status, id_document_type, id_number,
-  employment_status, monthly_income,
-  emergency_name, emergency_relationship, emergency_phone,
-  number_of_occupants, tenant_since, profile_completed
-)
-VALUES (
-  gen_random_uuid(),
-  'UUID-FROM-STEP-1',
-  'LANDLORD-UUID-HERE',
-  'YourFirstName',
-  'YourLastName',
-  '2000-01-01',
-  'male',
-  'South African',
-  'single',
-  'sa_id',
-  '0000000000000',
-  'employed',
-  15000.00,
-  'Contact Name',
-  'Relative',
-  '0820000000',
-  1,
-  CURRENT_DATE,
-  true
-);
-
--- 3. Optional: Assign a vacant unit to this tenant
-UPDATE public.unit 
-SET status = 'occupied', current_tenant_id = 'TENANT-UUID-FROM-STEP-2'
-WHERE id = (
-  SELECT id FROM public.unit WHERE status = 'vacant' LIMIT 1
-);
-
--- 4. Optional: Create a lease
-INSERT INTO public.lease (
-  id, tenant_id, unit_id, landlord_id,
-  lease_start_date, lease_end_date,
-  rent_amount, deposit_amount, deposit_paid,
-  payment_frequency, payment_due_day,
-  status, water_included, created_by
-)
-SELECT
-  gen_random_uuid(),
-  'TENANT-UUID-FROM-STEP-2',
-  id,
-  'LANDLORD-UUID-HERE',
-  CURRENT_DATE,
-  CURRENT_DATE + INTERVAL '12 months',
-  monthly_rent,
-  monthly_rent,
-  false,
-  'monthly',
-  1,
-  'active',
-  true,
-  'LANDLORD-USER-UUID-HERE'
-FROM public.unit
-WHERE current_tenant_id = 'TENANT-UUID-FROM-STEP-2';
- How to Generate a Password Hash
-Use this Node.js script or an online bcrypt generator:
-
-bash
-node -e "const bcrypt = require('bcryptjs'); console.log(bcrypt.hashSync('YourPassword123', 12));"
-Replace 'YourPassword123' with your actual password. Copy the output into the SQL query above.
-
- Quick Reference
-Replace This	With
-landlord@example.com	Your actual email
-0600000000	Your phone number
-$2b$12$aaaa...	Your bcrypt password hash
-UUID-FROM-STEP-1	The UUID returned by the first INSERT
-LANDLORD-UUID-HERE	The landlord's profile UUID
-TENANT-UUID-FROM-STEP-2	The tenant's profile UUID
- Database
-We use Supabase (cloud PostgreSQL).
-
-Dashboard: supabase.com/dashboard
-
-Connection string is in the .env file
+- This one is kinda tricky, mostly depends on what type of network you use.
+- The keypoint is in the `utils/api.js`.
+- There you change the api url to whatever you want to use, which should be `http://IPADDRESS:4000`.
+- I use ngrok and so similarly you can create an account on ngrok and create whatever you need to create (chatGPT can help with this one, I am not AI guys😓).

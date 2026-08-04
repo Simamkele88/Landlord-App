@@ -39,6 +39,7 @@ import CaretakerTenants from "./pages/caretaker/tenants/Tenants";
 import CaretakerMessages from "./pages/caretaker/messages/Messages";
 import CaretakerSettings from "./pages/caretaker/settings/Settings";
 import NotificationsPage from "./pages/landlord/notifications/notifications";
+import CaretakerNotificationsPage from "./pages/caretaker/notifications/notifications";
 
 import "./index.css";
 
@@ -111,7 +112,7 @@ export default function App() {
                 {/* Payments */}
                 <Route path="payments" element={<Payments />} />
                 <Route path="payments/review/:id" element={<PaymentReview />} />
-                <Route path="payments/receipt/:id" element={<PaymentReceipt />} />
+                <Route path="payments/:id" element={<PaymentReceipt />} />
                 <Route path="payments/plans" element={<RepaymentPlans />} />
                 <Route path="payments/settings" element={<PaymentSettings />} />
                 
@@ -141,6 +142,7 @@ export default function App() {
                 <Route path="complaints/:id" element={<CaretakerComplaintDetail />} />
                 <Route path="tenants" element={<CaretakerTenants />} />
                 <Route path="messages" element={<CaretakerMessages />} />
+                <Route path="notifications" element={<CaretakerNotificationsPage />} />
                 <Route path="settings" element={<CaretakerSettings />} />
 
               </Route>

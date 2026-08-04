@@ -306,23 +306,7 @@ export default function PaymentSettings() {
                 onChange={e => { setApplyLateFeeAfter(e.target.value); flagChange(); }} style={inputStyle} />
             </Field>
 
-            {/* Late fee example */}
-            {lateFeeType !== 'none' && (
-              <div style={{
-                padding: '0.6rem 0.8rem', borderRadius: '3px',
-                background: 'rgba(232,160,18,0.04)', border: '1px solid rgba(232,160,18,0.1)',
-                fontSize: '0.68rem', color: C.gold, lineHeight: 1.5,
-              }}>
-                <span style={{ fontWeight: 600 }}>Example:</span> On a R6,500 rent, the late fee would be{" "}
-                <strong>
-                  {lateFeeType === 'percentage'
-                    ? `R ${Math.min(Number(lateFeeCap) || 99999, Math.round(6500 * (Number(lateFeeValue) / 100)))}`
-                    : `R ${Number(lateFeeValue).toLocaleString("en-ZA")}`
-                  }
-                </strong>{" "}
-                applied {applyLateFeeAfter} day{applyLateFeeAfter !== "1" ? "s" : ""} after the due date.
-              </div>
-            )}
+            
           </Block>
 
           {/* Auto-Reminders */}

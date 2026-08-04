@@ -1,10 +1,7 @@
-/* eslint-disable no-unused-vars */
-// CARETAKER MAINTENANCE PAGE 
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import useDocumentTitle from "../../../hooks/useDocumentTitle";
-import { useToast } from "../../../contexts/ToastContext";
 import { Icon } from "../../../components/Icon";
 import { c as C, f as F } from "../../../styles/theme";
 
@@ -15,18 +12,20 @@ const STATUS_CONFIG = {
   "assigned":         { label: "Assigned",         color: C.blue,       bg: 'rgba(58,143,212,0.06)',  border: '1px solid rgba(58,143,212,0.12)',  dot: C.blue       },
   "in_progress":      { label: "In Progress",      color: C.gold,       bg: 'rgba(232,160,18,0.04)',  border: '1px solid rgba(232,160,18,0.1)',   dot: C.gold       },
   "completed":        { label: "Completed",        color: C.greenLight, bg: 'rgba(26,122,74,0.04)',   border: '1px solid rgba(76,186,122,0.1)',   dot: C.greenLight },
+  "closed":           { label: "Closed",           color: 'rgba(245,240,232,0.4)', bg: 'rgba(245,240,232,0.03)', border: '1px solid rgba(245,240,232,0.08)', dot: 'rgba(245,240,232,0.3)' },
   "cancelled":        { label: "Cancelled",        color: 'rgba(245,240,232,0.4)', bg: 'rgba(245,240,232,0.03)', border: '1px solid rgba(245,240,232,0.08)', dot: 'rgba(245,240,232,0.3)' },
   "pending_approval": { label: "Pending Approval", color: C.purple,     bg: 'rgba(139,92,246,0.06)',  border: '1px solid rgba(139,92,246,0.12)',  dot: C.purple     },
 };
 
 const PRIORITY_CONFIG = {
-  "urgent": { bg: C.redLight, color: C.white },
-  "high":   { bg: C.gold, color: C.black },
-  "medium": { bg: C.blue, color: C.white },
-  "low":    { bg: 'rgba(245,240,232,0.06)', color: 'rgba(245,240,232,0.4)' },
+  "emergency": { bg: C.redLight, color: C.white },
+  "urgent":    { bg: 'rgba(224,90,74,0.2)', color: C.redLight },
+  "high":      { bg: 'rgba(232,160,18,0.2)', color: C.gold },
+  "medium":    { bg: 'rgba(58,143,212,0.15)', color: C.blue },
+  "low":       { bg: 'rgba(245,240,232,0.08)', color: 'rgba(245,240,232,0.4)' },
 };
 
-const FILTERS = ["All", "Needs Repair", "In Progress", "Completed", "Escalated"];
+const FILTERS = ["All", "Needs Repair", "In Progress", "Completed", "Closed", "Escalated"];
 
 function fmt(n) { return n ? `R ${Number(n).toLocaleString("en-ZA")}` : "—"; }
 function timeAgo(dateStr) {
@@ -67,7 +66,7 @@ function PriorityBadge({ priority }) {
 export default function CaretakerMaintenance() {
   useDocumentTitle("Maintenance");
   const navigate = useNavigate();
-  const toast = useToast();
+ 
 
   const [requests, setRequests] = useState([]);
   const [filter, setFilter] = useState("All");
@@ -102,20 +101,22 @@ export default function CaretakerMaintenance() {
     if (filter === "Needs Repair") return request.status === "needs_repair";
     if (filter === "In Progress") return ["assigned", "in_progress"].includes(request.status);
     if (filter === "Completed") return request.status === "completed";
-    if (filter === "Escalated") return request.status === "pending_approval";
+    if (filter === "Closed") return ["closed", "cancelled"].includes(request.status);
+    if (filter === "Escalated") return request.escalated === true || request.status === "pending_approval";
     return true;
   }
 
   const filtered = requests.filter(r => {
     const statusMatch = filterMatch(r);
     const q = search.toLowerCase();
-    const searchMatch = !q || [r.title, r.tenant_name, r.unit_number?.toString(), r.property_name, r.request_number, r.category]
+    const searchMatch = !q || [r.title, r.tenant_name, r.unit_number?.toString(), r.property_name, r.request_number, r.category, r.worker_name]
       .some(s => (s || "").toLowerCase().includes(q));
     return statusMatch && searchMatch;
   });
 
   const needsAction = requests.filter(r => r.status === "needs_repair").length;
   const inProgress = requests.filter(r => ["assigned", "in_progress"].includes(r.status)).length;
+  const escalatedCount = requests.filter(r => r.escalated).length;
   const propertyName = requests[0]?.property_name || "Your Property";
 
   const S = {
@@ -158,12 +159,16 @@ export default function CaretakerMaintenance() {
     <div style={S.container}>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } } input:focus { border-color: ${C.borderFocus} !important; }`}</style>
 
-      {/* HEADER */}
       <div style={S.headerRow}>
         <div>
           <h1 style={S.title}><Icon name="wrench" size={20} color={C.blue} />Maintenance</h1>
           <p style={S.subtitle}>
             {propertyName} · {requests.length} requests · {needsAction} need action · {inProgress} in progress
+            {escalatedCount > 0 && (
+              <span style={{ marginLeft: '0.5rem', color: C.purple, fontWeight: 600 }}>
+                · {escalatedCount} escalated
+              </span>
+            )}
           </p>
         </div>
         <button onClick={handleRefresh} disabled={refreshing} style={{
@@ -177,7 +182,6 @@ export default function CaretakerMaintenance() {
         </button>
       </div>
 
-      {/* ERROR */}
       {error && (
         <div style={{
           padding: '0.7rem 1rem', borderRadius: '3px', marginBottom: '1rem',
@@ -190,26 +194,13 @@ export default function CaretakerMaintenance() {
         </div>
       )}
 
-      {/* TABLE */}
       <div style={{ background: C.muted2, border: `1px solid ${C.border}`, borderRadius: '6px', overflow: 'hidden' }}>
         
-        {/* TOOLBAR */}
         <div style={S.toolbar}>
           <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
             {FILTERS.map(f => (
               <button key={f} onClick={() => setFilter(f)} style={S.filterBtn(filter === f)}>
                 {f}
-                {f !== "All" && (
-                  <span style={{ marginLeft: '0.3rem', opacity: 0.5 }}>
-                    {requests.filter(r => {
-                      if (f === "Needs Repair") return r.status === "needs_repair";
-                      if (f === "In Progress") return ["assigned", "in_progress"].includes(r.status);
-                      if (f === "Completed") return r.status === "completed";
-                      if (f === "Escalated") return r.status === "pending_approval";
-                      return false;
-                    }).length}
-                  </span>
-                )}
               </button>
             ))}
           </div>
@@ -219,7 +210,6 @@ export default function CaretakerMaintenance() {
           </div>
         </div>
 
-        {/* CONTENT */}
         {loading ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4rem 0', color: 'rgba(245,240,232,0.3)', gap: '0.6rem' }}>
             <span style={{ width: 20, height: 20, border: '2px solid rgba(245,240,232,0.06)', borderTopColor: C.blue, borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
@@ -248,20 +238,30 @@ export default function CaretakerMaintenance() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                         <div style={{
                           width: 30, height: 30, borderRadius: '6px',
-                          background: 'rgba(58,143,212,0.08)', border: '1px solid rgba(58,143,212,0.12)',
+                          background: r.escalated ? 'rgba(139,92,246,0.1)' : 'rgba(58,143,212,0.08)',
+                          border: r.escalated ? '1px solid rgba(139,92,246,0.2)' : '1px solid rgba(58,143,212,0.12)',
                           display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                         }}>
-                          <Icon name="wrench" size={13} color={C.blue} />
+                          <Icon name="wrench" size={13} color={r.escalated ? C.purple : C.blue} />
                         </div>
                         <div style={{ minWidth: 0 }}>
-                          <p style={{ fontWeight: 600, color: C.white, fontSize: '0.78rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>{r.title}</p>
-                          <p style={{ fontSize: '0.6rem', color: 'rgba(245,240,232,0.25)', fontFamily: F.mono }}>{r.category}</p>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                            <p style={{ fontWeight: 600, color: C.white, fontSize: '0.78rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px' }}>{r.title}</p>
+                            {r.escalated && (
+                              <span style={{ fontSize: '0.5rem', fontWeight: 700, color: C.purple, fontFamily: F.mono, letterSpacing: '0.04em', textTransform: 'uppercase', background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.2)', padding: '0.1rem 0.3rem', borderRadius: '2px', flexShrink: 0 }}>
+                                Escalated
+                              </span>
+                            )}
+                          </div>
+                          <p style={{ fontSize: '0.6rem', color: 'rgba(245,240,232,0.25)', fontFamily: F.mono }}>
+                            {r.request_number} · {r.category?.replace(/_/g, " ")}
+                          </p>
                         </div>
                       </div>
                     </td>
 
                     <td style={S.td}>
-                      <p style={{ fontWeight: 500, color: C.white, fontSize: '0.75rem' }}>{r.tenant_name}</p>
+                      <p style={{ fontWeight: 500, color: C.white, fontSize: '0.75rem' }}>{r.tenant_name || "—"}</p>
                       <p style={{ fontSize: '0.62rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono }}>
                         {r.unit_number ? `Unit ${r.unit_number}` : "—"}
                       </p>
@@ -271,7 +271,9 @@ export default function CaretakerMaintenance() {
                     <td style={S.td}><StatusBadge status={r.status} /></td>
 
                     <td style={{ ...S.td, fontSize: '0.72rem' }}>
-                      {r.contractor_name ? (
+                      {r.worker_name ? (
+                        <span style={{ color: 'rgba(245,240,232,0.5)' }}>{r.worker_name}</span>
+                      ) : r.contractor_name ? (
                         <span style={{ color: 'rgba(245,240,232,0.4)' }}>{r.contractor_name}</span>
                       ) : (
                         <span style={{ color: 'rgba(245,240,232,0.15)', fontStyle: 'italic', fontFamily: F.mono, fontSize: '0.65rem' }}>Unassigned</span>
@@ -310,7 +312,6 @@ export default function CaretakerMaintenance() {
           </div>
         )}
 
-        {/* FOOTER */}
         <div style={S.footer}>
           <span>Showing <span style={{ color: C.white, fontWeight: 500 }}>{filtered.length}</span> of <span style={{ color: C.white, fontWeight: 500 }}>{requests.length}</span> requests</span>
         </div>

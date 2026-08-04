@@ -6,7 +6,6 @@ const { requireAuth } = require("../middleware/auth");
 const { requireLandlord } = require("../middleware/roleCheck");
 const { auditLog } = require("../utils/audit");
 
-// ── HELPER: Get landlord ID ───────────────────────────────────
 async function getLandlordId(userId) {
   const result = await pool.query(
     "SELECT id FROM landlord WHERE user_id = $1",
@@ -15,8 +14,7 @@ async function getLandlordId(userId) {
   return result.rows[0]?.id || null;
 }
 
-// ── GET /landlord/payment-settings ────────────────────────────
-// Get all payment settings for the landlord
+
 router.get("/", requireAuth, requireLandlord, async (req, res) => {
   try {
     const landlordId = await getLandlordId(req.userId);
@@ -31,7 +29,6 @@ router.get("/", requireAuth, requireLandlord, async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      // Return default settings
       return res.json({
         settings: {
           // Grace period & late fees
@@ -41,7 +38,6 @@ router.get("/", requireAuth, requireLandlord, async (req, res) => {
           late_fee_cap: 500,
           apply_late_fee_after_days: 5,
 
-          // Auto-reminders
           reminder_before_due: true,
           reminder_before_due_days: 3,
           reminder_on_due_day: true,
@@ -50,22 +46,18 @@ router.get("/", requireAuth, requireLandlord, async (req, res) => {
           reminder_frequency: "every_3_days",
           max_reminders: 5,
 
-          // Collections
           auto_collections: false,
           collections_after_days: 60,
           collections_note: "Tenant account has been escalated to collections due to non-payment exceeding 60 days.",
 
-          // Payment methods
           accept_eft: true,
           accept_cash: false,
           accept_card: false,
           accept_debit_order: true,
 
-          // Proof of payment
           require_proof: true,
           auto_approve_exact: false,
 
-          // Receipt
           auto_send_receipt: true,
           receipt_prefix: "RCP-CHW",
         }
@@ -79,7 +71,7 @@ router.get("/", requireAuth, requireLandlord, async (req, res) => {
   }
 });
 
-// ── PUT /landlord/payment-settings ────────────────────────────
+// PUT /landlord/payment-settings
 // Save/update all payment settings
 router.put("/", requireAuth, requireLandlord, async (req, res) => {
   try {
@@ -89,14 +81,12 @@ router.put("/", requireAuth, requireLandlord, async (req, res) => {
     }
 
     const {
-      // Grace period & late fees
       grace_period_days,
       late_fee_type,
       late_fee_value,
       late_fee_cap,
       apply_late_fee_after_days,
 
-      // Auto-reminders
       reminder_before_due,
       reminder_before_due_days,
       reminder_on_due_day,
@@ -105,37 +95,30 @@ router.put("/", requireAuth, requireLandlord, async (req, res) => {
       reminder_frequency,
       max_reminders,
 
-      // Collections
       auto_collections,
       collections_after_days,
       collections_note,
 
-      // Payment methods
       accept_eft,
       accept_cash,
       accept_card,
       accept_debit_order,
 
-      // Proof of payment
       require_proof,
       auto_approve_exact,
 
-      // Receipt
       auto_send_receipt,
       receipt_prefix,
     } = req.body;
 
-    // Validate required fields
     if (grace_period_days === undefined || late_fee_type === undefined) {
       return res.status(400).json({ error: "Grace period and late fee type are required" });
     }
 
-    // Validate late fee type
     if (!["none", "percentage", "fixed"].includes(late_fee_type)) {
       return res.status(400).json({ error: "Invalid late fee type" });
     }
 
-    // Validate reminder frequency
     if (reminder_frequency && !["daily", "every_2_days", "every_3_days", "weekly"].includes(reminder_frequency)) {
       return res.status(400).json({ error: "Invalid reminder frequency" });
     }
@@ -173,7 +156,6 @@ router.put("/", requireAuth, requireLandlord, async (req, res) => {
 
     const settingKey = `payment_settings_${landlordId}`;
 
-    // Upsert the settings
     await pool.query(
       `INSERT INTO system_setting (setting_key, setting_value, description, updated_by, updated_at)
        VALUES ($1, $2, $3, $4, NOW())
@@ -182,7 +164,6 @@ router.put("/", requireAuth, requireLandlord, async (req, res) => {
       [settingKey, JSON.stringify(settings), "Payment configuration settings", req.userId]
     );
 
-    // Audit log
     await auditLog(
       req.userId,
       "UPDATE",
@@ -203,8 +184,6 @@ router.put("/", requireAuth, requireLandlord, async (req, res) => {
   }
 });
 
-// ── PATCH /landlord/payment-settings ──────────────────────────
-// Update individual payment settings
 router.patch("/", requireAuth, requireLandlord, async (req, res) => {
   try {
     const landlordId = await getLandlordId(req.userId);
@@ -214,7 +193,6 @@ router.patch("/", requireAuth, requireLandlord, async (req, res) => {
 
     const settingKey = `payment_settings_${landlordId}`;
 
-    // Get current settings
     const current = await pool.query(
       "SELECT setting_value FROM system_setting WHERE setting_key = $1",
       [settingKey]
@@ -248,10 +226,8 @@ router.patch("/", requireAuth, requireLandlord, async (req, res) => {
           receipt_prefix: "RCP-CHW",
         };
 
-    // Merge new values
     settings = { ...settings, ...req.body };
 
-    // Save
     await pool.query(
       `INSERT INTO system_setting (setting_key, setting_value, description, updated_by, updated_at)
        VALUES ($1, $2, $3, $4, NOW())
@@ -270,8 +246,6 @@ router.patch("/", requireAuth, requireLandlord, async (req, res) => {
   }
 });
 
-// ── GET /landlord/payment-settings/late-fee-preview ───────────
-// Preview late fee calculation for a given rent amount
 router.get("/late-fee-preview", requireAuth, requireLandlord, async (req, res) => {
   try {
     const landlordId = await getLandlordId(req.userId);

@@ -19,7 +19,7 @@ router.get("/", requireAuth, requireLandlord, async (req, res) => {
               p.name AS property_name,
               p.id AS property_id,
               t.id AS tenant_id,
-              t.first_name || ' ' || t.last_name AS tenant_name,
+              usr.full_name AS tenant_name,
               l.id AS lease_id,
               l.lease_start_date,
               l.lease_end_date,
@@ -27,6 +27,7 @@ router.get("/", requireAuth, requireLandlord, async (req, res) => {
        FROM unit u
        JOIN property p ON p.id = u.property_id
        LEFT JOIN tenant t ON t.id = u.current_tenant_id
+       LEFT JOIN users usr ON usr.id = t.user_id
        LEFT JOIN lease l ON l.tenant_id = t.id AND l.status = 'active'
        WHERE p.landlord_id = $1
        ORDER BY p.name, u.unit_number`,
@@ -82,9 +83,10 @@ router.get("/available", requireAuth, requireTenant, async (req, res) => {
     
     const result = await pool.query(
       `SELECT u.unit_number, u.unit_type, u.status,
-              t.first_name || ' ' || t.last_name AS tenant_name
+              usr.full_name AS tenant_name
        FROM unit u
        LEFT JOIN tenant t ON t.id = u.current_tenant_id
+       LEFT JOIN users usr ON usr.id = t.user_id
        WHERE u.property_id = $1 
          AND u.status = 'occupied'
          AND u.id != $2
@@ -122,7 +124,7 @@ router.put("/:id", requireAuth, async (req, res) => {
         updated_at = NOW()
        WHERE id = $13 RETURNING *`,
       [
-        parseInt(unit_number), unit_type,
+        String(unit_number), unit_type,
         floor_number ? parseInt(floor_number) : null,
         bedrooms ? parseInt(bedrooms) : null,
         bathrooms ? parseInt(bathrooms) : null,

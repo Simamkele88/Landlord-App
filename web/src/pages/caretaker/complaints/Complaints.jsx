@@ -1,4 +1,3 @@
-// CARETAKER COMPLAINTS PAGE 
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -88,7 +87,7 @@ export default function CaretakerComplaints() {
     return !q || [c.subject, c.filed_by_name, c.against_name, c.category].some(s => (s || "").toLowerCase().includes(q));
   });
 
-  const openCount = complaints.filter(c => ["open", "under_review"].includes(c.status)).length;
+  const openCount = complaints.filter(c => ["open", "under_review", "awaiting_clarification"].includes(c.status)).length;
   const escalatedCount = complaints.filter(c => c.status === "escalated").length;
 
   const S = {
@@ -155,22 +154,39 @@ export default function CaretakerComplaints() {
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table style={S.table}>
-              <thead><tr>{["Complaint", "Filed By", "Scope", "Category", "Status", "Date", ""].map(h => <th key={h} style={S.th}>{h}</th>)}</tr></thead>
+              <thead><tr>{["Complaint", "Filed By", "Against", "Scope", "Category", "Status", "Date", ""].map(h => <th key={h} style={S.th}>{h}</th>)}</tr></thead>
               <tbody>
-                {filtered.length === 0 && <tr><td colSpan={7} style={{ ...S.td, textAlign: 'center', padding: '3rem 0', color: 'rgba(245,240,232,0.2)' }}>No complaints found.</td></tr>}
+                {filtered.length === 0 && <tr><td colSpan={8} style={{ ...S.td, textAlign: 'center', padding: '3rem 0', color: 'rgba(245,240,232,0.2)' }}>No complaints found.</td></tr>}
                 {filtered.map(c => (
                   <tr key={c.id} style={{ transition: 'background 0.15s' }}
                     onMouseEnter={e => e.currentTarget.style.background = C.muted}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                     <td style={S.td}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                        <div style={{ width: 30, height: 30, borderRadius: '6px', background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                          <Icon name="message-square" size={13} color={C.purple} />
+                        <div style={{
+                          width: 30, height: 30, borderRadius: '6px',
+                          background: c.status === 'escalated' ? 'rgba(139,92,246,0.1)' : 'rgba(139,92,246,0.08)',
+                          border: c.status === 'escalated' ? '1px solid rgba(139,92,246,0.2)' : '1px solid rgba(139,92,246,0.12)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                        }}>
+                          <Icon name="message-square" size={13} color={c.status === 'escalated' ? C.purple : C.purple} />
                         </div>
-                        <p style={{ fontWeight: 600, color: C.white, fontSize: '0.78rem', maxWidth: '220px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.subject}</p>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                            <p style={{ fontWeight: 600, color: C.white, fontSize: '0.78rem', maxWidth: '180px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.subject}</p>
+                            {c.status === 'escalated' && (
+                              <span style={{ fontSize: '0.5rem', fontWeight: 700, color: C.purple, fontFamily: F.mono, letterSpacing: '0.04em', textTransform: 'uppercase', background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.2)', padding: '0.1rem 0.3rem', borderRadius: '2px', flexShrink: 0 }}>
+                                Escalated
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </td>
                     <td style={{ ...S.td, fontWeight: 500, color: C.white, fontSize: '0.75rem' }}>{c.filed_by_name}</td>
+                    <td style={{ ...S.td, fontWeight: 500, color: c.against_name ? C.white : 'rgba(245,240,232,0.2)', fontSize: '0.75rem' }}>
+                      {c.against_name || "—"}
+                    </td>
                     <td style={{ ...S.td, color: 'rgba(245,240,232,0.3)', fontSize: '0.68rem', fontFamily: F.mono }}>{SCOPE_LABELS[c.complaint_scope] || "—"}</td>
                     <td style={{ ...S.td, color: 'rgba(245,240,232,0.35)', fontSize: '0.68rem', textTransform: 'capitalize' }}>{c.category?.replace(/_/g, " ")}</td>
                     <td style={S.td}><StatusBadge status={c.status} /></td>

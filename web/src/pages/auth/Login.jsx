@@ -52,6 +52,7 @@ export default function Login() {
         response = await axios.post(`${API}/auth/landlord/login`, credentials);
         determinedRole = "landlord";
       } catch (landlordErr) {
+        
         if (landlordErr.response?.status === 401 || landlordErr.response?.status === 404) {
           try {
             response = await axios.post(`${API}/auth/login`, credentials);
@@ -402,7 +403,7 @@ export default function Login() {
               <label style={S.label}>Email address</label>
               <div style={S.inputWrapper}>
                 <FiMail size={14} style={S.inputIcon} />
-                <input type="email" name="email" value={form.email} onChange={handleChange} required placeholder="name@company.com" style={S.input(false)} onKeyDown={e => e.key === "Enter" && handleSubmit(e)} />
+                <input type="email" name="email" value={form.email} onChange={handleChange} required style={S.input(false)} onKeyDown={e => e.key === "Enter" && handleSubmit(e)} />
               </div>
             </div>
 
@@ -410,7 +411,7 @@ export default function Login() {
               <label style={S.label}>Password</label>
               <div style={S.inputWrapper}>
                 <FiLock size={14} style={S.inputIcon} />
-                <input type={showPassword ? "text" : "password"} name="password" value={form.password} onChange={handleChange} required placeholder="••••••••" style={{ ...S.input(false), paddingRight: "2.5rem" }} onKeyDown={e => e.key === "Enter" && handleSubmit(e)} />
+                <input type={showPassword ? "text" : "password"} name="password" value={form.password} onChange={handleChange} required style={{ ...S.input(false), paddingRight: "2.5rem" }} onKeyDown={e => e.key === "Enter" && handleSubmit(e)} />
                 <button type="button" onClick={() => setShowPassword(!showPassword)} style={S.pwToggle}>
                   {showPassword ? <FiEyeOff size={16} /> : <FiEye size={16} />}
                 </button>

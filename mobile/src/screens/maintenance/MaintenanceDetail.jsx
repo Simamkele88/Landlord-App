@@ -2,11 +2,12 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  SafeAreaView, StatusBar, Alert, ActivityIndicator,
+  StatusBar, Alert, ActivityIndicator,
   Image, Modal,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { Feather, Ionicons } from "@expo/vector-icons";
+import { Feather, Ionicons, MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 import { uploadImages } from "../../utils/upload";
@@ -23,6 +24,7 @@ const C = {
   greenLight:   "#1A7A4A",
   redLight:     "#E05A4A",
   purple:       "#8B5CF6",
+  orange:       "#F97316",
 };
 
 const F = {
@@ -32,12 +34,21 @@ const F = {
 };
 
 const STATUS = {
-  needs_repair:     { label: "Needs Repair",     color: C.redLight,  bg: "rgba(224,90,74,0.08)" },
-  assigned:         { label: "Assigned",          color: C.blue,      bg: "rgba(58,143,212,0.08)" },
-  in_progress:      { label: "In Progress",       color: C.gold,      bg: "rgba(232,160,18,0.06)" },
-  completed:        { label: "Completed",         color: C.greenLight,bg: "rgba(26,122,74,0.08)" },
-  cancelled:        { label: "Closed",            color: "rgba(245,240,232,0.4)", bg: "rgba(245,240,232,0.04)" },
-  pending_approval: { label: "Pending Approval",  color: C.gold,      bg: "rgba(232,160,18,0.06)" },
+  needs_repair:     { label: "Needs Repair",     color: C.redLight,  bg: "rgba(224,90,74,0.08)", icon: "alert-circle" },
+  assigned:         { label: "Assigned",          color: C.blue,      bg: "rgba(58,143,212,0.08)", icon: "person" },
+  in_progress:      { label: "In Progress",       color: C.gold,      bg: "rgba(232,160,18,0.06)", icon: "time" },
+  completed:        { label: "Completed",         color: C.greenLight,bg: "rgba(26,122,74,0.08)", icon: "checkmark-circle" },
+  closed:           { label: "Closed",            color: "rgba(245,240,232,0.4)", bg: "rgba(245,240,232,0.04)", icon: "lock-closed" },
+  cancelled:        { label: "Cancelled",         color: "rgba(245,240,232,0.4)", bg: "rgba(245,240,232,0.04)", icon: "close-circle" },
+  pending_approval: { label: "Pending Approval",  color: C.purple,    bg: "rgba(139,92,246,0.06)", icon: "hourglass" },
+};
+
+const PRIORITY = {
+  low:       { color: C.blue,       bg: "rgba(58,143,212,0.1)" },
+  medium:    { color: C.gold,       bg: "rgba(232,160,18,0.1)" },
+  high:      { color: C.orange,     bg: "rgba(249,115,22,0.1)" },
+  urgent:    { color: C.redLight,   bg: "rgba(224,90,74,0.12)" },
+  emergency: { color: "#ffffff",    bg: "rgba(224,90,74,0.2)" },
 };
 
 const CATEGORIES = {
@@ -54,12 +65,24 @@ const CATEGORIES = {
 
 function getCat(id) { return CATEGORIES[id] ?? CATEGORIES.other; }
 function getFullUrl(url) { if (!url) return ""; if (url.startsWith("http")) return url; return `${api.getBaseUrl()}${url}`; }
+function fmtDate(d) { if (!d) return ""; return new Date(d).toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" }); }
+function fmtAmount(n) { return n ? `R ${Number(n).toLocaleString("en-ZA")}` : "—"; }
 
 function StatusPill({ status }) {
   const cfg = STATUS[status] ?? STATUS.needs_repair;
   return (
-    <View style={[S.pill, { backgroundColor: cfg.bg }]}>
+    <View style={[S.pill, { backgroundColor: cfg.bg, borderColor: cfg.color + "30", borderWidth: 1 }]}>
+      <Ionicons name={cfg.icon} size={10} color={cfg.color} />
       <Text style={[S.pillText, { color: cfg.color }]}>{cfg.label}</Text>
+    </View>
+  );
+}
+
+function PriorityBadge({ priority }) {
+  const cfg = PRIORITY[priority] || PRIORITY.medium;
+  return (
+    <View style={[S.priorityBadge, { backgroundColor: cfg.bg, borderColor: cfg.color + "30" }]}>
+      <Text style={[S.priorityText, { color: cfg.color }]}>{priority}</Text>
     </View>
   );
 }
@@ -71,12 +94,11 @@ function ImageViewer({ visible, imageUrl, onClose }) {
         <TouchableOpacity style={S.viewerClose} onPress={onClose}>
           <Feather name="x" size={26} color={C.white} />
         </TouchableOpacity>
-        {imageUrl && <Image source={{ uri: imageUrl }} style={S.viewerImage} resizeMode="contain" />}
+        {imageUrl ? <Image source={{ uri: imageUrl }} style={S.viewerImage} resizeMode="contain" /> : null}
       </View>
     </Modal>
   );
 }
-
 
 export default function MaintenanceDetail() {
   const navigation = useNavigation();
@@ -86,7 +108,6 @@ export default function MaintenanceDetail() {
   const [request, setRequest] = useState(route.params?.request || null);
   const [loading, setLoading] = useState(!request);
   const [confirming, setConfirming] = useState(false);
-  const [escalating, setEscalating] = useState(false);
   const [reopening, setReopening] = useState(false);
   const [confirmPhotos, setConfirmPhotos] = useState([]);
   const [viewerVisible, setViewerVisible] = useState(false);
@@ -135,46 +156,44 @@ export default function MaintenanceDetail() {
         body: JSON.stringify({ photos: uploadedPhotos.map(p => ({ ...p, photo_type: "after" })) }),
       });
       const data = await response.json();
-      if (response.ok) Alert.alert("Request Closed", "Thank you for confirming.", [{ text: "OK", onPress: () => navigation.goBack() }]);
+      if (response.ok) Alert.alert("Request Closed", "Thank you for confirming. The request has been closed.", [{ text: "OK", onPress: () => navigation.goBack() }]);
       else throw new Error(data.error || "Confirmation failed");
     } catch (err) { Alert.alert("Error", err.message || "Failed to confirm"); }
     finally { setConfirming(false); }
   }
 
-  function handleReopen(action) {
+  function handleReopen() {
     Alert.alert(
-      action === "reopen" ? "Not Satisfied?" : "Issue Returned?",
-      action === "reopen" ? "Notify the caretaker that the repair was not satisfactory." : "Notify the caretaker that the issue has returned.",
+      "Reopen Request?",
+      "This will notify the caretaker that the issue needs attention again.",
       [
         { text: "Cancel", style: "cancel" },
         {
-          text: action === "reopen" ? "Reopen" : "Report Again",
+          text: "Reopen",
           style: "destructive",
           onPress: async () => {
-            const setter = action === "reopen" ? setReopening : setEscalating;
-            setter(true);
+            setReopening(true);
             try {
               const token = await AsyncStorage.getItem("token");
               const response = await fetch(`${api.getBaseUrl()}/maintenance/${request.id}/reopen`, {
                 method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                body: JSON.stringify({ reason: action === "reopen" ? "Tenant reopened — repair not satisfactory" : "Tenant reported issue has returned" }),
+                body: JSON.stringify({ reason: "Tenant reopened — issue not resolved or has returned" }),
               });
               const data = await response.json();
               if (response.ok) Alert.alert("Reopened", "The caretaker has been notified.", [{ text: "OK", onPress: () => fetchRequest() }]);
               else throw new Error(data.error || "Failed");
             } catch (err) { Alert.alert("Error", err.message || "Failed"); }
-            finally { setter(false); }
+            finally { setReopening(false); }
           },
         },
       ]
     );
   }
 
-  
   if (loading) {
     return (
       <SafeAreaView style={S.safe}>
-        <View style={S.center}><ActivityIndicator size="large" color={C.gold} /><Text style={S.loaderText}>Loading...</Text></View>
+        <View style={S.center}><ActivityIndicator size="large" color={C.gold} /><Text style={S.loaderText}>Loading request...</Text></View>
       </SafeAreaView>
     );
   }
@@ -183,7 +202,7 @@ export default function MaintenanceDetail() {
     return (
       <SafeAreaView style={S.safe}>
         <View style={S.center}>
-          <Feather name="alert-circle" size={36} color="rgba(245,240,232,0.2)" />
+          <Feather name="alert-circle" size={40} color="rgba(245,240,232,0.15)" />
           <Text style={S.emptyText}>Request not found</Text>
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Text style={S.backLink}>Go back</Text>
@@ -195,57 +214,91 @@ export default function MaintenanceDetail() {
 
   const cat = getCat(request.category);
   const isCompleted = request.status === "completed";
-  const isClosed = request.status === "cancelled";
+  const isClosed = request.status === "closed";
+  const isCancelled = request.status === "cancelled";
+  const isPendingApproval = request.status === "pending_approval";
+  const isResolved = isClosed || isCancelled;
   const photos = request.photos || [];
+  const beforePhotos = photos.filter(p => p.photo_type === 'before' || !p.photo_type);
+  const afterPhotos = photos.filter(p => p.photo_type === 'after');
 
   return (
     <SafeAreaView style={S.safe}>
       <StatusBar barStyle="light-content" backgroundColor={C.black} />
-
       <ImageViewer visible={viewerVisible} imageUrl={viewerUrl} onClose={() => { setViewerVisible(false); setViewerUrl(""); }} />
 
-      {/* HEADER */}
       <View style={S.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}><Feather name="arrow-left" size={20} color={C.white} /></TouchableOpacity>
         <Text style={S.headerTitle}>Request Details</Text>
         <View style={{ width: 24 }} />
       </View>
 
-      <ScrollView style={S.scroll} contentContainerStyle={S.scrollPad}>
-        {/* STATUS ROW */}
+      <ScrollView style={S.scroll} contentContainerStyle={S.scrollPad} showsVerticalScrollIndicator={false}>
+
+        {isPendingApproval && (
+          <View style={[S.infoBox, { backgroundColor: "rgba(139,92,246,0.06)", borderColor: "rgba(139,92,246,0.15)", marginBottom: 16 }]}>
+            <Ionicons name="hourglass" size={16} color={C.purple} style={{ marginRight: 8 }} />
+            <Text style={[S.body, { color: C.purple, flex: 1, fontSize: 12 }]}>Awaiting landlord approval. You'll be notified when a decision is made.</Text>
+          </View>
+        )}
+
         <View style={S.statusRow}>
           <View style={[S.catIcon, { backgroundColor: cat.color + "15", borderColor: cat.color + "25" }]}>
             <Ionicons name={cat.icon} size={16} color={cat.color} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={S.title}>{request.title}</Text>
-            <Text style={S.meta}>{cat.label} · {request.request_number}</Text>
+            <View style={S.metaRow}>
+              <Text style={S.meta}>{cat.label}</Text>
+              <Text style={S.metaDot}>·</Text>
+              <Text style={S.meta}>{request.request_number}</Text>
+              <Text style={S.metaDot}>·</Text>
+              <Text style={S.meta}>{fmtDate(request.created_at)}</Text>
+            </View>
           </View>
           <StatusPill status={request.status} />
         </View>
 
-        {/* DESCRIPTION */}
-        <Text style={S.sectionLabel}>DESCRIPTION</Text>
-        <Text style={S.body}>{request.description}</Text>
+        <PriorityBadge priority={request.priority} />
 
-        {/* PHOTOS */}
-        {photos.length > 0 && (
+        <Text style={S.sectionLabel}>DESCRIPTION</Text>
+        <View style={S.descriptionBox}>
+          <Text style={S.body}>{request.description}</Text>
+        </View>
+
+        {beforePhotos.length > 0 && (
           <>
-            <Text style={S.sectionLabel}>PHOTOS ({photos.length})</Text>
+            <Text style={S.sectionLabel}>BEFORE PHOTOS ({beforePhotos.length})</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={S.photoScroll}>
-              {photos.map((photo, idx) => (
-                <TouchableOpacity key={photo.id || idx} onPress={() => { setViewerUrl(getFullUrl(photo.document_url)); setViewerVisible(true); }} style={S.photoThumb}>
+              {beforePhotos.map((photo, idx) => (
+                <TouchableOpacity key={photo.id || idx} onPress={() => { setViewerUrl(getFullUrl(photo.document_url)); setViewerVisible(true); }} style={S.photoThumb} activeOpacity={0.9}>
                   <Image source={{ uri: getFullUrl(photo.document_url) }} style={S.photoImage} />
-                  {photo.photo_type && (
-                    <View style={S.photoTypeBadge}><Text style={S.photoTypeText}>{photo.photo_type}</Text></View>
-                  )}
                 </TouchableOpacity>
               ))}
             </ScrollView>
           </>
         )}
 
-        {/* COMPLETION NOTES */}
+        {afterPhotos.length > 0 && (
+          <>
+            <Text style={[S.sectionLabel, { color: C.greenLight }]}>AFTER PHOTOS ({afterPhotos.length})</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={S.photoScroll}>
+              {afterPhotos.map((photo, idx) => (
+                <TouchableOpacity key={photo.id || idx} onPress={() => { setViewerUrl(getFullUrl(photo.document_url)); setViewerVisible(true); }} style={[S.photoThumb, { borderColor: "rgba(76,186,122,0.3)", borderWidth: 1 }]} activeOpacity={0.9}>
+                  <Image source={{ uri: getFullUrl(photo.document_url) }} style={S.photoImage} />
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </>
+        )}
+
+        {photos.length === 0 && (
+          <View style={[S.infoBox, { backgroundColor: C.muted2, borderColor: C.border, marginTop: 8 }]}>
+            <Feather name="camera-off" size={15} color="rgba(245,240,232,0.3)" style={{ marginRight: 8 }} />
+            <Text style={[S.body, { color: "rgba(245,240,232,0.4)", flex: 1 }]}>No photos attached to this request.</Text>
+          </View>
+        )}
+
         {request.completion_notes && (
           <>
             <Text style={S.sectionLabel}>COMPLETION NOTES</Text>
@@ -256,60 +309,91 @@ export default function MaintenanceDetail() {
           </>
         )}
 
-        {/* CONTRACTOR */}
-        {request.contractor_name && (
+        {isResolved && (
           <>
-            <Text style={S.sectionLabel}>CONTRACTOR</Text>
-            <View style={S.contractorRow}>
-              <View style={S.contractorAvatar}><Ionicons name="person" size={16} color={C.gold} /></View>
-              <View>
-                <Text style={S.contractorName}>{request.contractor_name}</Text>
-                {request.contractor_phone && <Text style={S.contractorPhone}>{request.contractor_phone}</Text>}
-              </View>
+            <Text style={S.sectionLabel}>STATUS</Text>
+            <View style={[S.infoBox, { 
+              backgroundColor: isCancelled ? "rgba(224,90,74,0.04)" : "rgba(245,240,232,0.03)", 
+              borderColor: isCancelled ? "rgba(224,90,74,0.12)" : "rgba(245,240,232,0.1)" 
+            }]}>
+              <Ionicons 
+                name={isCancelled ? "close-circle" : "checkmark-circle"} 
+                size={15} 
+                color={isCancelled ? C.redLight : "rgba(245,240,232,0.4)"} 
+                style={{ marginRight: 8 }} 
+              />
+              <Text style={[S.body, { color: isCancelled ? C.redLight : "rgba(245,240,232,0.4)", flex: 1 }]}>
+                {isCancelled 
+                  ? "This request has been cancelled. You can reopen it if the issue persists."
+                  : "This request has been closed. You can reopen it if the issue returns."}
+              </Text>
             </View>
           </>
         )}
 
-        {/* COST */}
+        {request.contractor_name && (
+          <>
+            <Text style={S.sectionLabel}>CONTRACTOR</Text>
+            <View style={S.contractorCard}>
+              <View style={S.contractorAvatar}>
+                <Ionicons name="person" size={18} color={C.blue} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={S.contractorName}>{request.contractor_name}</Text>
+                {request.contractor_phone && <Text style={S.contractorPhone}>{request.contractor_phone}</Text>}
+              </View>
+              {request.scheduled_date && (
+                <View style={{ alignItems: "flex-end" }}>
+                  <Text style={S.scheduledLabel}>Scheduled</Text>
+                  <Text style={S.scheduledDate}>{fmtDate(request.scheduled_date)}</Text>
+                </View>
+              )}
+            </View>
+          </>
+        )}
+
         {(request.estimated_cost || request.actual_cost) && (
           <>
             <Text style={S.sectionLabel}>COST</Text>
             <View style={S.costRow}>
-              {request.estimated_cost && (
+              {request.estimated_cost ? (
                 <View style={S.costBox}>
                   <Text style={S.costLabel}>Estimated</Text>
-                  <Text style={S.costAmount}>R {Number(request.estimated_cost).toLocaleString()}</Text>
+                  <Text style={S.costAmount}>{fmtAmount(request.estimated_cost)}</Text>
                 </View>
-              )}
-              {request.actual_cost && (
+              ) : null}
+              {request.actual_cost ? (
                 <View style={[S.costBox, { borderColor: "rgba(76,186,122,0.2)" }]}>
                   <Text style={S.costLabel}>Actual</Text>
-                  <Text style={[S.costAmount, { color: C.greenLight }]}>R {Number(request.actual_cost).toLocaleString()}</Text>
+                  <Text style={[S.costAmount, { color: C.greenLight }]}>{fmtAmount(request.actual_cost)}</Text>
                 </View>
-              )}
+              ) : null}
             </View>
           </>
         )}
 
-        {/* TIMELINE */}
         {request.updates && request.updates.length > 0 && (
           <>
             <Text style={S.sectionLabel}>TIMELINE</Text>
             {request.updates.map((u, idx) => {
-              const cfg = STATUS[u.status_to] ?? STATUS.needs_repair;
+              const toCfg = STATUS[u.status_to] ?? STATUS.needs_repair;
+              const fromCfg = u.status_from ? STATUS[u.status_from] : null;
               const isLast = idx === request.updates.length - 1;
               return (
                 <View key={idx} style={S.tlRow}>
                   <View style={S.tlLeft}>
-                    <View style={[S.tlDot, { backgroundColor: cfg.bg, borderColor: cfg.color }]}>
-                      <Ionicons name="ellipse" size={5} color={cfg.color} />
+                    <View style={[S.tlDot, { backgroundColor: toCfg.bg, borderColor: toCfg.color }]}>
+                      <Ionicons name={toCfg.icon} size={8} color={toCfg.color} />
                     </View>
                     {!isLast && <View style={S.tlLine} />}
                   </View>
                   <View style={S.tlBody}>
                     <View style={S.tlHeader}>
-                      <Text style={[S.tlStatus, { color: cfg.color }]}>{cfg.label}</Text>
-                      <Text style={S.tlTime}>{new Date(u.created_at).toLocaleDateString()}</Text>
+                      <Text style={[S.tlStatus, { color: toCfg.color }]}>{toCfg.label}</Text>
+                      {fromCfg && (
+                        <Text style={S.tlFrom}>from {fromCfg.label}</Text>
+                      )}
+                      <Text style={S.tlTime}>{fmtDate(u.created_at)}</Text>
                     </View>
                     {u.notes && <Text style={S.tlNote}>{u.notes}</Text>}
                   </View>
@@ -319,14 +403,13 @@ export default function MaintenanceDetail() {
           </>
         )}
 
-        {/* CONFIRM SECTION */}
         {isCompleted && (
           <>
             <Text style={S.sectionLabel}>CONFIRM COMPLETION</Text>
             <View style={[S.infoBox, { backgroundColor: "rgba(58,143,212,0.06)", borderColor: "rgba(58,143,212,0.15)" }]}>
               <Ionicons name="information-circle" size={15} color={C.blue} style={{ marginRight: 8 }} />
-              <Text style={[S.body, { color: C.blue, flex: 1 }]}>
-                Confirm if resolved, or reopen if not satisfied.
+              <Text style={[S.body, { color: C.blue, flex: 1, fontSize: 12 }]}>
+                Is the issue resolved? Confirm to close this request, or reopen if you're not satisfied.
               </Text>
             </View>
 
@@ -344,34 +427,28 @@ export default function MaintenanceDetail() {
             )}
 
             {confirmPhotos.length < 3 && (
-              <TouchableOpacity style={S.addPhotoBtn} onPress={pickConfirmPhoto}>
+              <TouchableOpacity style={S.addPhotoBtn} onPress={pickConfirmPhoto} activeOpacity={0.8}>
                 <Feather name="camera" size={15} color={C.gold} />
                 <Text style={S.addPhotoText}>Add photo (optional)</Text>
               </TouchableOpacity>
             )}
           </>
         )}
+
+        <View style={{ height: 20 }} />
       </ScrollView>
 
-      {/* FOOTER */}
-      {(isCompleted || isClosed) && (
+      {(isCompleted || isResolved) && (
         <View style={S.footer}>
-          {isClosed && (
-            <TouchableOpacity style={S.btnEscalate} onPress={() => handleReopen("escalate")} disabled={escalating}>
-              {escalating ? <ActivityIndicator color={C.gold} size="small" /> : (
-                <><Ionicons name="warning-outline" size={16} color={C.gold} /><Text style={S.btnEscalateText}>Escalate</Text></>
-              )}
-            </TouchableOpacity>
-          )}
-          {isCompleted && (
-            <TouchableOpacity style={S.btnReopen} onPress={() => handleReopen("reopen")} disabled={reopening}>
+          {isResolved && (
+            <TouchableOpacity style={S.btnReopen} onPress={handleReopen} disabled={reopening} activeOpacity={0.85}>
               {reopening ? <ActivityIndicator color={C.white} size="small" /> : (
-                <><Ionicons name="close-circle" size={16} color={C.white} /><Text style={S.btnReopenText}>Reopen</Text></>
+                <><Ionicons name="refresh" size={16} color={C.white} /><Text style={S.btnReopenText}>Reopen</Text></>
               )}
             </TouchableOpacity>
           )}
           {isCompleted && (
-            <TouchableOpacity style={S.btnConfirm} onPress={handleConfirm} disabled={confirming}>
+            <TouchableOpacity style={S.btnConfirm} onPress={handleConfirm} disabled={confirming} activeOpacity={0.85}>
               {confirming ? <ActivityIndicator color={C.black} size="small" /> : (
                 <><Ionicons name="checkmark-circle" size={16} color={C.black} /><Text style={S.btnConfirmText}>Confirm & Close</Text></>
               )}
@@ -400,23 +477,26 @@ const S = StyleSheet.create({
   scroll: { flex: 1 },
   scrollPad: { padding: 16, paddingBottom: 100 },
 
-  statusRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, marginBottom: 22 },
-  catIcon: { width: 36, height: 36, borderRadius: 6, alignItems: "center", justifyContent: "center", borderWidth: 1 },
-  title: { fontSize: 15, fontWeight: "600", color: C.white, fontFamily: F.dm, marginBottom: 2 },
+  statusRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, marginBottom: 10 },
+  catIcon: { width: 38, height: 38, borderRadius: 8, alignItems: "center", justifyContent: "center", borderWidth: 1 },
+  title: { fontSize: 15, fontWeight: "600", color: C.white, fontFamily: F.dm, marginBottom: 3 },
+  metaRow: { flexDirection: "row", alignItems: "center", gap: 3, flexWrap: "wrap" },
   meta: { fontSize: 10, color: "rgba(245,240,232,0.3)", fontFamily: F.mono },
+  metaDot: { fontSize: 10, color: "rgba(245,240,232,0.15)", marginHorizontal: 2 },
+
+  priorityBadge: { alignSelf: "flex-start", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 3, borderWidth: 1, marginBottom: 18 },
+  priorityText: { fontSize: 9, fontWeight: "700", textTransform: "uppercase", fontFamily: F.mono, letterSpacing: 0.5 },
 
   sectionLabel: {
     fontSize: 10, fontWeight: "700", color: "rgba(245,240,232,0.2)",
-    fontFamily: F.mono, letterSpacing: 2, marginBottom: 8, marginTop: 22,
+    fontFamily: F.mono, letterSpacing: 2, marginBottom: 8, marginTop: 22, textTransform: "uppercase",
   },
-  body: { fontSize: 13, color: "rgba(245,240,232,0.5)", lineHeight: 21, fontFamily: F.dm },
-  infoBox: {
-    flexDirection: "row", alignItems: "flex-start",
-    borderRadius: 4, borderWidth: 1, padding: 12,
-  },
+  descriptionBox: { backgroundColor: C.muted2, borderRadius: 4, borderWidth: 1, borderColor: C.border, padding: 12 },
+  body: { fontSize: 13, color: "rgba(245,240,232,0.55)", lineHeight: 21, fontFamily: F.dm },
+  infoBox: { flexDirection: "row", alignItems: "flex-start", borderRadius: 4, borderWidth: 1, padding: 12 },
 
-  photoScroll: { marginBottom: 8 },
-  photoThumb: { width: 96, height: 96, borderRadius: 6, backgroundColor: C.muted, marginRight: 8, overflow: "hidden" },
+  photoScroll: { marginBottom: 4 },
+  photoThumb: { width: 100, height: 100, borderRadius: 6, backgroundColor: C.muted, marginRight: 8, overflow: "hidden" },
   photoImage: { width: "100%", height: "100%" },
   photoTypeBadge: {
     position: "absolute", bottom: 4, left: 4,
@@ -424,14 +504,16 @@ const S = StyleSheet.create({
   },
   photoTypeText: { fontSize: 8, color: C.white, textTransform: "capitalize", fontFamily: F.mono },
 
-  contractorRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  contractorCard: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: C.muted2, borderRadius: 4, borderWidth: 1, borderColor: C.border, padding: 12 },
   contractorAvatar: {
-    width: 34, height: 34, borderRadius: 17,
-    backgroundColor: "rgba(232,160,18,0.1)", borderWidth: 1, borderColor: "rgba(232,160,18,0.15)",
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: "rgba(58,143,212,0.1)", borderWidth: 1, borderColor: "rgba(58,143,212,0.15)",
     alignItems: "center", justifyContent: "center",
   },
-  contractorName: { fontSize: 13, fontWeight: "600", color: C.white, fontFamily: F.dm },
+  contractorName: { fontSize: 14, fontWeight: "600", color: C.white, fontFamily: F.dm },
   contractorPhone: { fontSize: 11, color: "rgba(245,240,232,0.3)", fontFamily: F.mono, marginTop: 2 },
+  scheduledLabel: { fontSize: 9, color: "rgba(245,240,232,0.3)", fontFamily: F.mono, textTransform: "uppercase" },
+  scheduledDate: { fontSize: 12, fontWeight: "600", color: C.white, fontFamily: F.dm },
 
   costRow: { flexDirection: "row", gap: 8 },
   costBox: {
@@ -439,24 +521,25 @@ const S = StyleSheet.create({
     backgroundColor: C.muted2, borderWidth: 1, borderColor: C.border,
   },
   costLabel: { fontSize: 9, color: "rgba(245,240,232,0.25)", fontFamily: F.mono, textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 },
-  costAmount: { fontSize: 15, fontWeight: "700", color: C.white, fontFamily: F.bebas, letterSpacing: 0.5 },
+  costAmount: { fontSize: 16, fontWeight: "700", color: C.white, fontFamily: F.bebas, letterSpacing: 0.5 },
 
   tlRow: { flexDirection: "row", gap: 8 },
   tlLeft: { alignItems: "center" },
-  tlDot: { width: 18, height: 18, borderRadius: 9, alignItems: "center", justifyContent: "center", borderWidth: 1.5 },
+  tlDot: { width: 22, height: 22, borderRadius: 11, alignItems: "center", justifyContent: "center", borderWidth: 1.5 },
   tlLine: { width: 1.5, flex: 1, backgroundColor: C.border, minHeight: 16, marginVertical: 2 },
-  tlBody: { flex: 1, paddingBottom: 14, paddingTop: 1 },
-  tlHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 3 },
+  tlBody: { flex: 1, paddingBottom: 14, paddingTop: 2 },
+  tlHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 3, flexWrap: "wrap" },
   tlStatus: { fontSize: 11, fontWeight: "700", fontFamily: F.mono },
-  tlTime: { fontSize: 9, color: "rgba(245,240,232,0.25)", fontFamily: F.mono },
+  tlFrom: { fontSize: 9, color: "rgba(245,240,232,0.3)", fontFamily: F.mono },
+  tlTime: { fontSize: 9, color: "rgba(245,240,232,0.2)", fontFamily: F.mono, marginLeft: "auto" },
   tlNote: { fontSize: 11, color: "rgba(245,240,232,0.4)", fontFamily: F.dm, lineHeight: 16 },
 
   confirmPhotoRow: { flexDirection: "row", gap: 8, marginTop: 8 },
   confirmPhotoWrap: { position: "relative" },
   confirmPhoto: { width: 76, height: 76, borderRadius: 4, backgroundColor: C.muted },
   removePhotoBtn: {
-    position: "absolute", top: -5, right: -5,
-    width: 18, height: 18, borderRadius: 9, backgroundColor: C.redLight,
+    position: "absolute", top: -6, right: -6,
+    width: 20, height: 20, borderRadius: 10, backgroundColor: C.redLight,
     alignItems: "center", justifyContent: "center",
   },
   addPhotoBtn: {
@@ -475,26 +558,19 @@ const S = StyleSheet.create({
     borderTopWidth: 1, borderTopColor: C.border, backgroundColor: C.muted2,
     flexWrap: "wrap",
   },
-  btnEscalate: {
-    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5,
-    paddingVertical: 12, borderRadius: 3,
-    backgroundColor: "transparent", borderWidth: 1, borderColor: "rgba(232,160,18,0.3)",
-    minWidth: 90,
-  },
-  btnEscalateText: { fontSize: 11, fontWeight: "600", color: C.gold, fontFamily: F.dm, letterSpacing: 0.5 },
   btnReopen: {
     flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5,
-    paddingVertical: 12, borderRadius: 3, backgroundColor: C.redLight,
+    paddingVertical: 13, borderRadius: 3, backgroundColor: C.redLight,
     minWidth: 90,
   },
   btnReopenText: { color: C.white, fontSize: 11, fontWeight: "700", fontFamily: F.dm, letterSpacing: 0.5 },
   btnConfirm: {
     flex: 2, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5,
-    paddingVertical: 12, borderRadius: 3, backgroundColor: C.gold,
+    paddingVertical: 13, borderRadius: 3, backgroundColor: C.gold,
     minWidth: 110,
   },
   btnConfirmText: { color: C.black, fontSize: 11, fontWeight: "700", fontFamily: F.dm, letterSpacing: 0.5 },
 
-  pill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 3, alignSelf: "flex-start" },
+  pill: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 3, alignSelf: "flex-start" },
   pillText: { fontSize: 9, fontWeight: "700", textTransform: "uppercase", fontFamily: F.mono, letterSpacing: 1 },
 });

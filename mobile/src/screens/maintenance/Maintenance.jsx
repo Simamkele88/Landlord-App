@@ -2,8 +2,8 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, StatusBar, SafeAreaView, RefreshControl,
-  ActivityIndicator,
+  StyleSheet, StatusBar, RefreshControl,
+  ActivityIndicator, SafeAreaView
 } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { Feather, Ionicons } from "@expo/vector-icons";
@@ -48,7 +48,8 @@ const STATUS = {
   assigned:         { label: "Assigned",          color: C.blue,      bg: "rgba(58,143,212,0.08)" },
   in_progress:      { label: "In Progress",       color: C.gold,      bg: "rgba(232,160,18,0.06)" },
   completed:        { label: "Completed",         color: C.greenLight,bg: "rgba(26,122,74,0.08)" },
-  cancelled:        { label: "Closed",            color: "rgba(245,240,232,0.4)", bg: "rgba(245,240,232,0.04)" },
+  closed:           { label: "Closed",            color: "rgba(245,240,232,0.4)", bg: "rgba(245,240,232,0.04)" },
+  cancelled:        { label: "Cancelled",         color: C.redLight,  bg: "rgba(224,90,74,0.04)" },
   pending_approval: { label: "Pending Approval",  color: C.gold,      bg: "rgba(232,160,18,0.06)" },
 };
 
@@ -76,6 +77,10 @@ function StatusPill({ status }) {
 function RequestCard({ request, onPress }) {
   const cat = getCat(request.category);
   const latestUpdate = request.updates?.[request.updates?.length - 1];
+  const isCompleted = request.status === "completed";
+  const isClosed = request.status === "closed";
+  const isCancelled = request.status === "cancelled";
+  const isResolved = isClosed || isCancelled;
 
   return (
     <TouchableOpacity style={S.card} onPress={onPress} activeOpacity={0.8}>
@@ -99,10 +104,22 @@ function RequestCard({ request, onPress }) {
             <Feather name="chevron-right" size={11} color="rgba(245,240,232,0.25)" />
           </View>
         )}
-        {request.status === "completed" && (
+        {isCompleted && (
           <View style={[S.banner, { backgroundColor: "rgba(26,122,74,0.06)", borderColor: "rgba(76,186,122,0.15)" }]}>
             <Ionicons name="checkmark-circle" size={13} color={C.greenLight} />
-            <Text style={[S.bannerText, { color: C.greenLight }]}>Repair complete — tap to confirm</Text>
+            <Text style={[S.bannerText, { color: C.greenLight }]}>Repair complete. Tap to confirm</Text>
+          </View>
+        )}
+        {isClosed && (
+          <View style={[S.banner, { backgroundColor: "rgba(245,240,232,0.03)", borderColor: "rgba(245,240,232,0.1)" }]}>
+            <Ionicons name="checkmark-circle" size={13} color="rgba(245,240,232,0.4)" />
+            <Text style={[S.bannerText, { color: "rgba(245,240,232,0.4)" }]}>Closed. Tap to view details</Text>
+          </View>
+        )}
+        {isCancelled && (
+          <View style={[S.banner, { backgroundColor: "rgba(224,90,74,0.04)", borderColor: "rgba(224,90,74,0.12)" }]}>
+            <Ionicons name="close-circle" size={13} color={C.redLight} />
+            <Text style={[S.bannerText, { color: C.redLight }]}>Cancelled. Tap to view details</Text>
           </View>
         )}
       </View>
@@ -144,7 +161,7 @@ export default function TenantMaintenance() {
   const filtered = requests.filter(r => {
     if (filter === "All") return true;
     if (filter === "Active") return ["needs_repair", "assigned", "in_progress", "pending_approval"].includes(r.status);
-    if (filter === "Completed") return ["completed", "cancelled"].includes(r.status);
+    if (filter === "Completed") return ["completed", "closed", "cancelled"].includes(r.status);
     return true;
   });
 

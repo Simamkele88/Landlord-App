@@ -1,24 +1,34 @@
 // COLORS
 export const c = {
-  black: '#0a0a0a',
-  white: '#f5f0e8',
-  gold: '#e8a012',
-  orange: '#d45a1a',
-  green: '#1a7a4a',
-  greenLight: '#4cba7a',
-  redLight: '#e05a4a',
-  blue: '#3a8fd4',
-  purple: '#8b5cf6',
-  muted: '#2a2a2a',
-  muted2: '#1e1e1e',
-  border: '#2e2e2e',
-  borderFocus: 'rgba(232,160,18,0.5)',
-  textMuted: 'rgba(245,240,232,0.35)',
-  textDim: 'rgba(245,240,232,0.25)',
-  textBody: 'rgba(245,240,232,0.6)',
-  textLabel: 'rgba(245,240,232,0.75)',
-  bubbleOut: '#2e2a20',
-  bubbleIn: '#222222',
+  black: '#111315',
+  white: '#FFFFFF',
+
+  gold: '#F2B51D',
+  orange: '#E58A17',
+
+  green: '#22C55E',
+  greenLight: '#4ADE80',
+
+  redLight: '#EF4444',
+
+  blue: '#4EA3FF',
+
+  purple: '#8B5CF6',
+
+  muted: '#1C222B',
+  muted2: '#161B22',
+
+  border: '#313A46',
+  borderFocus: 'rgba(242,181,29,0.45)',
+
+  // Brighter text
+  textMuted: '#BFC7D3',
+  textDim: '#D0D7E2',
+  textBody: '#E6EDF7',
+  textLabel: '#FFFFFF',
+
+  bubbleOut: '#262C35',
+  bubbleIn: '#1F252E',
 };
 
 // FONTS
@@ -31,13 +41,13 @@ export const f = {
 // SHARED INPUT STYLES
 export const inputStyle = {
   width: '100%',
-  background: c.black,
+  background: c.muted2,
   border: `1px solid ${c.border}`,
   color: c.white,
   fontFamily: f.dm,
-  fontSize: '0.88rem',
-  padding: '0.8rem 1rem',
-  borderRadius: '3px',
+  fontSize: '1rem',
+  padding: '0.9rem 1rem',
+  borderRadius: '4px',
   outline: 'none',
 };
 
@@ -51,29 +61,27 @@ export const textareaStyle = {
 // SHARED BUTTON STYLES
 export const btnPrimary = {
   background: c.gold,
-  color: c.black,
-  padding: '0.9rem 2rem',
+  color: '#111315',
+  padding: '0.95rem 2rem',
   fontFamily: f.dm,
   fontWeight: 700,
-  fontSize: '0.88rem',
-  letterSpacing: '0.06em',
+  fontSize: '1rem',
+  letterSpacing: '0.04em',
   textTransform: 'uppercase',
   border: 'none',
-  borderRadius: '2px',
+  borderRadius: '4px',
   cursor: 'pointer',
 };
 
 export const btnGhost = {
   background: 'transparent',
   color: c.textBody,
-  padding: '0.9rem 2rem',
+  padding: '0.95rem 2rem',
   fontFamily: f.dm,
-  fontWeight: 500,
-  fontSize: '0.88rem',
-  letterSpacing: '0.06em',
-  textTransform: 'uppercase',
+  fontWeight: 600,
+  fontSize: '1rem',
   border: `1px solid ${c.border}`,
-  borderRadius: '2px',
+  borderRadius: '4px',
   cursor: 'pointer',
 };
 
@@ -83,7 +91,7 @@ export const btnSmall = {
   padding: '0.55rem 1.2rem',
   fontFamily: f.dm,
   fontWeight: 700,
-  fontSize: '0.75rem',
+  fontSize: '1rem',
   letterSpacing: '0.06em',
   textTransform: 'uppercase',
   border: 'none',
@@ -93,17 +101,64 @@ export const btnSmall = {
 
 // STATUS PILL STYLES 
 export const statusStyles = {
-  active:   { bg: 'rgba(26,122,74,0.15)', color: c.greenLight, border: '1px solid rgba(76,186,122,0.2)' },
-  pending:  { bg: 'rgba(232,160,18,0.1)', color: c.gold, border: '1px solid rgba(232,160,18,0.2)' },
-  done:     { bg: 'rgba(245,240,232,0.06)', color: c.textMuted, border: `1px solid ${c.border}` },
-  quoting:  { bg: 'rgba(58,143,212,0.12)', color: c.blue, border: '1px solid rgba(58,143,212,0.25)' },
-  online:   { bg: 'rgba(26,122,74,0.12)', color: c.greenLight },
-  busy:     { bg: 'rgba(212,90,26,0.12)', color: c.orange },
-  away:     { bg: 'rgba(245,240,232,0.05)', color: c.textBody },
-  escrow:   { bg: 'rgba(58,143,212,0.12)', color: c.blue, border: '1px solid rgba(58,143,212,0.2)' },
-  paid:     { bg: 'rgba(26,122,74,0.15)', color: c.greenLight, border: '1px solid rgba(76,186,122,0.2)' },
-  failed:   { bg: 'rgba(224,90,74,0.1)', color: c.redLight, border: '1px solid rgba(224,90,74,0.2)' },
+   active: {
+    bg: 'rgba(34,197,94,.14)',
+    color: '#4ADE80',
+    border: '1px solid rgba(74,222,128,.25)'
+  },
+
+  pending: {
+    bg: 'rgba(242,181,29,.14)',
+    color: '#F2B51D',
+    border: '1px solid rgba(242,181,29,.25)'
+  },
+
+  paid: {
+    bg: 'rgba(34,197,94,.14)',
+    color: '#4ADE80',
+    border: '1px solid rgba(74,222,128,.25)'
+  },
+
+  failed: {
+    bg: 'rgba(239,68,68,.14)',
+    color: '#EF4444',
+    border: '1px solid rgba(239,68,68,.25)'
+  },
+
+  quoting: {
+    bg: 'rgba(78,163,255,.14)',
+    color: '#4EA3FF',
+    border: '1px solid rgba(78,163,255,.25)'
+  },
+
+  escrow: {
+    bg: 'rgba(78,163,255,.14)',
+    color: '#4EA3FF',
+    border: '1px solid rgba(78,163,255,.25)'
+  },
+
+  online: {
+    bg: 'rgba(34,197,94,.14)',
+    color: '#4ADE80'
+  },
+
+  busy: {
+    bg: 'rgba(229,138,23,.14)',
+    color: '#E58A17'
+  },
+
+  away: {
+    bg: 'rgba(255,255,255,.08)',
+    color: '#D0D7E2'
+  },
+
+  done: {
+    bg: 'rgba(255,255,255,.06)',
+    color: '#BFC7D3',
+    border: `1px solid ${c.border}`
+  }
 };
+
 
 // KEYFRAMES
 export const globalKeyframes = `
@@ -147,6 +202,7 @@ export const globalReset = `
     font-family: 'DM Sans', sans-serif;
     font-weight: 300;
     overflow-x: hidden;
+     font-size: 16px;
   }
   body::before {
     content: '';

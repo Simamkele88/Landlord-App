@@ -20,6 +20,7 @@
 - Then `npm install`.
 - Now the backend is good to go, goodluck😉.
 - open a terminal and `cd backend` and `npm run dev`.
+😭😭😭😭😭
 
 ## Frondend Set
 

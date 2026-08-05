@@ -7,9 +7,11 @@
 - Firstly you go to pgAdmin, create a new database (chihwa_rentals).
 - Go to the table_schemas.sql and copy it
 - Go to pgAdmin and the database you created, right click the tables - then say query tools, paste the code there and execute the script.
-- Now go to LETS_SEE.sql, copy the contents, clear the query and past it there and execute it.
+- Now go to LETS_SEE.sql, copy the contents, clear the query and paste it there and execute it.
 - Now everything is fine, the password to all accounts is Wekeza2004#, change it to whatever you want.
 - If you wanna view the data in the tables, go to that table, right click and then View/Edit data and then all rows.
+- if you want the emails there are in user tables.
+- To change the data in the database, you View/Edit data and then double click what you want to change -> change it and then you go to the icon to save changes just at the top of the table.
 
 ### STEP 2
 

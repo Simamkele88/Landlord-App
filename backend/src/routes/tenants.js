@@ -637,7 +637,7 @@ router.get("/me/dashboard", requireAuth, requireTenant, async (req, res) => {
         [tenantId]
       ),
       pool.query(
-        `SELECT t.reliability_score, t.standing, u.first_name, u.last_name,
+        `SELECT t.reliability_score, t.reliability_score_value, t.standing, u.first_name, u.last_name,
                 u.email, u.phone
          FROM tenant t
          JOIN users u ON u.id = t.user_id

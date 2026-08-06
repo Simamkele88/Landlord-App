@@ -665,23 +665,24 @@ export default function PropertiesPage() {
     setDeleteUnit(null);
   }
 
+
   const S = {
-    container: { maxWidth: 1280, margin: '-1rem -1.6rem', padding: '1.5rem 1rem 3rem' },
-    headerRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem', gap: '1rem' },
-    title: { fontSize: '1.8rem', fontWeight: 700, color: C.white, fontFamily: F.bebas, letterSpacing: '0.04em' },
-    subtitle: { fontSize: '0.75rem', color: 'rgba(245,240,232,0.35)', marginTop: '0.3rem', fontFamily: F.mono },
-    searchWrap: { position: 'relative', marginBottom: '1.5rem' },
-    searchIcon: { position: 'absolute', left: '0.9rem', top: '50%', transform: 'translateY(-50%)', color: 'rgba(245,240,232,0.25)' },
-    searchInput: { width: '100%', padding: '0.6rem 1rem 0.6rem 2.5rem', borderRadius: '3px', background: C.muted2, border: `1px solid ${C.border}`, color: C.white, fontFamily: F.dm, fontSize: '0.82rem', outline: 'none' },
-    loading: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '5rem 0', color: 'rgba(245,240,232,0.3)', gap: '0.8rem' },
-    error: { display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '5rem 0', gap: '1rem' },
-    errorText: { fontSize: '0.82rem', color: C.redLight },
-    retryBtn: { background: 'none', border: 'none', color: C.gold, cursor: 'pointer', fontSize: '0.75rem', fontFamily: F.mono, letterSpacing: '0.04em', textDecoration: 'underline' },
-    empty: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '6rem 0', gap: '1rem' },
-    emptyIcon: { width: 60, height: 60, borderRadius: '12px', background: C.muted2, border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center' },
-    emptyText: { fontSize: '0.85rem', fontWeight: 500, color: 'rgba(245,240,232,0.4)' },
-    grid: { display: 'grid', gridTemplateColumns: '1fr', gap: '1.2rem' },
+    container: { maxWidth: 1280, padding: '1.5rem 1rem 3rem', margin: '-1rem -1.8rem' },
+    headerRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem', gap: '1rem', flexWrap: 'wrap' },
+    title: { fontSize: '1.8rem', fontWeight: 700, color: C.white, fontFamily: F.bebas, letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: '0.5rem' },
+    subtitle: {  fontSize: '1.2rem', color: 'white', fontWeight: 500, fontFamily: F.mono, marginTop: '0.3rem', opacity: 1, letterSpacing: '0.02em',},
+    toolbarInner: { display: 'flex', alignItems: 'center', gap: '0.8rem', padding: '0.8rem 1rem', flexWrap: 'wrap' },
+    filterBtn: (active) => ({ padding: '0.4rem 0.8rem', borderRadius: '3px', fontSize: '0.72rem', fontWeight: 600, fontFamily: F.mono, letterSpacing: '0.04em', border: `1px solid ${active ? C.gold : C.border}`, background: active ? 'rgba(232,160,18,0.12)' : 'transparent', color: active ? C.gold : 'rgba(245,240,232,0.4)', cursor: 'pointer', transition: 'all 0.15s' }),
+    searchWrap: { position: 'relative', marginLeft: 'auto' },
+    searchIcon: { position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'rgba(245,240,232,0.25)' },
+    searchInput: { padding: '0.5rem 0.8rem 0.5rem 2.25rem', borderRadius: '3px', background: C.black, border: `1px solid ${C.border}`, color: C.white, fontFamily: F.dm, fontSize: '0.78rem', outline: 'none', width: 220 },
+    table: { width: '100%', fontSize: '0.75rem', borderCollapse: 'collapse' },
+    th: { fontSize: '0.6rem', fontWeight: 600, color: 'rgba(245,240,232,0.3)', fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '0.7rem 1rem', textAlign: 'left', borderBottom: `1px solid ${C.border}` },
+    td: { padding: '0.7rem 1rem', borderBottom: `1px solid ${C.border}` },
+    footer: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.8rem 1rem', fontSize: '0.72rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono },
+    loadMoreWrap: { display: 'flex', justifyContent: 'center', padding: '1rem' },
   };
+
 
   return (
     <div style={S.container}>

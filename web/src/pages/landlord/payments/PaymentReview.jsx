@@ -280,13 +280,24 @@ export default function PaymentReview() {
 
   const lateDays = paidDate && dueDate ? daysLate(dueDate, paidDate) : null;
 
+
   const S = {
     container: { maxWidth: 1280, padding: '1.5rem 1rem 3rem', margin: '-1rem -1.8rem' },
-    backBtn: { display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono, background: 'none', border: 'none', cursor: 'pointer', transition: 'color 0.15s' },
-    tabBtn: (active) => ({ flex: 1, padding: '0.75rem 1rem', fontSize: '0.78rem', fontWeight: 500, fontFamily: F.dm, border: 'none', cursor: 'pointer', textAlign: 'center', background: active ? 'rgba(58,143,212,0.08)' : 'transparent', color: active ? C.blue : 'rgba(245,240,232,0.3)', borderBottom: `2px solid ${active ? C.blue : 'transparent'}`, transition: 'all 0.15s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }),
-    detailRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.65rem 0.9rem' },
-    lateBanner: (onTime) => ({ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.7rem 0.9rem', borderRadius: '3px', fontSize: '0.78rem', fontWeight: 500, background: onTime ? 'rgba(26,122,74,0.06)' : 'rgba(232,160,18,0.06)', border: `1px solid ${onTime ? 'rgba(76,186,122,0.15)' : 'rgba(232,160,18,0.15)'}`, color: onTime ? C.greenLight : C.gold }),
+    headerRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem', gap: '1rem', flexWrap: 'wrap' },
+    title: { fontSize: '1.8rem', fontWeight: 700, color: C.white, fontFamily: F.bebas, letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: '0.5rem' },
+    subtitle: {  fontSize: '1.2rem', color: 'white', fontWeight: 500, fontFamily: F.mono, marginTop: '0.3rem', opacity: 1, letterSpacing: '0.02em',},
+    toolbarInner: { display: 'flex', alignItems: 'center', gap: '0.8rem', padding: '0.8rem 1rem', flexWrap: 'wrap' },
+    filterBtn: (active) => ({ padding: '0.4rem 0.8rem', borderRadius: '3px', fontSize: '0.72rem', fontWeight: 600, fontFamily: F.mono, letterSpacing: '0.04em', border: `1px solid ${active ? C.gold : C.border}`, background: active ? 'rgba(232,160,18,0.12)' : 'transparent', color: active ? C.gold : 'rgba(245,240,232,0.4)', cursor: 'pointer', transition: 'all 0.15s' }),
+    searchWrap: { position: 'relative', marginLeft: 'auto' },
+    searchIcon: { position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'rgba(245,240,232,0.25)' },
+    searchInput: { padding: '0.5rem 0.8rem 0.5rem 2.25rem', borderRadius: '3px', background: C.black, border: `1px solid ${C.border}`, color: C.white, fontFamily: F.dm, fontSize: '0.78rem', outline: 'none', width: 220 },
+    table: { width: '100%', fontSize: '0.75rem', borderCollapse: 'collapse' },
+    th: { fontSize: '0.6rem', fontWeight: 600, color: 'rgba(245,240,232,0.3)', fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '0.7rem 1rem', textAlign: 'left', borderBottom: `1px solid ${C.border}` },
+    td: { padding: '0.7rem 1rem', borderBottom: `1px solid ${C.border}` },
+    footer: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.8rem 1rem', fontSize: '0.72rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono },
+    loadMoreWrap: { display: 'flex', justifyContent: 'center', padding: '1rem' },
   };
+
 
   return (
     <div style={S.container}>

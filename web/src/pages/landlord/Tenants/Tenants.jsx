@@ -1076,7 +1076,7 @@ export default function Tenants() {
     container: { maxWidth: 1280, padding: '1.5rem 1rem 3rem', margin: '-1rem -1.8rem' },
     headerRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem', gap: '1rem', flexWrap: 'wrap' },
     title: { fontSize: '1.8rem', fontWeight: 700, color: C.white, fontFamily: F.bebas, letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: '0.5rem' },
-    subtitle: { fontSize: '0.75rem', color: 'rgba(245,240,232,0.35)', fontFamily: F.mono, marginTop: '0.3rem' },
+    subtitle: {  fontSize: '1.2rem', color: 'white', fontWeight: 500, fontFamily: F.mono, marginTop: '0.3rem', opacity: 1, letterSpacing: '0.02em',},
     actions: { display: 'flex', alignItems: 'center', gap: '0.5rem' },
     viewToggle: { display: 'flex', background: C.muted, borderRadius: '3px', padding: '2px' },
     viewBtn: (active) => ({ padding: '0.4rem 0.7rem', borderRadius: '2px', fontSize: '0.72rem', fontWeight: 500, fontFamily: F.mono, letterSpacing: '0.04em', border: 'none', cursor: 'pointer', background: active ? C.muted2 : 'transparent', color: active ? C.gold : 'rgba(245,240,232,0.3)', display: 'flex', alignItems: 'center', gap: '0.3rem', transition: 'all 0.15s' }),

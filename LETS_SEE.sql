@@ -48,7 +48,7 @@ ALTER SEQUENCE public.maintenance_request_number_seq RESTART WITH 1000;
 -- =====================================================================
 INSERT INTO public.users (id, email, phone, alternate_phone, password_hash, role, first_name, last_name, email_verified, phone_verified, must_change_password, status, last_login, last_active, created_at, updated_at) VALUES
 -- landlords
-('d1a2b3c4-1000-4000-a000-000000000001','simamkele.wekeza@chihwarentals.co.za','0821234567',NULL,'$2b$12$/kSMRZL1X3jSq9o7YsoBRerz8KAVpb9DKl1c6svgzow41gZqFdj8W','landlord','Simamkele','Wekeza',true,true,false,'active','2026-07-24 08:12:00+02','2026-07-25 07:00:00+02','2026-01-05 09:00:00+02','2026-07-24 08:12:00+02'),
+('d1a2b3c4-1000-4000-a000-000000000001','simamkele.wekeza@chihwarentals.co.za','0821234567',NULL,'$2b$12$Jhxz4U7NWjmrAZL3XahZmem5keeNC2vcMZt4JfSPMGHPjCx/4BHC.','landlord','Simamkele','Wekeza',true,true,false,'active','2026-07-24 08:12:00+02','2026-07-25 07:00:00+02','2026-01-05 09:00:00+02','2026-07-24 08:12:00+02'),
 ('d1a2b3c4-1000-4000-a000-000000000002','naledi.mokoena@nalediproperties.co.za','0837654321',NULL,'$2b$12$/kSMRZL1X3jSq9o7YsoBRerz8KAVpb9DKl1c6svgzow41gZqFdj8W','landlord','Naledi','Mokoena',true,true,false,'active','2026-07-23 18:40:00+02','2026-07-24 09:00:00+02','2026-02-01 10:00:00+02','2026-07-23 18:40:00+02'),
 -- caretakers
 ('e5f6a7b8-3000-4000-a000-000000000001','koketso.sekhula@chihwarentals.co.za','0719876543',NULL,'$2b$12$/kSMRZL1X3jSq9o7YsoBRerz8KAVpb9DKl1c6svgzow41gZqFdj8W','caretaker','Koketso','Sekhula',true,true,true,'active','2026-07-22 07:45:00+02','2026-07-25 06:30:00+02','2026-01-10 08:00:00+02','2026-07-22 07:45:00+02'),

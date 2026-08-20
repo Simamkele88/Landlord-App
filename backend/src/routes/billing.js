@@ -118,7 +118,6 @@ router.post("/generate-monthly", requireAuth, requireLandlord, async (req, res) 
 
     await client.query("COMMIT");
 
-    // Log the action
     await auditLog(req.userId, "GENERATE_INVOICES", "billing", null, 
       { period: `${billingStart.toLocaleDateString('en-ZA', { month: 'long', year: 'numeric' })}` },
       { generated, skipped, has_partial: hasPartial },
@@ -327,13 +326,11 @@ router.post("/sync-invoice-status", requireAuth, requireLandlord, async (req, re
       return res.status(404).json({ error: "Invoice not found or not owned by you" });
     }
 
-    // Recalculate invoice status
     const result = await pool.query(
       `SELECT public.recalculate_invoice_status($1) AS new_status`,
       [invoice_id]
     );
 
-    // Get updated invoice details
     const updated = await pool.query(
       `SELECT id, status, paid_amount, remaining_balance FROM invoice WHERE id = $1`,
       [invoice_id]

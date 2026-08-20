@@ -8,21 +8,9 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
 import api from "../../utils/api";
+import { C, F } from "../../styles/theme";
 
 const API_URL = api.getBaseUrl();
-
-const C = {
-  black:        "#0a0a0a",
-  muted:        "#141414",
-  muted2:       "#1a1a1a",
-  border:       "#2a2a2a",
-  gold:         "#E8A012",
-  white:        "#F5F0E8",
-  blue:         "#3A8FD4",
-  greenLight:   "#1A7A4A",
-  redLight:     "#E05A4A",
-};
-const F = { bebas: "bebas-neue", dm: "dm-sans", mono: "space-mono" };
 
 export default function VerifyCode() {
   const navigation = useNavigation();
@@ -65,18 +53,27 @@ export default function VerifyCode() {
   }
 
   const $input = {
-    backgroundColor: C.black, borderWidth: 1, borderColor: C.border,
-    borderRadius: 3, paddingHorizontal: 12, paddingVertical: 13,
-    fontSize: 15, color: C.white, fontFamily: F.dm,
+    backgroundColor: C.background,
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 3,
+    paddingHorizontal: 12,
+    paddingVertical: 13,
+    fontSize: 15,
+    color: C.textPrimary,
+    fontFamily: F.dm,
   };
-  const $btnGold = {
-    backgroundColor: C.gold, borderRadius: 3, paddingVertical: 15,
-    alignItems: "center", justifyContent: "center",
+  const $btnPrimary = {
+    backgroundColor: C.primary,
+    borderRadius: 3,
+    paddingVertical: 15,
+    alignItems: "center",
+    justifyContent: "center",
   };
 
   return (
     <SafeAreaView style={S.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={C.black} />
+      <StatusBar barStyle="dark-content" backgroundColor={C.surface} />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
         <View style={S.container}>
           <Text style={S.step}>STEP 1 OF 2</Text>
@@ -85,7 +82,7 @@ export default function VerifyCode() {
 
           {error ? (
             <View style={S.errorBanner}>
-              <Feather name="alert-circle" size={14} color={C.redLight} />
+              <Feather name="alert-circle" size={14} color={C.red} />
               <Text style={S.errorText}>{error}</Text>
             </View>
           ) : null}
@@ -97,7 +94,7 @@ export default function VerifyCode() {
               value={email}
               onChangeText={(v) => { setEmail(v); setError(""); }}
               placeholder="you@example.com"
-              placeholderTextColor="rgba(245,240,232,0.15)"
+              placeholderTextColor={C.textMuted}
               keyboardType="email-address"
               autoCapitalize="none"
             />
@@ -110,7 +107,7 @@ export default function VerifyCode() {
                 <TextInput
                   key={index}
                   ref={(ref) => (inputRefs.current[index] = ref)}
-                  style={[S.codeInput, digit && { borderColor: C.gold }]}
+                  style={[S.codeInput, digit && { borderColor: C.primary }]}
                   value={digit}
                   onChangeText={(text) => handleCodeChange(text, index)}
                   onKeyPress={(e) => handleKeyPress(e, index)}
@@ -122,8 +119,8 @@ export default function VerifyCode() {
             </View>
           </View>
 
-          <TouchableOpacity style={[$btnGold, loading && { opacity: 0.6 }]} onPress={handleVerify} disabled={loading} activeOpacity={0.85}>
-            {loading ? <ActivityIndicator color={C.black} size="small" /> : <Text style={S.btnText}>VERIFY CODE</Text>}
+          <TouchableOpacity style={[$btnPrimary, loading && { opacity: 0.6 }]} onPress={handleVerify} disabled={loading} activeOpacity={0.85}>
+            {loading ? <ActivityIndicator color="#ffffff" size="small" /> : <Text style={S.btnText}>VERIFY CODE</Text>}
           </TouchableOpacity>
 
           <TouchableOpacity onPress={() => navigation.navigate("ForgotPassword")} style={{ marginTop: 16 }}>
@@ -136,30 +133,30 @@ export default function VerifyCode() {
 }
 
 const S = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.black },
+  safe: { flex: 1, backgroundColor: C.background },
   container: { flex: 1, justifyContent: "center", padding: 24 },
-  step: { fontSize: 10, fontWeight: "700", color: C.gold, fontFamily: F.mono, letterSpacing: 1.5, marginBottom: 4 },
-  title: { fontSize: 22, fontWeight: "700", color: C.white, fontFamily: F.bebas, letterSpacing: 1, marginBottom: 8 },
-  subtitle: { fontSize: 13, color: "rgba(245,240,232,0.4)", fontFamily: F.dm, marginBottom: 24, lineHeight: 20 },
+  step: { fontSize: 10, fontWeight: "700", color: C.primary, fontFamily: F.mono, letterSpacing: 1.5, marginBottom: 4 },
+  title: { fontSize: 22, fontWeight: "700", color: C.textPrimary, fontFamily: F.bebas, letterSpacing: 1, marginBottom: 8 },
+  subtitle: { fontSize: 13, color: C.textSecondary, fontFamily: F.dm, marginBottom: 24, lineHeight: 20 },
 
   inputGroup: { marginBottom: 16 },
-  label: { fontSize: 10, fontWeight: "700", color: "rgba(245,240,232,0.25)", fontFamily: F.mono, letterSpacing: 1.5, marginBottom: 6 },
+  label: { fontSize: 10, fontWeight: "700", color: "#888888", fontFamily: F.mono, letterSpacing: 1.5, marginBottom: 6 },
 
   codeRow: { flexDirection: "row", justifyContent: "space-between" },
   codeInput: {
     width: 46, height: 54,
-    backgroundColor: C.black, borderWidth: 1, borderColor: C.border,
+    backgroundColor: C.background, borderWidth: 1, borderColor: C.border,
     borderRadius: 3, textAlign: "center",
-    fontSize: 22, fontWeight: "700", color: C.white, fontFamily: F.mono,
+    fontSize: 22, fontWeight: "700", color: C.textPrimary, fontFamily: F.mono,
   },
 
   errorBanner: {
     flexDirection: "row", alignItems: "center", gap: 8,
-    backgroundColor: "rgba(224,90,74,0.06)", borderRadius: 3, borderWidth: 1,
-    borderColor: "rgba(224,90,74,0.15)", padding: 10, marginBottom: 16,
+    backgroundColor: "rgba(158,58,58,0.06)", borderRadius: 3, borderWidth: 1,
+    borderColor: "rgba(158,58,58,0.15)", padding: 10, marginBottom: 16,
   },
-  errorText: { flex: 1, fontSize: 12, color: C.redLight, fontFamily: F.dm },
+  errorText: { flex: 1, fontSize: 12, color: C.red, fontFamily: F.dm },
 
-  btnText: { color: C.black, fontSize: 13, fontWeight: "700", fontFamily: F.dm, letterSpacing: 1, textTransform: "uppercase" },
-  link: { color: C.gold, fontSize: 12, fontWeight: "600", fontFamily: F.mono, textAlign: "center" },
+  btnText: { color: "#ffffff", fontSize: 13, fontWeight: "700", fontFamily: F.dm, letterSpacing: 1, textTransform: "uppercase" },
+  link: { color: C.primary, fontSize: 12, fontWeight: "600", fontFamily: F.mono, textAlign: "center" },
 });

@@ -1,35 +1,54 @@
 import { useEffect, useState, useCallback } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, Link } from "react-router-dom";
 import axios from "axios";
 import useDocumentTitle from "../../../hooks/useDocumentTitle";
 import { useToast } from "../../../contexts/ToastContext";
 import { Icon } from "../../../components/Icon";
-import { c as C, f as F } from "../../../styles/theme";
+import { FiChevronRight } from "react-icons/fi";
 
 const API = "http://localhost:4000";
 
+const C = {
+  background: "#fafafa",
+  card: "#ffffff",
+  border: "#e9ecef",
+  primary: "#2c3e50",
+  blue: "#3498db",
+  green: "#2b7a4b",
+  red: "#9e3a3a",
+  purple: "#6f42c1",
+};
+
+const F = {
+  bebas: '"Bebas Neue", sans-serif',
+  dm: '"DM Sans", sans-serif',
+  mono: '"Space Mono", monospace',
+};
+
+const TEXT = "#000";
+
 const STATUS_CONFIG = {
-  open:                   { label: "Open",               color: C.redLight,   bg: 'rgba(224,90,74,0.1)',    border: '1px solid rgba(224,90,74,0.2)',   dot: C.redLight,   icon: 'alert-circle' },
-  under_review:           { label: "Under Review",       color: C.gold,       bg: 'rgba(232,160,18,0.08)',   border: '1px solid rgba(232,160,18,0.2)',   dot: C.gold,       icon: 'search' },
-  awaiting_clarification: { label: "Needs Clarification",color: '#f59e0b',    bg: 'rgba(245,158,11,0.1)',    border: '1px solid rgba(245,158,11,0.2)',   dot: '#f59e0b',    icon: 'help-circle' },
-  approved:               { label: "Approved",           color: C.blue,       bg: 'rgba(58,143,212,0.1)',    border: '1px solid rgba(58,143,212,0.2)',   dot: C.blue,       icon: 'thumbs-up' },
-  resolved:               { label: "Resolved",           color: C.greenLight, bg: 'rgba(26,122,74,0.1)',    border: '1px solid rgba(76,186,122,0.2)',   dot: C.greenLight, icon: 'check-circle' },
-  rejected:               { label: "Rejected",           color: 'rgba(245,240,232,0.4)', bg: 'rgba(245,240,232,0.04)', border: '1px solid rgba(245,240,232,0.1)', dot: 'rgba(245,240,232,0.3)', icon: 'x-circle' },
-  escalated:              { label: "Escalated",          color: C.purple,     bg: 'rgba(139,92,246,0.1)',    border: '1px solid rgba(139,92,246,0.2)',   dot: C.purple,     icon: 'trending-up' },
-  dismissed:              { label: "Dismissed",          color: 'rgba(245,240,232,0.4)', bg: 'rgba(245,240,232,0.04)', border: '1px solid rgba(245,240,232,0.1)', dot: 'rgba(245,240,232,0.3)', icon: 'archive' },
+  open:                   { label: "Open",               color: C.red,       bg: 'rgba(158,58,58,0.1)',    border: '1px solid rgba(158,58,58,0.2)',   dot: C.red,       icon: 'alert-circle' },
+  under_review:           { label: "Under Review",       color: C.primary,   bg: 'rgba(44,62,80,0.08)',   border: '1px solid rgba(44,62,80,0.2)',   dot: C.primary,   icon: 'search' },
+  awaiting_clarification: { label: "Needs Clarification",color: C.blue,      bg: 'rgba(52,152,219,0.1)',    border: '1px solid rgba(52,152,219,0.2)',   dot: C.blue,      icon: 'help-circle' },
+  approved:               { label: "Approved",           color: C.blue,      bg: 'rgba(52,152,219,0.1)',    border: '1px solid rgba(52,152,219,0.2)',   dot: C.blue,      icon: 'thumbs-up' },
+  resolved:               { label: "Resolved",           color: C.green,     bg: 'rgba(43,122,75,0.1)',    border: '1px solid rgba(43,122,75,0.2)',   dot: C.green,     icon: 'check-circle' },
+  rejected:               { label: "Rejected",           color: "#333",      bg: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.1)', dot: "#333", icon: 'x-circle' },
+  escalated:              { label: "Escalated",          color: C.purple,    bg: 'rgba(111,66,193,0.1)',    border: '1px solid rgba(111,66,193,0.2)',   dot: C.purple,    icon: 'trending-up' },
+  dismissed:              { label: "Dismissed",          color: "#333",      bg: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.1)', dot: "#333", icon: 'archive' },
 };
 
 const CATEGORY_CONFIG = {
-  noise:              { label: "Noise",              color: '#f97316', icon: 'volume-2' },
-  cleanliness:        { label: "Cleanliness",        color: C.greenLight, icon: 'sparkles' },
+  noise:              { label: "Noise",              color: C.primary, icon: 'volume-2' },
+  cleanliness:        { label: "Cleanliness",        color: C.green, icon: 'sparkles' },
   neighbor_dispute:   { label: "Neighbor Dispute",   color: C.purple, icon: 'users' },
   parking:            { label: "Parking",            color: C.blue, icon: 'truck' },
-  security:           { label: "Security",           color: C.redLight, icon: 'shield' },
-  pets:               { label: "Pets",               color: '#84CC16', icon: 'github' },
-  smoking:            { label: "Smoking",            color: '#f97316', icon: 'wind' },
-  property_damage:    { label: "Property Damage",    color: C.redLight, icon: 'tool' },
-  maintenance_issue:  { label: "Maintenance",        color: C.gold, icon: 'wrench' },
-  other:              { label: "Other",              color: 'rgba(245,240,232,0.4)', icon: 'more-horizontal' },
+  security:           { label: "Security",           color: C.red, icon: 'shield' },
+  pets:               { label: "Pets",               color: C.green, icon: 'github' },
+  smoking:            { label: "Smoking",            color: C.red, icon: 'wind' },
+  property_damage:    { label: "Property Damage",    color: C.red, icon: 'tool' },
+  maintenance_issue:  { label: "Maintenance",        color: C.primary, icon: 'wrench' },
+  other:              { label: "Other",              color: "#333", icon: 'more-horizontal' },
 };
 
 const SCOPE_LABELS = {
@@ -48,46 +67,46 @@ const VERDICT_LABELS = {
 };
 
 const VERDICT_COLORS = {
-  warning: { color: C.gold, bg: 'rgba(232,160,18,0.08)', border: '1px solid rgba(232,160,18,0.2)', icon: 'alert-triangle' },
-  fine: { color: C.redLight, bg: 'rgba(224,90,74,0.08)', border: '1px solid rgba(224,90,74,0.2)', icon: 'rand' },
-  dismissed: { color: 'rgba(245,240,232,0.4)', bg: 'rgba(245,240,232,0.04)', border: '1px solid rgba(245,240,232,0.1)', icon: 'x' },
-  final_warning: { color: C.redLight, bg: 'rgba(224,90,74,0.08)', border: '1px solid rgba(224,90,74,0.2)', icon: 'alert-octagon' },
-  eviction_notice: { color: C.redLight, bg: 'rgba(224,90,74,0.1)', border: '1px solid rgba(224,90,74,0.25)', icon: 'home' },
+  warning: { color: C.primary, bg: 'rgba(44,62,80,0.08)', border: '1px solid rgba(44,62,80,0.2)', icon: 'alert-triangle' },
+  fine: { color: C.red, bg: 'rgba(158,58,58,0.08)', border: '1px solid rgba(158,58,58,0.2)', icon: 'rand' },
+  dismissed: { color: "#333", bg: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.1)', icon: 'x' },
+  final_warning: { color: C.red, bg: 'rgba(158,58,58,0.08)', border: '1px solid rgba(158,58,58,0.2)', icon: 'alert-octagon' },
+  eviction_notice: { color: C.red, bg: 'rgba(158,58,58,0.1)', border: '1px solid rgba(158,58,58,0.25)', icon: 'home' },
 };
 
 const ACTION_COLORS = {
-  clarify: { bg: 'rgba(249,115,22,0.08)', color: '#f97316', hoverBg: 'rgba(249,115,22,0.15)' },
-  verdict: { bg: 'rgba(249,115,22,0.08)', color: '#f97316', hoverBg: 'rgba(249,115,22,0.15)' },
-  reject: { bg: 'rgba(224,90,74,0.08)', color: C.redLight, hoverBg: 'rgba(224,90,74,0.15)' },
-  resolve: { bg: 'rgba(26,122,74,0.08)', color: C.greenLight, hoverBg: 'rgba(26,122,74,0.15)' },
-  approve: { bg: 'rgba(58,143,212,0.08)', color: C.blue, hoverBg: 'rgba(58,143,212,0.15)' },
-  escalation: { bg: 'rgba(139,92,246,0.08)', color: C.purple, hoverBg: 'rgba(139,92,246,0.15)' },
+  clarify: { bg: 'rgba(52,152,219,0.08)', color: C.blue, hoverBg: 'rgba(52,152,219,0.15)' },
+  verdict: { bg: 'rgba(52,152,219,0.08)', color: C.blue, hoverBg: 'rgba(52,152,219,0.15)' },
+  reject: { bg: 'rgba(158,58,58,0.08)', color: C.red, hoverBg: 'rgba(158,58,58,0.15)' },
+  resolve: { bg: 'rgba(43,122,75,0.08)', color: C.green, hoverBg: 'rgba(43,122,75,0.15)' },
+  approve: { bg: 'rgba(52,152,219,0.08)', color: C.blue, hoverBg: 'rgba(52,152,219,0.15)' },
+  escalation: { bg: 'rgba(111,66,193,0.08)', color: C.purple, hoverBg: 'rgba(111,66,193,0.15)' },
 };
 
 const inputStyle = {
   width: '100%', fontSize: '0.82rem', padding: '0.6rem 0.9rem', borderRadius: '3px',
-  background: C.black, border: `1px solid ${C.border}`, color: C.white,
+  background: C.background, border: `1px solid ${C.border}`, color: TEXT,
   fontFamily: F.dm, outline: 'none',
 };
 
 const selectStyle = {
   ...inputStyle,
   appearance: 'none',
-  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23555' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E")`,
+  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23333' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E")`,
   backgroundRepeat: 'no-repeat',
   backgroundPosition: 'right 0.75rem center',
   paddingRight: '2rem',
 };
 
 const btnPrimary = {
-  background: C.gold, color: C.black, border: 'none',
+  background: C.primary, color: '#ffffff', border: 'none',
   padding: '0.6rem 1.4rem', fontSize: '0.76rem', fontWeight: 700,
   fontFamily: F.dm, letterSpacing: '0.04em', borderRadius: '3px',
   cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
 };
 
 const btnGhost = {
-  background: 'transparent', color: 'rgba(245,240,232,0.5)',
+  background: 'transparent', color: TEXT,
   border: `1px solid ${C.border}`, padding: '0.6rem 1.2rem',
   fontSize: '0.76rem', fontWeight: 500, fontFamily: F.dm,
   letterSpacing: '0.04em', borderRadius: '3px', cursor: 'pointer',
@@ -101,12 +120,12 @@ const actionBtnStyle = (colorKey) => ({
 });
 
 const cardStyle = {
-  background: C.muted2, border: `1px solid ${C.border}`, borderRadius: '6px', padding: '1.5rem',
+  background: C.card, border: `1px solid ${C.border}`, borderRadius: '6px', padding: '1.5rem',
 };
 
 const modalOverlay = {
   position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center',
-  justifyContent: 'center', padding: '1rem', background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)',
+  justifyContent: 'center', padding: '1rem', background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)',
 };
 
 function getFullUrl(url) {
@@ -155,31 +174,31 @@ function TextActionModal({ title, sub, icon, iconBg, label, placeholder, btnLabe
 
   return (
     <div style={modalOverlay}>
-      <div style={{ width: '100%', maxWidth: 440, background: C.muted2, border: `1px solid ${C.border}`, borderRadius: '6px', boxShadow: '0 20px 60px rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ width: '100%', maxWidth: 440, background: C.card, border: `1px solid ${C.border}`, borderRadius: '6px', boxShadow: '0 20px 60px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.5rem', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem' }}>
             <div style={{ width: 34, height: 34, borderRadius: '6px', ...iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <Icon name={icon} size={16} />
             </div>
             <div>
-              <h3 style={{ fontSize: '0.9rem', fontWeight: 600, color: C.white, fontFamily: F.bebas, letterSpacing: '0.04em' }}>{title}</h3>
-              {sub && <p style={{ fontSize: '0.62rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono }}>{sub}</p>}
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 600, color: TEXT, fontFamily: F.bebas, letterSpacing: '0.04em' }}>{title}</h3>
+              {sub && <p style={{ fontSize: '0.62rem', color: TEXT, fontFamily: F.mono }}>{sub}</p>}
             </div>
           </div>
-          <button onClick={onClose} style={{ padding: '0.2rem', borderRadius: '3px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.3)' }}
-            onMouseEnter={e => e.currentTarget.style.color = C.white}
-            onMouseLeave={e => e.currentTarget.style.color = 'rgba(245,240,232,0.3)'}>
+          <button onClick={onClose} style={{ padding: '0.2rem', borderRadius: '3px', background: 'transparent', border: 'none', cursor: 'pointer', color: TEXT }}
+            onMouseEnter={e => e.currentTarget.style.color = C.primary}
+            onMouseLeave={e => e.currentTarget.style.color = TEXT}>
             <Icon name="x" size={17} />
           </button>
         </div>
         <div style={{ padding: '1.2rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
           {error && (
-            <div style={{ padding: '0.6rem 0.8rem', borderRadius: '3px', background: 'rgba(224,90,74,0.08)', border: '1px solid rgba(224,90,74,0.2)', fontSize: '0.72rem', color: C.redLight, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <div style={{ padding: '0.6rem 0.8rem', borderRadius: '3px', background: 'rgba(158,58,58,0.08)', border: '1px solid rgba(158,58,58,0.2)', fontSize: '0.72rem', color: C.red, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
               <Icon name="alert-circle" size={12} /> {error}
             </div>
           )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label style={{ fontSize: '0.65rem', fontWeight: 600, color: 'rgba(245,240,232,0.35)', fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label} *</label>
+            <label style={{ fontSize: '0.65rem', fontWeight: 600, color: TEXT, fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label} *</label>
             <textarea rows={4} value={value} onChange={e => { setValue(e.target.value); setError(""); }} placeholder={placeholder} style={{ ...inputStyle, minHeight: 80, resize: 'vertical' }} />
           </div>
         </div>
@@ -214,49 +233,47 @@ function VerdictModal({ complaint, isOverride, onClose, onSubmit }) {
 
   return (
     <div style={modalOverlay}>
-      <div style={{ width: '100%', maxWidth: 460, background: C.muted2, border: `1px solid ${C.border}`, borderRadius: '6px', boxShadow: '0 20px 60px rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ width: '100%', maxWidth: 460, background: C.card, border: `1px solid ${C.border}`, borderRadius: '6px', boxShadow: '0 20px 60px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.5rem', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem' }}>
-            <div style={{ width: 34, height: 34, borderRadius: '6px', background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <Icon name="gavel" size={16} color="#f97316" />
+            <div style={{ width: 34, height: 34, borderRadius: '6px', background: 'rgba(52,152,219,0.08)', border: '1px solid rgba(52,152,219,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Icon name="gavel" size={16} color={C.blue} />
             </div>
             <div>
-              <h3 style={{ fontSize: '0.9rem', fontWeight: 600, color: C.white, fontFamily: F.bebas, letterSpacing: '0.04em' }}>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 600, color: TEXT, fontFamily: F.bebas, letterSpacing: '0.04em' }}>
                 {isOverride ? "Override Verdict" : "Issue Final Verdict"}
               </h3>
-              <p style={{ fontSize: '0.62rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono }}>{complaint.subject}</p>
+              <p style={{ fontSize: '0.62rem', color: TEXT, fontFamily: F.mono }}>{complaint.subject}</p>
             </div>
           </div>
-          <button onClick={onClose} style={{ padding: '0.2rem', borderRadius: '3px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.3)' }}
-            onMouseEnter={e => e.currentTarget.style.color = C.white}
-            onMouseLeave={e => e.currentTarget.style.color = 'rgba(245,240,232,0.3)'}>
+          <button onClick={onClose} style={{ padding: '0.2rem', borderRadius: '3px', background: 'transparent', border: 'none', cursor: 'pointer', color: TEXT }}
+            onMouseEnter={e => e.currentTarget.style.color = C.primary}
+            onMouseLeave={e => e.currentTarget.style.color = TEXT}>
             <Icon name="x" size={18} />
           </button>
         </div>
         <div style={{ padding: '1.2rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
           {error && (
-            <div style={{ padding: '0.6rem 0.8rem', borderRadius: '3px', background: 'rgba(224,90,74,0.08)', border: '1px solid rgba(224,90,74,0.2)', fontSize: '0.72rem', color: C.redLight, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <div style={{ padding: '0.6rem 0.8rem', borderRadius: '3px', background: 'rgba(158,58,58,0.08)', border: '1px solid rgba(158,58,58,0.2)', fontSize: '0.72rem', color: C.red, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
               <Icon name="alert-circle" size={12} /> {error}
             </div>
           )}
           
-          {/* Warning about override */}
           {isOverride && (
-            <div style={{ padding: '0.7rem 0.9rem', borderRadius: '3px', background: 'rgba(139,92,246,0.06)', border: '1px solid rgba(139,92,246,0.15)', fontSize: '0.7rem', color: C.purple, fontFamily: F.dm, lineHeight: 1.5 }}>
+            <div style={{ padding: '0.7rem 0.9rem', borderRadius: '3px', background: 'rgba(111,66,193,0.06)', border: '1px solid rgba(111,66,193,0.15)', fontSize: '0.7rem', color: C.purple, fontFamily: F.dm, lineHeight: 1.5 }}>
               <strong>Override Mode:</strong> You are overriding the caretaker's previous verdict. This will issue a new final verdict.
             </div>
           )}
           
-          {/* Who verdict affects */}
           {complaint.against_name && (
-            <div style={{ padding: '0.6rem 0.8rem', borderRadius: '3px', background: 'rgba(224,90,74,0.04)', border: '1px solid rgba(224,90,74,0.1)', fontSize: '0.72rem', color: C.redLight, fontFamily: F.dm }}>
+            <div style={{ padding: '0.6rem 0.8rem', borderRadius: '3px', background: 'rgba(158,58,58,0.04)', border: '1px solid rgba(158,58,58,0.1)', fontSize: '0.72rem', color: C.red, fontFamily: F.dm }}>
               This verdict will be issued against <strong>{complaint.against_name}</strong>
               {complaint.against_unit_number && <> (Unit {complaint.against_unit_number})</>}
             </div>
           )}
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-            <label style={{ fontSize: '0.65rem', fontWeight: 600, color: 'rgba(245,240,232,0.5)', fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+            <label style={{ fontSize: '0.65rem', fontWeight: 600, color: TEXT, fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
               Verdict Type
             </label>
             <select value={verdictType} onChange={e => { setVerdictType(e.target.value); setError(""); }} style={selectStyle}>
@@ -274,11 +291,11 @@ function VerdictModal({ complaint, isOverride, onClose, onSubmit }) {
           
           {verdictType === "fine" && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-              <label style={{ fontSize: '0.65rem', fontWeight: 600, color: 'rgba(245,240,232,0.5)', fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+              <label style={{ fontSize: '0.65rem', fontWeight: 600, color: TEXT, fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
                 Fine Amount (R)
               </label>
               <div style={{ position: 'relative' }}>
-                <span style={{ position: 'absolute', left: '0.8rem', top: '50%', transform: 'translateY(-50%)', color: 'rgba(245,240,232,0.3)', fontSize: '0.8rem', fontFamily: F.mono }}>R</span>
+                <span style={{ position: 'absolute', left: '0.8rem', top: '50%', transform: 'translateY(-50%)', color: TEXT, fontSize: '0.8rem', fontFamily: F.mono }}>R</span>
                 <input type="number" min="0" value={fineAmount} onChange={e => { setFineAmount(e.target.value); setError(""); }}
                   style={{ ...inputStyle, paddingLeft: '2rem' }} placeholder="500" />
               </div>
@@ -286,7 +303,7 @@ function VerdictModal({ complaint, isOverride, onClose, onSubmit }) {
           )}
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-            <label style={{ fontSize: '0.65rem', fontWeight: 600, color: 'rgba(245,240,232,0.5)', fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+            <label style={{ fontSize: '0.65rem', fontWeight: 600, color: TEXT, fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
               Notes (optional)
             </label>
             <textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Reason for this decision..."
@@ -296,9 +313,9 @@ function VerdictModal({ complaint, isOverride, onClose, onSubmit }) {
         <div style={{ display: 'flex', gap: '0.8rem', padding: '1rem 1.5rem 1.5rem', borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
           <button onClick={onClose} style={{ ...btnGhost, flex: 1, textAlign: 'center' }}>Cancel</button>
           <button onClick={handleSubmit} style={{
-            flex: 1, padding: '0.55rem', borderRadius: '3px', background: isOverride ? 'rgba(139,92,246,0.12)' : 'rgba(249,115,22,0.12)', 
-            color: isOverride ? C.purple : '#f97316',
-            border: `1px solid ${isOverride ? C.purple : '#f97316'}30`, cursor: 'pointer', fontFamily: F.dm, fontWeight: 600, fontSize: '0.74rem',
+            flex: 1, padding: '0.55rem', borderRadius: '3px', background: isOverride ? 'rgba(111,66,193,0.12)' : 'rgba(52,152,219,0.12)', 
+            color: isOverride ? C.purple : C.blue,
+            border: `1px solid ${isOverride ? C.purple : C.blue}30`, cursor: 'pointer', fontFamily: F.dm, fontWeight: 600, fontSize: '0.74rem',
           }}>
             {isOverride ? "Override Verdict" : "Issue Verdict"}
           </button>
@@ -375,25 +392,25 @@ export default function LandlordComplaintDetail() {
     container: { maxWidth: 1280, padding: '1.5rem 1rem 3rem', margin: '-1rem -1.8rem' },
     backBtn: {
       display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem',
-      color: 'rgba(245,240,232,0.3)', fontFamily: F.mono, background: 'none',
+      color: TEXT, fontFamily: F.mono, background: 'none',
       border: 'none', cursor: 'pointer', marginBottom: '1.2rem', transition: 'color 0.15s',
     },
     sectionTitle: {
-      fontSize: '0.7rem', fontWeight: 600, color: 'rgba(245,240,232,0.2)', fontFamily: F.mono,
+      fontSize: '0.7rem', fontWeight: 600, color: TEXT, fontFamily: F.mono,
       letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '0.8rem',
     },
     detailRow: {
       display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-      padding: '0.55rem 0', borderBottom: `1px solid ${C.border}20`,
+      padding: '0.55rem 0', borderBottom: `1px solid ${C.border}`,
     },
   };
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', background: C.black, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ minHeight: '100vh', background: C.background, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
-          <span style={{ display: 'block', width: 32, height: 32, border: '3px solid rgba(245,240,232,0.1)', borderTopColor: C.gold, borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
-          <p style={{ fontSize: '0.82rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono }}>Loading complaint...</p>
+          <span style={{ display: 'block', width: 32, height: 32, border: `3px solid ${C.border}`, borderTopColor: C.primary, borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+          <p style={{ fontSize: '0.82rem', color: TEXT, fontFamily: F.mono }}>Loading complaint...</p>
         </div>
       </div>
     );
@@ -401,14 +418,14 @@ export default function LandlordComplaintDetail() {
 
   if (error || !complaint) {
     return (
-      <div style={{ minHeight: '100vh', background: C.black, padding: '2rem 1rem' }}>
+      <div style={{ minHeight: '100vh', background: C.background, padding: '2rem 1rem' }}>
         <div style={{ maxWidth: 500, margin: '0 auto', textAlign: 'center' }}>
           <div style={cardStyle}>
-            <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(224,90,74,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
-              <Icon name="alert-circle" size={22} color={C.redLight} />
+            <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(158,58,58,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
+              <Icon name="alert-circle" size={22} color={C.red} />
             </div>
-            <h2 style={{ fontSize: '1rem', fontWeight: 600, color: C.white, marginBottom: '0.5rem' }}>Complaint not found</h2>
-            <p style={{ fontSize: '0.78rem', color: 'rgba(245,240,232,0.4)', marginBottom: '1.2rem' }}>{error || "This complaint could not be loaded."}</p>
+            <h2 style={{ fontSize: '1rem', fontWeight: 600, color: TEXT, marginBottom: '0.5rem' }}>Complaint not found</h2>
+            <p style={{ fontSize: '0.78rem', color: TEXT, marginBottom: '1.2rem' }}>{error || "This complaint could not be loaded."}</p>
             <button onClick={() => navigate("/landlord/complaints")} style={btnPrimary}>
               <Icon name="chevronLeft" size={14} /> Back to Complaints
             </button>
@@ -431,20 +448,18 @@ export default function LandlordComplaintDetail() {
   const canIssueVerdict = canAct && hasAgainstParty;
 
   return (
-    <div style={{ minHeight: '100vh', background: C.black }}>
+    <div style={{ minHeight: '100vh', background: C.background }}>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
-      {/* Saving overlay */}
       {saving && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: C.muted2, border: `1px solid ${C.border}`, borderRadius: '6px', padding: '1.2rem 1.8rem', display: 'flex', alignItems: 'center', gap: '0.8rem', boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}>
-            <span style={{ width: 18, height: 18, border: '2px solid rgba(245,240,232,0.1)', borderTopColor: C.gold, borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
-            <span style={{ fontSize: '0.8rem', fontWeight: 500, color: C.white, fontFamily: F.dm }}>Processing...</span>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: '6px', padding: '1.2rem 1.8rem', display: 'flex', alignItems: 'center', gap: '0.8rem', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}>
+            <span style={{ width: 18, height: 18, border: `2px solid ${C.border}`, borderTopColor: C.primary, borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+            <span style={{ fontSize: '0.8rem', fontWeight: 500, color: TEXT, fontFamily: F.dm }}>Processing...</span>
           </div>
         </div>
       )}
 
-      {/* Modals */}
       {showVerdict && (
         <VerdictModal 
           complaint={complaint} 
@@ -455,7 +470,7 @@ export default function LandlordComplaintDetail() {
       )}
       {showClarify && (
         <TextActionModal title="Request Clarification" sub={complaint.subject} icon="help-circle" 
-          iconBg={{ background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.15)', color: '#f97316' }}
+          iconBg={{ background: 'rgba(52,152,219,0.08)', border: '1px solid rgba(52,152,219,0.15)', color: C.blue }}
           label="What do you need from the tenant?" placeholder="Describe what additional information is needed..." 
           btnLabel="Request Clarification" btnColorKey="clarify"
           onClose={() => setShowClarify(false)} 
@@ -463,7 +478,7 @@ export default function LandlordComplaintDetail() {
       )}
       {showReject && (
         <TextActionModal title="Reject Complaint" sub={complaint.subject} icon="x-circle" 
-          iconBg={{ background: 'rgba(224,90,74,0.08)', border: '1px solid rgba(224,90,74,0.15)', color: C.redLight }}
+          iconBg={{ background: 'rgba(158,58,58,0.08)', border: '1px solid rgba(158,58,58,0.15)', color: C.red }}
           label="Reason for Rejection" placeholder="Explain why this complaint is being rejected..." 
           btnLabel="Reject Complaint" btnColorKey="reject"
           onClose={() => setShowReject(false)} 
@@ -471,7 +486,7 @@ export default function LandlordComplaintDetail() {
       )}
       {showResolve && (
         <TextActionModal title="Resolve Complaint" sub={complaint.subject} icon="check-circle" 
-          iconBg={{ background: 'rgba(26,122,74,0.08)', border: '1px solid rgba(76,186,122,0.15)', color: C.greenLight }}
+          iconBg={{ background: 'rgba(43,122,75,0.08)', border: '1px solid rgba(43,122,75,0.15)', color: C.green }}
           label="Resolution Notes" placeholder="Describe how this complaint was resolved..." 
           btnLabel="Mark as Resolved" btnColorKey="resolve"
           onClose={() => setShowResolve(false)} 
@@ -479,43 +494,43 @@ export default function LandlordComplaintDetail() {
       )}
       {showEscalationReject && (
         <TextActionModal title="Return to Caretaker" sub={complaint.subject} icon="corner-down-left" 
-          iconBg={{ background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.15)', color: C.purple }}
+          iconBg={{ background: 'rgba(111,66,193,0.08)', border: '1px solid rgba(111,66,193,0.15)', color: C.purple }}
           label="Reason for returning" placeholder="Explain why this is being sent back to the caretaker..." 
           btnLabel="Return to Caretaker" btnColorKey="escalation"
           onClose={() => setShowEscalationReject(false)} 
           onSubmit={v => handleAction("/reject-escalation", { notes: v })} />
       )}
 
-      {/* Image viewer */}
       {viewerOpen && evidence.length > 0 && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.96)', padding: '1rem' }} onClick={() => setViewerOpen(false)}>
-          <button onClick={() => setViewerOpen(false)} style={{ position: 'absolute', top: '1.2rem', right: '1.2rem', padding: '0.5rem', borderRadius: '3px', background: 'rgba(255,255,255,0.1)', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.7)' }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.85)', padding: '1rem' }} onClick={() => setViewerOpen(false)}>
+          <button onClick={() => setViewerOpen(false)} style={{ position: 'absolute', top: '1.2rem', right: '1.2rem', padding: '0.5rem', borderRadius: '3px', background: 'rgba(255,255,255,0.1)', border: 'none', cursor: 'pointer', color: '#fff' }}>
             <Icon name="x" size={22} />
           </button>
           {viewerIndex > 0 && (
-            <button onClick={e => { e.stopPropagation(); setViewerIndex(v => v - 1); }} style={{ position: 'absolute', left: '1rem', color: 'rgba(255,255,255,0.5)', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '50%', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+            <button onClick={e => { e.stopPropagation(); setViewerIndex(v => v - 1); }} style={{ position: 'absolute', left: '1rem', color: '#fff', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '50%', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
               <Icon name="chevronLeft" size={22} />
             </button>
           )}
           {viewerIndex < evidence.length - 1 && (
-            <button onClick={e => { e.stopPropagation(); setViewerIndex(v => v + 1); }} style={{ position: 'absolute', right: '1rem', color: 'rgba(255,255,255,0.5)', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '50%', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+            <button onClick={e => { e.stopPropagation(); setViewerIndex(v => v + 1); }} style={{ position: 'absolute', right: '1rem', color: '#fff', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '50%', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
               <Icon name="chevron-right" size={22} />
             </button>
           )}
           <img src={getFullUrl(evidence[viewerIndex]?.document_url)} alt={evidence[viewerIndex]?.label || "Evidence"} style={{ maxHeight: '85vh', maxWidth: '90%', borderRadius: '6px', objectFit: 'contain' }} onClick={e => e.stopPropagation()} />
           <div style={{ position: 'absolute', bottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-            <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.8rem', fontFamily: F.mono }}>{viewerIndex + 1} / {evidence.length}</span>
+            <span style={{ color: '#fff', fontSize: '0.8rem', fontFamily: F.mono }}>{viewerIndex + 1} / {evidence.length}</span>
             {evidence[viewerIndex]?.label && (
-              <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.7rem', fontFamily: F.dm }}>{evidence[viewerIndex].label}</span>
+              <span style={{ color: '#fff', fontSize: '0.7rem', fontFamily: F.dm }}>{evidence[viewerIndex].label}</span>
             )}
           </div>
         </div>
       )}
 
       <div style={S.container}>
+
         <button onClick={() => navigate("/landlord/complaints")} style={S.backBtn}
-          onMouseEnter={e => e.currentTarget.style.color = C.white}
-          onMouseLeave={e => e.currentTarget.style.color = 'rgba(245,240,232,0.3)'}>
+          onMouseEnter={e => e.currentTarget.style.color = C.primary}
+          onMouseLeave={e => e.currentTarget.style.color = TEXT}>
           <Icon name="chevronLeft" size={14} /> Back to Complaints
         </button>
 
@@ -535,8 +550,8 @@ export default function LandlordComplaintDetail() {
                     display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
                     fontSize: '0.58rem', fontWeight: 600, padding: '0.2rem 0.55rem',
                     borderRadius: '3px', fontFamily: F.mono, letterSpacing: '0.04em',
-                    textTransform: 'uppercase', color: 'rgba(245,240,232,0.4)',
-                    background: 'rgba(245,240,232,0.04)', border: '1px solid rgba(245,240,232,0.1)',
+                    textTransform: 'uppercase', color: TEXT,
+                    background: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.1)',
                   }}>
                     {scopeLabel}
                   </span>
@@ -551,25 +566,25 @@ export default function LandlordComplaintDetail() {
                   </span>
                 </div>
                 
-                <h2 style={{ fontSize: '1.05rem', fontWeight: 600, color: C.white, fontFamily: F.dm, marginBottom: '0.5rem' }}>
+                <h2 style={{ fontSize: '1.05rem', fontWeight: 600, color: TEXT, fontFamily: F.dm, marginBottom: '0.5rem' }}>
                   {complaint.subject}
                 </h2>
                 
-                <p style={{ fontSize: '0.82rem', color: 'rgba(245,240,232,0.45)', lineHeight: 1.7 }}>
+                <p style={{ fontSize: '0.82rem', color: TEXT, lineHeight: 1.7 }}>
                   {complaint.description}
                 </p>
                 
                 {isCommonArea && complaint.common_area_location && (
-                  <div style={{ marginTop: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.62rem', fontWeight: 600, padding: '0.25rem 0.7rem', borderRadius: '3px', fontFamily: F.mono, letterSpacing: '0.04em', color: C.gold, background: 'rgba(232,160,18,0.06)', border: '1px solid rgba(232,160,18,0.15)' }}>
+                  <div style={{ marginTop: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.62rem', fontWeight: 600, padding: '0.25rem 0.7rem', borderRadius: '3px', fontFamily: F.mono, letterSpacing: '0.04em', color: C.primary, background: 'rgba(44,62,80,0.06)', border: '1px solid rgba(44,62,80,0.15)' }}>
                     <Icon name="map-pin" size={10} /> {complaint.common_area_location}
                   </div>
                 )}
                 
                 {/* Clarification notes */}
                 {complaint.clarification_requested && complaint.clarification_notes && (
-                  <div style={{ marginTop: '0.8rem', padding: '0.7rem 0.9rem', borderRadius: '3px', background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.12)' }}>
-                    <p style={{ fontSize: '0.58rem', fontWeight: 600, color: '#f97316', fontFamily: F.mono, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: '0.2rem' }}>Clarification Requested</p>
-                    <p style={{ fontSize: '0.7rem', color: 'rgba(249,115,22,0.7)', lineHeight: 1.4 }}>{complaint.clarification_notes}</p>
+                  <div style={{ marginTop: '0.8rem', padding: '0.7rem 0.9rem', borderRadius: '3px', background: 'rgba(52,152,219,0.06)', border: '1px solid rgba(52,152,219,0.12)' }}>
+                    <p style={{ fontSize: '0.58rem', fontWeight: 600, color: C.blue, fontFamily: F.mono, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: '0.2rem' }}>Clarification Requested</p>
+                    <p style={{ fontSize: '0.7rem', color: C.blue, opacity: 0.7, lineHeight: 1.4 }}>{complaint.clarification_notes}</p>
                   </div>
                 )}
               </div>
@@ -578,23 +593,23 @@ export default function LandlordComplaintDetail() {
               <div style={cardStyle}>
                 <h3 style={S.sectionTitle}>Parties Involved</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: hasAgainstParty ? '1fr 1fr 1fr' : '1fr 1fr', gap: '0.8rem' }}>
-                  <div style={{ padding: '0.8rem', borderRadius: '3px', background: 'rgba(58,143,212,0.06)', border: '1px solid rgba(58,143,212,0.12)' }}>
+                  <div style={{ padding: '0.8rem', borderRadius: '3px', background: 'rgba(52,152,219,0.06)', border: '1px solid rgba(52,152,219,0.12)' }}>
                     <p style={{ fontSize: '0.55rem', fontWeight: 600, color: C.blue, fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '0.3rem' }}>Filed by</p>
-                    <p style={{ fontSize: '0.8rem', fontWeight: 600, color: C.white, fontFamily: F.dm }}>{complaint.filed_by_name || "—"}</p>
-                    {complaint.filed_by_email && <p style={{ fontSize: '0.62rem', color: 'rgba(245,240,232,0.25)', fontFamily: F.mono, marginTop: '3px' }}>{complaint.filed_by_email}</p>}
-                    {complaint.filed_by_phone && <p style={{ fontSize: '0.62rem', color: 'rgba(245,240,232,0.25)', fontFamily: F.mono }}>{complaint.filed_by_phone}</p>}
+                    <p style={{ fontSize: '0.8rem', fontWeight: 600, color: TEXT, fontFamily: F.dm }}>{complaint.filed_by_name || "—"}</p>
+                    {complaint.filed_by_email && <p style={{ fontSize: '0.62rem', color: TEXT, fontFamily: F.mono, marginTop: '3px' }}>{complaint.filed_by_email}</p>}
+                    {complaint.filed_by_phone && <p style={{ fontSize: '0.62rem', color: TEXT, fontFamily: F.mono }}>{complaint.filed_by_phone}</p>}
                   </div>
                   {hasAgainstParty && (
-                    <div style={{ padding: '0.8rem', borderRadius: '3px', background: 'rgba(224,90,74,0.06)', border: '1px solid rgba(224,90,74,0.12)' }}>
-                      <p style={{ fontSize: '0.55rem', fontWeight: 600, color: C.redLight, fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '0.3rem' }}>Against</p>
-                      <p style={{ fontSize: '0.8rem', fontWeight: 600, color: C.white, fontFamily: F.dm }}>{complaint.against_name}</p>
-                      {complaint.against_unit_number && <p style={{ fontSize: '0.62rem', color: 'rgba(245,240,232,0.25)', fontFamily: F.mono, marginTop: '3px' }}>Unit {complaint.against_unit_number}</p>}
+                    <div style={{ padding: '0.8rem', borderRadius: '3px', background: 'rgba(158,58,58,0.06)', border: '1px solid rgba(158,58,58,0.12)' }}>
+                      <p style={{ fontSize: '0.55rem', fontWeight: 600, color: C.red, fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '0.3rem' }}>Against</p>
+                      <p style={{ fontSize: '0.8rem', fontWeight: 600, color: TEXT, fontFamily: F.dm }}>{complaint.against_name}</p>
+                      {complaint.against_unit_number && <p style={{ fontSize: '0.62rem', color: TEXT, fontFamily: F.mono, marginTop: '3px' }}>Unit {complaint.against_unit_number}</p>}
                     </div>
                   )}
-                  <div style={{ padding: '0.8rem', borderRadius: '3px', background: C.black, border: `1px solid ${C.border}` }}>
-                    <p style={{ fontSize: '0.55rem', fontWeight: 600, color: 'rgba(245,240,232,0.3)', fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '0.3rem' }}>Property</p>
-                    <p style={{ fontSize: '0.8rem', fontWeight: 600, color: C.white, fontFamily: F.dm }}>{complaint.property_name || "—"}</p>
-                    {complaint.property_address && <p style={{ fontSize: '0.62rem', color: 'rgba(245,240,232,0.2)', fontFamily: F.mono, marginTop: '3px' }}>{complaint.property_address}</p>}
+                  <div style={{ padding: '0.8rem', borderRadius: '3px', background: C.background, border: `1px solid ${C.border}` }}>
+                    <p style={{ fontSize: '0.55rem', fontWeight: 600, color: TEXT, fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '0.3rem' }}>Property</p>
+                    <p style={{ fontSize: '0.8rem', fontWeight: 600, color: TEXT, fontFamily: F.dm }}>{complaint.property_name || "—"}</p>
+                    {complaint.property_address && <p style={{ fontSize: '0.62rem', color: TEXT, fontFamily: F.mono, marginTop: '3px' }}>{complaint.property_address}</p>}
                   </div>
                 </div>
               </div>
@@ -605,8 +620,8 @@ export default function LandlordComplaintDetail() {
                   <h3 style={S.sectionTitle}>Evidence ({evidence.length} {evidence.length === 1 ? 'file' : 'files'})</h3>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
                     {evidence.map((item, index) => (
-                      <div key={item.id || index} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.7rem 0.8rem', borderRadius: '3px', background: C.black, border: `1px solid ${C.border}` }}>
-                        <p style={{ fontSize: '0.75rem', fontWeight: 500, color: C.white, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, minWidth: 0 }}>
+                      <div key={item.id || index} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.7rem 0.8rem', borderRadius: '3px', background: C.background, border: `1px solid ${C.border}` }}>
+                        <p style={{ fontSize: '0.75rem', fontWeight: 500, color: TEXT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, minWidth: 0 }}>
                           {item.label || `Evidence ${index + 1}`}
                         </p>
                         {isImageEvidence(item) ? (
@@ -617,7 +632,7 @@ export default function LandlordComplaintDetail() {
                             background: 'transparent', color: C.blue, cursor: 'pointer', whiteSpace: 'nowrap',
                             transition: 'all 0.15s'
                           }}
-                          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(58,143,212,0.1)'; e.currentTarget.style.borderColor = C.blue; }}
+                          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(52,152,219,0.1)'; e.currentTarget.style.borderColor = C.blue; }}
                           onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = C.border; }}>
                             <Icon name="eye" size={12} /> Preview
                           </button>
@@ -626,10 +641,10 @@ export default function LandlordComplaintDetail() {
                             marginLeft: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.3rem',
                             padding: '0.35rem 0.6rem', borderRadius: '3px', fontSize: '0.65rem', fontWeight: 500,
                             fontFamily: F.mono, letterSpacing: '0.04em', border: `1px solid ${C.border}`,
-                            background: 'transparent', color: 'rgba(245,240,232,0.4)', cursor: 'pointer',
+                            background: 'transparent', color: TEXT, cursor: 'pointer',
                             textDecoration: 'none', whiteSpace: 'nowrap', transition: 'all 0.15s'
                           }}
-                          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(245,240,232,0.05)'; }}
+                          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.05)'; }}
                           onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>
                             <Icon name="external-link" size={12} /> Open
                           </a>
@@ -640,28 +655,28 @@ export default function LandlordComplaintDetail() {
                 </div>
               ) : (
                 <div style={{ ...cardStyle, textAlign: 'center', padding: '2rem' }}>
-                  <Icon name="image" size={28} color="rgba(245,240,232,0.08)" />
-                  <p style={{ fontSize: '0.72rem', color: 'rgba(245,240,232,0.25)', fontFamily: F.mono, marginTop: '0.5rem' }}>No evidence attached</p>
+                  <Icon name="image" size={28} color={TEXT} />
+                  <p style={{ fontSize: '0.72rem', color: TEXT, fontFamily: F.mono, marginTop: '0.5rem' }}>No evidence attached</p>
                 </div>
               )}
 
               {/* Verdict */}
               {verdict && (
-                <div style={{ ...cardStyle, background: VERDICT_COLORS[verdict.verdict_type]?.bg || 'rgba(26,122,74,0.04)', border: VERDICT_COLORS[verdict.verdict_type]?.border || '1px solid rgba(76,186,122,0.2)' }}>
-                  <h3 style={{ ...S.sectionTitle, color: VERDICT_COLORS[verdict.verdict_type]?.color || C.greenLight, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <div style={{ ...cardStyle, background: VERDICT_COLORS[verdict.verdict_type]?.bg || 'rgba(43,122,75,0.04)', border: VERDICT_COLORS[verdict.verdict_type]?.border || '1px solid rgba(43,122,75,0.2)' }}>
+                  <h3 style={{ ...S.sectionTitle, color: VERDICT_COLORS[verdict.verdict_type]?.color || C.green, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                     <Icon name={VERDICT_COLORS[verdict.verdict_type]?.icon || 'check'} size={14} />
                     Verdict: {VERDICT_LABELS[verdict.verdict_type] || verdict.verdict_type}
                   </h3>
                   {verdict.fine_amount > 0 && (
-                    <p style={{ fontSize: '1.1rem', fontWeight: 700, color: C.redLight, fontFamily: F.bebas, letterSpacing: '0.04em', marginBottom: '0.5rem' }}>
+                    <p style={{ fontSize: '1.1rem', fontWeight: 700, color: C.red, fontFamily: F.bebas, letterSpacing: '0.04em', marginBottom: '0.5rem' }}>
                       {fmt(verdict.fine_amount)}
                     </p>
                   )}
                   {verdict.notes && (
-                    <p style={{ fontSize: '0.78rem', color: 'rgba(245,240,232,0.5)', lineHeight: 1.6 }}>{verdict.notes}</p>
+                    <p style={{ fontSize: '0.78rem', color: TEXT, lineHeight: 1.6 }}>{verdict.notes}</p>
                   )}
                   {verdict.issued_at && (
-                    <p style={{ fontSize: '0.62rem', color: 'rgba(245,240,232,0.2)', fontFamily: F.mono, marginTop: '0.5rem' }}>
+                    <p style={{ fontSize: '0.62rem', color: TEXT, fontFamily: F.mono, marginTop: '0.5rem' }}>
                       Issued {fmtDateTime(verdict.issued_at)}
                     </p>
                   )}
@@ -670,11 +685,11 @@ export default function LandlordComplaintDetail() {
 
               {/* Resolution / Rejection */}
               {complaint.resolution_notes && !verdict && (
-                <div style={{ ...cardStyle, background: complaint.status === "rejected" ? 'rgba(224,90,74,0.04)' : 'rgba(26,122,74,0.04)', border: `1px solid ${complaint.status === "rejected" ? 'rgba(224,90,74,0.15)' : 'rgba(76,186,122,0.15)'}` }}>
-                  <h3 style={{ ...S.sectionTitle, color: complaint.status === "rejected" ? C.redLight : C.greenLight }}>
+                <div style={{ ...cardStyle, background: complaint.status === "rejected" ? 'rgba(158,58,58,0.04)' : 'rgba(43,122,75,0.04)', border: `1px solid ${complaint.status === "rejected" ? 'rgba(158,58,58,0.15)' : 'rgba(43,122,75,0.15)'}` }}>
+                  <h3 style={{ ...S.sectionTitle, color: complaint.status === "rejected" ? C.red : C.green }}>
                     {complaint.status === "rejected" ? "Rejection Reason" : "Resolution"}
                   </h3>
-                  <p style={{ fontSize: '0.78rem', color: complaint.status === "rejected" ? C.redLight : C.greenLight, lineHeight: 1.5 }}>
+                  <p style={{ fontSize: '0.78rem', color: complaint.status === "rejected" ? C.red : C.green, lineHeight: 1.5 }}>
                     {complaint.resolution_notes}
                   </p>
                 </div>
@@ -697,8 +712,8 @@ export default function LandlordComplaintDetail() {
                     ...(complaint.resolved_at ? [["Resolved", fmtDateTime(complaint.resolved_at)]] : []),
                   ].map(([label, val]) => (
                     <div key={label} style={S.detailRow}>
-                      <span style={{ fontSize: '0.68rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono }}>{label}</span>
-                      <span style={{ fontSize: '0.7rem', fontWeight: 500, color: C.white, fontFamily: F.dm }}>{val}</span>
+                      <span style={{ fontSize: '0.68rem', color: TEXT, fontFamily: F.mono }}>{label}</span>
+                      <span style={{ fontSize: '0.7rem', fontWeight: 500, color: TEXT, fontFamily: F.dm }}>{val}</span>
                     </div>
                   ))}
                 </div>
@@ -710,7 +725,6 @@ export default function LandlordComplaintDetail() {
                   <h3 style={S.sectionTitle}>{isEscalated ? "Your Decision" : "Landlord Actions"}</h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     
-                    {/* Escalation-specific actions */}
                     {isEscalated && (
                       <>
                         <button onClick={() => handleAction("/approve", {})} style={actionBtnStyle('approve')}
@@ -726,7 +740,6 @@ export default function LandlordComplaintDetail() {
                       </>
                     )}
                     
-                    {/* Standard actions */}
                     {canIssueVerdict && (
                       <button onClick={() => setShowVerdict(true)} style={actionBtnStyle('verdict')}
                         onMouseEnter={e => e.currentTarget.style.background = ACTION_COLORS.verdict.hoverBg}
@@ -756,10 +769,10 @@ export default function LandlordComplaintDetail() {
               {/* Status info */}
               {!isEscalated && !isClosed && (
                 <div style={{ ...cardStyle, textAlign: 'center' }}>
-                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(245,240,232,0.04)', border: '1px solid rgba(245,240,232,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 0.6rem' }}>
-                    <Icon name="clock" size={16} color="rgba(245,240,232,0.3)" />
+                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 0.6rem' }}>
+                    <Icon name="clock" size={16} color={TEXT} />
                   </div>
-                  <p style={{ fontSize: '0.7rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono, lineHeight: 1.5 }}>
+                  <p style={{ fontSize: '0.7rem', color: TEXT, fontFamily: F.mono, lineHeight: 1.5 }}>
                     Being handled by the caretaker.<br />You'll be notified if escalated.
                   </p>
                 </div>
@@ -768,14 +781,14 @@ export default function LandlordComplaintDetail() {
               {/* Closed status */}
               {isClosed && (
                 <div style={{ ...cardStyle, textAlign: 'center' }}>
-                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(245,240,232,0.04)', border: '1px solid rgba(245,240,232,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 0.6rem' }}>
-                    <Icon name="check" size={16} color="rgba(245,240,232,0.3)" />
+                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 0.6rem' }}>
+                    <Icon name="check" size={16} color={TEXT} />
                   </div>
-                  <p style={{ fontSize: '0.7rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono }}>
-                    This complaint has been <strong style={{ color: 'rgba(245,240,232,0.5)' }}>{complaint.status.replace(/_/g, " ")}</strong>.
+                  <p style={{ fontSize: '0.7rem', color: TEXT, fontFamily: F.mono }}>
+                    This complaint has been <strong style={{ color: TEXT }}>{complaint.status.replace(/_/g, " ")}</strong>.
                   </p>
                   {complaint.resolved_at && (
-                    <p style={{ fontSize: '0.62rem', color: 'rgba(245,240,232,0.2)', fontFamily: F.mono, marginTop: '0.3rem' }}>
+                    <p style={{ fontSize: '0.62rem', color: TEXT, fontFamily: F.mono, marginTop: '0.3rem' }}>
                       {fmtDateTime(complaint.resolved_at)}
                     </p>
                   )}

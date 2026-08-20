@@ -1,6 +1,6 @@
 const bcrypt = require("bcrypt");
 
-const password = "Koketso#"; // Replace with the password you want to hash
+const password = "Wekeza2004#"; // Replace with the password you want to hash
 const saltRounds = 12;
 
 async function hashPassword() {

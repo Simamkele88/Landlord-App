@@ -5,9 +5,30 @@ import axios from "axios";
 import useDocumentTitle from "../../../hooks/useDocumentTitle";
 import { useToast } from "../../../contexts/ToastContext";
 import { Icon } from "../../../components/Icon";
-import { c as C, f as F } from "../../../styles/theme";
 
 const API = "http://localhost:4000";
+
+const C = {
+  background: "#f4f5f7",
+  card: "#ffffff",
+  border: "#e9ecef",
+  primary: "#2c3e50",
+  blue: "#3498db",
+  green: "#2b7a4b",
+  red: "#9e3a3a",
+  purple: "#6f42c1",
+  muted: "#f1f3f5",
+  text: "#1a1a1a",
+  textMuted: "#6c757d",
+  greenLight: "#2b7a4b",
+  blueSoft: "rgba(52,152,219,0.12)",
+};
+
+const F = {
+  bebas: '"Bebas Neue", sans-serif',
+  dm: '"DM Sans", sans-serif',
+  mono: '"Space Mono", monospace',
+};
 
 function timeAgo(dateStr) {
   if (!dateStr) return "";
@@ -65,7 +86,7 @@ export default function CaretakerMessages() {
         preview: c.last_message || "No messages yet",
         time: timeAgo(c.last_message_at || c.created_at),
         online: c.with_online || false,
-        color: 'rgba(58,143,212,0.15)',
+        color: 'rgba(52,152,219,0.15)',
         text: C.blue,
         role: c.with_role || "",
       }));
@@ -146,7 +167,7 @@ export default function CaretakerMessages() {
   const activeConvoData = convos.find(c => c.id === activeConvo);
 
   return (
-    <div style={{ fontFamily: F.dm, fontWeight: 300, background: C.black, color: C.white, height: 'calc(100vh - 60px)', overflow: 'hidden', margin: '-1.5rem -2rem' }}>
+    <div style={{ fontFamily: F.dm, fontWeight: 300, background: C.background, color: C.text, height: 'calc(100vh - 60px)', overflow: 'hidden', margin: '-1.5rem -2rem' }}>
       <style>{`
         @keyframes fadeMsg { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes spin { to { transform: rotate(360deg); } }
@@ -161,26 +182,26 @@ export default function CaretakerMessages() {
       `}</style>
 
       {loading ? (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'rgba(245,240,232,0.3)', gap: '0.8rem' }}>
-          <span style={{ width: 24, height: 24, border: '3px solid rgba(245,240,232,0.1)', borderTopColor: C.blue, borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'rgba(26,26,26,0.4)', gap: '0.8rem' }}>
+          <span style={{ width: 24, height: 24, border: '3px solid rgba(26,26,26,0.08)', borderTopColor: C.blue, borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
           Loading messages...
         </div>
       ) : (
         <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
 
-          <div className="convos-panel" style={{ width: 340, minWidth: 280, borderRight: `1px solid ${C.border}`, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: C.muted2, flexShrink: 0 }}>
+          <div className="convos-panel" style={{ width: 340, minWidth: 280, borderRight: `1px solid ${C.border}`, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: C.card, flexShrink: 0 }}>
             <div style={{ padding: '1.2rem 1.2rem 0.8rem', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
               <div style={{ fontFamily: F.bebas, fontSize: '1.3rem', letterSpacing: '0.04em', lineHeight: 1, marginBottom: '0.8rem' }}>Messages</div>
               <div style={{ position: 'relative' }}>
-                <Icon name="search" size={14} style={{ position: 'absolute', left: '0.7rem', top: '50%', transform: 'translateY(-50%)', color: 'rgba(245,240,232,0.2)' }} />
+                <Icon name="search" size={14} style={{ position: 'absolute', left: '0.7rem', top: '50%', transform: 'translateY(-50%)', color: 'rgba(26,26,26,0.4)' }} />
                 <input type="text" placeholder="Search conversations…" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-                  style={{ width: '100%', background: C.black, border: `1px solid ${C.border}`, color: C.white, fontFamily: F.dm, fontSize: '0.82rem', padding: '0.6rem 0.9rem 0.6rem 2rem', borderRadius: '3px', outline: 'none' }} />
+                  style={{ width: '100%', background: C.background, border: `1px solid ${C.border}`, color: C.text, fontFamily: F.dm, fontSize: '0.82rem', padding: '0.6rem 0.9rem 0.6rem 2rem', borderRadius: '3px', outline: 'none' }} />
               </div>
             </div>
 
             <div className="convos-list" style={{ flex: 1, overflowY: 'auto' }}>
               {filteredConvos.length === 0 ? (
-                <div style={{ padding: '3rem 1rem', textAlign: 'center', color: 'rgba(245,240,232,0.2)' }}>
+                <div style={{ padding: '3rem 1rem', textAlign: 'center', color: 'rgba(26,26,26,0.35)' }}>
                   <Icon name="messages" size={28} style={{ marginBottom: '0.5rem', opacity: 0.3 }} />
                   <p style={{ fontSize: '0.75rem', fontFamily: F.mono }}>No conversations</p>
                 </div>
@@ -189,21 +210,21 @@ export default function CaretakerMessages() {
                   <div key={convo.id} onClick={() => openConvo(convo)} style={{
                     display: 'flex', alignItems: 'center', gap: '0.8rem', padding: '1rem 1.2rem',
                     cursor: 'pointer', borderBottom: `1px solid ${C.border}`,
-                    background: activeConvo === convo.id ? 'rgba(58,143,212,0.06)' : 'transparent',
+                    background: activeConvo === convo.id ? 'rgba(52,152,219,0.06)' : 'transparent',
                     borderLeft: activeConvo === convo.id ? `2px solid ${C.blue}` : '2px solid transparent',
                     transition: 'background 0.15s',
                   }}>
-                    <div style={{ position: 'relative', width: 40, height: 40, borderRadius: '50%', background: convo.color || 'rgba(58,143,212,0.15)', color: convo.text || C.blue, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: F.bebas, fontSize: '0.9rem', flexShrink: 0 }}>
+                    <div style={{ position: 'relative', width: 40, height: 40, borderRadius: '50%', background: convo.color || 'rgba(52,152,219,0.15)', color: convo.text || C.blue, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: F.bebas, fontSize: '0.9rem', flexShrink: 0 }}>
                       {convo.initials}
-                      <div style={{ position: 'absolute', bottom: 1, right: 1, width: 9, height: 9, borderRadius: '50%', border: `2px solid ${C.muted2}`, background: convo.online ? C.greenLight : 'rgba(245,240,232,0.2)' }} />
+                      <div style={{ position: 'absolute', bottom: 1, right: 1, width: 9, height: 9, borderRadius: '50%', border: `2px solid ${C.card}`, background: convo.online ? C.greenLight : 'rgba(26,26,26,0.15)' }} />
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.2rem' }}>
-                        <span style={{ fontSize: '0.85rem', fontWeight: convo.unread ? 600 : 400, color: C.white }}>{convo.with_name}</span>
-                        <span style={{ fontSize: '0.62rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono }}>{convo.time}</span>
+                        <span style={{ fontSize: '0.85rem', fontWeight: convo.unread ? 600 : 400, color: C.text }}>{convo.with_name}</span>
+                        <span style={{ fontSize: '0.62rem', color: 'rgba(26,26,26,0.45)', fontFamily: F.mono }}>{convo.time}</span>
                       </div>
-                      <div style={{ fontSize: '0.72rem', color: convo.unread ? 'rgba(245,240,232,0.7)' : 'rgba(245,240,232,0.35)', fontWeight: convo.unread ? 500 : 300, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{convo.preview}</div>
-                      <div style={{ fontSize: '0.6rem', color: 'rgba(245,240,232,0.2)', fontFamily: F.mono, marginTop: '2px' }}>{convo.role}</div>
+                      <div style={{ fontSize: '0.72rem', color: convo.unread ? 'rgba(26,26,26,0.75)' : 'rgba(26,26,26,0.45)', fontWeight: convo.unread ? 500 : 300, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{convo.preview}</div>
+                      <div style={{ fontSize: '0.6rem', color: 'rgba(26,26,26,0.4)', fontFamily: F.mono, marginTop: '2px' }}>{convo.role}</div>
                     </div>
                     {convo.unread > 0 && <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.blue, flexShrink: 0 }} />}
                   </div>
@@ -212,21 +233,21 @@ export default function CaretakerMessages() {
             </div>
           </div>
 
-          <div className={`chat-panel ${activeConvoData ? 'active' : ''}`} style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: C.black }}>
+          <div className={`chat-panel ${activeConvoData ? 'active' : ''}`} style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: C.background }}>
             {activeConvoData ? (
               <>
-                <div style={{ padding: '1rem 1.5rem', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: '1rem', flexShrink: 0, background: C.muted2 }}>
-                  <button onClick={() => setActiveConvo(null)} style={{ padding: '0.2rem', borderRadius: '3px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.3)' }}
-                    onMouseEnter={e => e.currentTarget.style.color = C.white}
-                    onMouseLeave={e => e.currentTarget.style.color = 'rgba(245,240,232,0.3)'}>
+                <div style={{ padding: '1rem 1.5rem', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: '1rem', flexShrink: 0, background: C.card }}>
+                  <button onClick={() => setActiveConvo(null)} style={{ padding: '0.2rem', borderRadius: '3px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'rgba(26,26,26,0.4)' }}
+                    onMouseEnter={e => e.currentTarget.style.color = C.text}
+                    onMouseLeave={e => e.currentTarget.style.color = 'rgba(26,26,26,0.4)'}>
                     <Icon name="x" size={18} />
                   </button>
-                  <div style={{ width: 38, height: 38, borderRadius: '50%', background: activeConvoData.color || 'rgba(58,143,212,0.15)', color: activeConvoData.text || C.blue, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: F.bebas, fontSize: '0.9rem', flexShrink: 0 }}>
+                  <div style={{ width: 38, height: 38, borderRadius: '50%', background: activeConvoData.color || 'rgba(52,152,219,0.15)', color: activeConvoData.text || C.blue, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: F.bebas, fontSize: '0.9rem', flexShrink: 0 }}>
                     {activeConvoData.initials}
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600, fontSize: '0.9rem', color: C.white }}>{activeConvoData.with_name}</div>
-                    <div style={{ fontSize: '0.65rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.9rem', color: C.text }}>{activeConvoData.with_name}</div>
+                    <div style={{ fontSize: '0.65rem', color: 'rgba(26,26,26,0.45)', fontFamily: F.mono }}>
                       {activeConvoData.role}
                     </div>
                   </div>
@@ -234,7 +255,7 @@ export default function CaretakerMessages() {
 
                 <div ref={messagesRef} className="messages-area" style={{ flex: 1, overflowY: 'auto', padding: '1rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   {activeThread.length === 0 && (
-                    <div style={{ textAlign: 'center', padding: '3rem 0', color: 'rgba(245,240,232,0.15)' }}>
+                    <div style={{ textAlign: 'center', padding: '3rem 0', color: 'rgba(26,26,26,0.3)' }}>
                       <Icon name="messages" size={36} style={{ marginBottom: '0.5rem', opacity: 0.3 }} />
                       <p style={{ fontSize: '0.78rem', fontFamily: F.mono }}>No messages yet</p>
                     </div>
@@ -251,7 +272,7 @@ export default function CaretakerMessages() {
                           width: 24, height: 24, borderRadius: '50%', flexShrink: 0,
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                           fontFamily: F.bebas, fontSize: '0.6rem', marginBottom: '2px',
-                          background: isMine ? 'rgba(58,143,212,0.15)' : (activeConvoData.color || 'rgba(58,143,212,0.15)'),
+                          background: isMine ? 'rgba(52,152,219,0.15)' : (activeConvoData.color || 'rgba(52,152,219,0.15)'),
                           color: isMine ? C.blue : (activeConvoData.text || C.blue),
                         }}>
                           {isMine ? 'ME' : activeConvoData.initials}
@@ -261,12 +282,12 @@ export default function CaretakerMessages() {
                             maxWidth: '480px', padding: '0.65rem 0.9rem',
                             borderRadius: isMine ? '10px 4px 10px 10px' : '4px 10px 10px 10px',
                             fontSize: '0.84rem', lineHeight: 1.55, wordBreak: 'break-word',
-                            background: isMine ? 'rgba(58,143,212,0.12)' : C.muted2,
-                            color: C.white,
+                            background: isMine ? 'rgba(52,152,219,0.12)' : C.card,
+                            color: C.text,
                           }}>
                             {msg.body}
                           </div>
-                          <span style={{ fontSize: '0.58rem', color: 'rgba(245,240,232,0.2)', fontFamily: F.mono, marginTop: '0.2rem', display: 'block', textAlign: isMine ? 'right' : 'left' }}>
+                          <span style={{ fontSize: '0.58rem', color: 'rgba(26,26,26,0.4)', fontFamily: F.mono, marginTop: '0.2rem', display: 'block', textAlign: isMine ? 'right' : 'left' }}>
                             {timeAgo(msg.created_at)}
                           </span>
                         </div>
@@ -275,16 +296,16 @@ export default function CaretakerMessages() {
                   })}
                 </div>
 
-                <div style={{ padding: '0.8rem 1.5rem', borderTop: `1px solid ${C.border}`, flexShrink: 0, background: C.muted2 }}>
+                <div style={{ padding: '0.8rem 1.5rem', borderTop: `1px solid ${C.border}`, flexShrink: 0, background: C.card }}>
                   <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '0.6rem', flexWrap: 'wrap' }}>
                     {QUICK_REPLIES.map((qr, i) => (
                       <button key={i} onClick={() => { setMsgInput(qr); inputRef.current?.focus(); }} style={{
-                        background: C.black, border: `1px solid ${C.border}`, padding: '0.25rem 0.6rem',
-                        borderRadius: '10px', fontSize: '0.68rem', color: 'rgba(245,240,232,0.4)',
+                        background: C.background, border: `1px solid ${C.border}`, padding: '0.25rem 0.6rem',
+                        borderRadius: '10px', fontSize: '0.68rem', color: 'rgba(26,26,26,0.55)',
                         cursor: 'pointer', fontFamily: F.mono, transition: 'all 0.15s',
                       }}
                         onMouseEnter={e => { e.currentTarget.style.borderColor = C.blue; e.currentTarget.style.color = C.blue; }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = 'rgba(245,240,232,0.4)'; }}>
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = 'rgba(26,26,26,0.55)'; }}>
                         {qr}
                       </button>
                     ))}
@@ -292,15 +313,15 @@ export default function CaretakerMessages() {
                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end' }}>
                     <textarea ref={inputRef} rows={1} placeholder="Type a message…" value={msgInput}
                       onChange={e => setMsgInput(e.target.value)} onKeyDown={handleKeyDown}
-                      style={{ flex: 1, background: C.black, border: `1px solid ${C.border}`, color: C.white, fontFamily: F.dm, fontSize: '0.84rem', padding: '0.6rem 0.9rem', borderRadius: '3px', outline: 'none', resize: 'none', maxHeight: '100px', lineHeight: 1.5 }} />
+                      style={{ flex: 1, background: C.background, border: `1px solid ${C.border}`, color: C.text, fontFamily: F.dm, fontSize: '0.84rem', padding: '0.6rem 0.9rem', borderRadius: '3px', outline: 'none', resize: 'none', maxHeight: '100px', lineHeight: 1.5 }} />
                     <button onClick={handleSend} disabled={!msgInput.trim() || sending} style={{
-                      background: msgInput.trim() ? C.blue : C.border, color: C.white, border: 'none',
+                      background: msgInput.trim() ? C.blue : C.border, color: '#fff', border: 'none',
                       width: 36, height: 36, borderRadius: '3px', cursor: 'pointer', flexShrink: 0,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       opacity: msgInput.trim() ? 1 : 0.5,
                     }}>
                       {sending ? (
-                        <span style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.2)', borderTopColor: C.white, borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+                        <span style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.25)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
                       ) : (
                         <Icon name="send" size={15} />
                       )}
@@ -309,10 +330,10 @@ export default function CaretakerMessages() {
                 </div>
               </>
             ) : (
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(245,240,232,0.08)' }}>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(26,26,26,0.08)' }}>
                 <div style={{ textAlign: 'center' }}>
                   <Icon name="messages" size={56} style={{ opacity: 0.1, marginBottom: '0.8rem' }} />
-                  <p style={{ fontSize: '0.85rem', fontFamily: F.mono, color: 'rgba(245,240,232,0.15)' }}>Select a conversation</p>
+                  <p style={{ fontSize: '0.85rem', fontFamily: F.mono, color: 'rgba(26,26,26,0.15)' }}>Select a conversation</p>
                 </div>
               </div>
             )}

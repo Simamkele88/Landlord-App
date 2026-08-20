@@ -1,5 +1,5 @@
 // TENANT PROFILE COMPLETION SCREEN 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
   StyleSheet, StatusBar, Platform,
@@ -8,22 +8,9 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialIcons, Ionicons, Feather } from "@expo/vector-icons";
 import api from "../../utils/api";
+import { C, F } from "../../styles/theme";
 
 const API_URL = api.getBaseUrl();
-
-
-const C = {
-  black:        "#0a0a0a",
-  muted:        "#141414",
-  muted2:       "#1a1a1a",
-  border:       "#2a2a2a",
-  gold:         "#E8A012",
-  white:        "#F5F0E8",
-  blue:         "#3A8FD4",
-  greenLight:   "#1A7A4A",
-  redLight:     "#E05A4A",
-};
-const F = { bebas: "bebas-neue", dm: "dm-sans", mono: "space-mono" };
 
 const GENDERS = ["Male", "Female", "Other", "Prefer not to say"];
 const NATIONALITIES = ["South African", "Zimbabwean", "Mozambican", "Botswanan", "Namibian", "Zambian", "Malawian", "Other"];
@@ -37,32 +24,62 @@ const ID_TYPES = [
   { value: "work_permit", label: "Work Permit" },
 ];
 
+function formatDateInput(text) {
+  // Auto-insert slashes: YYYY-MM-DD
+  const digits = text.replace(/\D/g, "").slice(0, 8);
+  if (digits.length <= 4) return digits;
+  if (digits.length <= 6) return `${digits.slice(0, 4)}-${digits.slice(4)}`;
+  return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6)}`;
+}
+
+function formatPhoneInput(text) {
+  const digits = text.replace(/\D/g, "").slice(0, 10);
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6) return `${digits.slice(0, 3)} ${digits.slice(3)}`;
+  return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
+}
 
 const $input = {
-  backgroundColor: C.black, borderWidth: 1, borderColor: C.border,
-  borderRadius: 3, paddingHorizontal: 12, paddingVertical: 12,
-  fontSize: 14, color: C.white, fontFamily: F.dm,
+  backgroundColor: C.card,
+  borderWidth: 1,
+  borderColor: C.border,
+  borderRadius: 3,
+  paddingHorizontal: 12,
+  paddingVertical: 12,
+  fontSize: 14,
+  color: C.textPrimary,
+  fontFamily: F.dm,
 };
 const $chip = (active) => ({
-  paddingHorizontal: 12, paddingVertical: 7, borderRadius: 3,
-  backgroundColor: active ? "rgba(232,160,18,0.08)" : C.black,
-  borderWidth: 1, borderColor: active ? C.gold : C.border,
+  paddingHorizontal: 12,
+  paddingVertical: 7,
+  borderRadius: 3,
+  backgroundColor: active ? "rgba(44,62,80,0.08)" : C.card,
+  borderWidth: 1,
+  borderColor: active ? C.primary : C.border,
 });
-const $btnGold = {
-  backgroundColor: C.gold, borderRadius: 3, paddingVertical: 14,
-  alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 6,
+const $btnPrimary = {
+  backgroundColor: C.primary,
+  borderRadius: 3,
+  paddingVertical: 14,
+  alignItems: "center",
+  justifyContent: "center",
+  flexDirection: "row",
+  gap: 6,
 };
 const $btnGhost = {
-  backgroundColor: "transparent", borderWidth: 1, borderColor: C.border,
-  borderRadius: 3, paddingVertical: 14,
-  alignItems: "center", justifyContent: "center",
+  backgroundColor: "transparent",
+  borderWidth: 1,
+  borderColor: C.border,
+  borderRadius: 3,
+  paddingVertical: 14,
+  alignItems: "center",
+  justifyContent: "center",
 };
-
 
 export default function CompleteProfile({ route, navigation, onProfileComplete }) {
   const [step, setStep] = useState(1);
-  const totalSteps = 4;
-
+  const totalSteps = 5; // Added review step as final
   const [form, setForm] = useState({
     date_of_birth: "", gender: "", nationality: "South African", marital_status: "",
     id_document_type: "sa_id", id_number: "", passport_number: "",
@@ -76,31 +93,52 @@ export default function CompleteProfile({ route, navigation, onProfileComplete }
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [apiError, setApiError] = useState("");
+  const [autoSaved, setAutoSaved] = useState(false);
   const usePassport = form.nationality !== "South African";
+
+  useEffect(() => {
+    async function loadDraft() {
+      try {
+        const draft = await AsyncStorage.getItem("profile_draft");
+        if (draft) {
+          setForm(JSON.parse(draft));
+          setAutoSaved(true);
+        }
+      } catch {}
+    }
+    loadDraft();
+  }, []);
+
+  useEffect(() => {
+    const timeout = setTimeout(async () => {
+      try {
+        await AsyncStorage.setItem("profile_draft", JSON.stringify(form));
+        setAutoSaved(true);
+      } catch {}
+    }, 2000);
+    return () => clearTimeout(timeout);
+  }, [form]);
 
   function setField(key, value) { setForm(prev => ({ ...prev, [key]: value })); setErrors(prev => ({ ...prev, [key]: undefined })); }
 
   function validateStep(s) {
     const e = {};
     if (s === 1) {
-      if (!form.date_of_birth) e.date_of_birth = "Required";
+      if (!form.date_of_birth || form.date_of_birth.length !== 10) e.date_of_birth = "Enter YYYY-MM-DD";
       if (!form.gender) e.gender = "Required";
       if (!form.nationality) e.nationality = "Required";
       if (!usePassport && !form.id_number.trim()) e.id_number = "ID number required";
       if (usePassport && !form.passport_number.trim()) e.passport_number = "Passport number required";
-    }
-    if (s === 2) {
+    } else if (s === 2) {
       if (!form.home_address_line1.trim()) e.home_address_line1 = "Required";
       if (!form.home_city.trim()) e.home_city = "Required";
-    }
-    if (s === 3) {
+    } else if (s === 3) {
       if (!form.employment_status) e.employment_status = "Required";
       if ((form.employment_status === "Employed" || form.employment_status === "Self-Employed")) {
         if (!form.employer_company.trim()) e.employer_company = "Required";
         if (!form.monthly_income.trim()) e.monthly_income = "Required";
       }
-    }
-    if (s === 4) {
+    } else if (s === 4) {
       if (!form.emergency_name.trim()) e.emergency_name = "Required";
       if (!form.emergency_phone.trim()) e.emergency_phone = "Required";
     }
@@ -110,7 +148,11 @@ export default function CompleteProfile({ route, navigation, onProfileComplete }
   function handleNext() {
     const e = validateStep(step);
     if (Object.keys(e).length > 0) { setErrors(e); return; }
-    if (step < totalSteps) setStep(prev => prev + 1);
+    if (step < totalSteps) {
+      setStep(prev => prev + 1);
+    } else {
+      handleSubmit();
+    }
   }
 
   function handleBack() { if (step > 1) setStep(prev => prev - 1); }
@@ -123,19 +165,19 @@ export default function CompleteProfile({ route, navigation, onProfileComplete }
   }
 
   async function handleSubmit() {
-    const e = validateStep(step);
-    if (Object.keys(e).length > 0) { setErrors(e); return; }
     setLoading(true); setApiError("");
     try {
       const token = await AsyncStorage.getItem("token");
       const response = await fetch(`${API_URL}/tenants/me/profile`, {
-        method: "PATCH", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ ...form, monthly_income: form.monthly_income ? Number(form.monthly_income) : null, number_of_occupants: Number(form.number_of_occupants) }),
       });
       const data = await response.json();
       if (!response.ok) throw { response: { data } };
       const storedUser = await AsyncStorage.getItem("user");
       if (storedUser) { const user = JSON.parse(storedUser); user.profile_complete = true; await AsyncStorage.setItem("user", JSON.stringify(user)); }
+      await AsyncStorage.removeItem("profile_draft");
       Alert.alert("Profile Complete!", "You now have full access to all features.", [
         { text: "Continue", onPress: () => onProfileComplete ? onProfileComplete() : navigation.replace("Main") },
       ]);
@@ -144,29 +186,36 @@ export default function CompleteProfile({ route, navigation, onProfileComplete }
     } finally { setLoading(false); }
   }
 
-  const inputStyle = (key) => [$input, errors[key] && { borderColor: C.redLight }];
-  const stepsLabels = [{ num: 1, label: "Personal" }, { num: 2, label: "Address" }, { num: 3, label: "Employment" }, { num: 4, label: "Emergency" }];
+  const inputStyle = (key) => [$input, errors[key] && { borderColor: C.red }];
+  const stepsLabels = [
+    { num: 1, label: "Personal" },
+    { num: 2, label: "Address" },
+    { num: 3, label: "Employment" },
+    { num: 4, label: "Emergency" },
+    { num: 5, label: "Review" },
+  ];
 
   return (
     <SafeAreaView style={S.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={C.black} />
+      <StatusBar barStyle="dark-content" backgroundColor={C.surface} />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
         
         {/* HEADER */}
         <View style={S.header}>
           <Text style={S.headerTitle}>Complete Your Profile</Text>
           <Text style={S.headerSub}>
-            {step === 1 ? "Tell us about yourself" : step === 2 ? "Where do you live?" : step === 3 ? "Employment information" : "Emergency contact details"}
+            {step === 1 ? "Tell us about yourself" : step === 2 ? "Where do you live?" : step === 3 ? "Employment information" : step === 4 ? "Emergency contact details" : "Review your details"}
           </Text>
+          {autoSaved && <Text style={S.autoSavedText}>✓ Draft saved</Text>}
           <View style={S.progressRow}>
             {stepsLabels.map((s, idx) => (
               <View key={s.num} style={S.progressStep}>
-                <View style={[S.progressDot, step >= s.num && { borderColor: C.gold }, step > s.num && { backgroundColor: C.gold, borderColor: C.gold }]}>
-                  {step > s.num ? <Ionicons name="checkmark" size={11} color={C.black} /> : (
-                    <Text style={[S.progressDotText, step >= s.num && { color: C.gold }]}>{s.num}</Text>
+                <View style={[S.progressDot, step >= s.num && { borderColor: C.primary }, step > s.num && { backgroundColor: C.primary, borderColor: C.primary }]}>
+                  {step > s.num ? <Ionicons name="checkmark" size={11} color="#ffffff" /> : (
+                    <Text style={[S.progressDotText, step >= s.num && { color: C.primary }]}>{s.num}</Text>
                   )}
                 </View>
-                <Text style={[S.progressLabel, step >= s.num && { color: C.gold }]}>{s.label}</Text>
+                <Text style={[S.progressLabel, step >= s.num && { color: C.primary }]}>{s.label}</Text>
               </View>
             ))}
           </View>
@@ -176,7 +225,7 @@ export default function CompleteProfile({ route, navigation, onProfileComplete }
           
           {apiError !== "" && (
             <View style={S.errorBanner}>
-              <MaterialIcons name="error" size={15} color={C.redLight} />
+              <MaterialIcons name="error" size={15} color={C.red} />
               <Text style={S.errorText}>{apiError}</Text>
             </View>
           )}
@@ -187,7 +236,9 @@ export default function CompleteProfile({ route, navigation, onProfileComplete }
               <Text style={S.sectionTitle}>PERSONAL INFORMATION</Text>
               <View style={S.fieldGroup}>
                 <Text style={S.fieldLabel}>Date of Birth *</Text>
-                <TextInput style={inputStyle("date_of_birth")} value={form.date_of_birth} onChangeText={v => setField("date_of_birth", v)} placeholder="YYYY-MM-DD" placeholderTextColor="rgba(245,240,232,0.15)" />
+                <TextInput style={inputStyle("date_of_birth")} value={form.date_of_birth}
+                  onChangeText={v => setField("date_of_birth", formatDateInput(v))}
+                  placeholder="YYYY-MM-DD" placeholderTextColor={C.textMuted} maxLength={10} keyboardType="numeric" />
                 {errors.date_of_birth && <Text style={S.fieldError}>{errors.date_of_birth}</Text>}
               </View>
               <View style={S.fieldGroup}>
@@ -210,13 +261,17 @@ export default function CompleteProfile({ route, navigation, onProfileComplete }
               {!usePassport ? (
                 <View style={S.fieldGroup}>
                   <Text style={S.fieldLabel}>SA ID Number *</Text>
-                  <TextInput style={inputStyle("id_number")} value={form.id_number} onChangeText={v => setField("id_number", v)} placeholder="e.g. 9506155009085" placeholderTextColor="rgba(245,240,232,0.15)" keyboardType="numeric" maxLength={13} />
+                  <TextInput style={inputStyle("id_number")} value={form.id_number}
+                    onChangeText={v => setField("id_number", v.replace(/\D/g, "").slice(0, 13))}
+                    placeholder="e.g. 9506155009085" placeholderTextColor={C.textMuted} keyboardType="numeric" maxLength={13} />
                   {errors.id_number && <Text style={S.fieldError}>{errors.id_number}</Text>}
                 </View>
               ) : (
                 <View style={S.fieldGroup}>
                   <Text style={S.fieldLabel}>Passport Number *</Text>
-                  <TextInput style={inputStyle("passport_number")} value={form.passport_number} onChangeText={v => setField("passport_number", v)} placeholder="e.g. A12345678" placeholderTextColor="rgba(245,240,232,0.15)" />
+                  <TextInput style={inputStyle("passport_number")} value={form.passport_number}
+                    onChangeText={v => setField("passport_number", v)}
+                    placeholder="e.g. A12345678" placeholderTextColor={C.textMuted} />
                   {errors.passport_number && <Text style={S.fieldError}>{errors.passport_number}</Text>}
                 </View>
               )}
@@ -229,27 +284,29 @@ export default function CompleteProfile({ route, navigation, onProfileComplete }
               <Text style={S.sectionTitle}>RESIDENTIAL ADDRESS</Text>
               <View style={S.fieldGroup}>
                 <Text style={S.fieldLabel}>Street Address *</Text>
-                <TextInput style={inputStyle("home_address_line1")} value={form.home_address_line1} onChangeText={v => setField("home_address_line1", v)} placeholder="123 Main Street" placeholderTextColor="rgba(245,240,232,0.15)" />
+                <TextInput style={inputStyle("home_address_line1")} value={form.home_address_line1}
+                  onChangeText={v => setField("home_address_line1", v)}
+                  placeholder="123 Main Street" placeholderTextColor={C.textMuted} />
                 {errors.home_address_line1 && <Text style={S.fieldError}>{errors.home_address_line1}</Text>}
               </View>
               <View style={S.fieldGroup}>
                 <Text style={S.fieldLabel}>Address Line 2 (Optional)</Text>
-                <TextInput style={$input} value={form.home_address_line2} onChangeText={v => setField("home_address_line2", v)} placeholder="Apartment, building, etc." placeholderTextColor="rgba(245,240,232,0.15)" />
+                <TextInput style={$input} value={form.home_address_line2} onChangeText={v => setField("home_address_line2", v)} placeholder="Apartment, building, etc." placeholderTextColor={C.textMuted} />
               </View>
               <View style={S.rowFields}>
                 <View style={[S.fieldGroup, { flex: 1 }]}>
                   <Text style={S.fieldLabel}>City *</Text>
-                  <TextInput style={inputStyle("home_city")} value={form.home_city} onChangeText={v => setField("home_city", v)} placeholder="Johannesburg" placeholderTextColor="rgba(245,240,232,0.15)" />
+                  <TextInput style={inputStyle("home_city")} value={form.home_city} onChangeText={v => setField("home_city", v)} placeholder="Johannesburg" placeholderTextColor={C.textMuted} />
                   {errors.home_city && <Text style={S.fieldError}>{errors.home_city}</Text>}
                 </View>
                 <View style={[S.fieldGroup, { flex: 1 }]}>
                   <Text style={S.fieldLabel}>Postal Code</Text>
-                  <TextInput style={$input} value={form.home_postal_code} onChangeText={v => setField("home_postal_code", v)} placeholder="2001" placeholderTextColor="rgba(245,240,232,0.15)" keyboardType="numeric" />
+                  <TextInput style={$input} value={form.home_postal_code} onChangeText={v => setField("home_postal_code", v)} placeholder="2001" placeholderTextColor={C.textMuted} keyboardType="numeric" maxLength={4} />
                 </View>
               </View>
               <View style={S.fieldGroup}>
                 <Text style={S.fieldLabel}>Province</Text>
-                <TextInput style={$input} value={form.home_province} onChangeText={v => setField("home_province", v)} placeholder="Gauteng" placeholderTextColor="rgba(245,240,232,0.15)" />
+                <TextInput style={$input} value={form.home_province} onChangeText={v => setField("home_province", v)} placeholder="Gauteng" placeholderTextColor={C.textMuted} />
               </View>
             </>
           )}
@@ -267,21 +324,21 @@ export default function CompleteProfile({ route, navigation, onProfileComplete }
                 <>
                   <View style={S.fieldGroup}>
                     <Text style={S.fieldLabel}>Employer / Business Name *</Text>
-                    <TextInput style={inputStyle("employer_company")} value={form.employer_company} onChangeText={v => setField("employer_company", v)} placeholder="Company name" placeholderTextColor="rgba(245,240,232,0.15)" />
+                    <TextInput style={inputStyle("employer_company")} value={form.employer_company} onChangeText={v => setField("employer_company", v)} placeholder="Company name" placeholderTextColor={C.textMuted} />
                     {errors.employer_company && <Text style={S.fieldError}>{errors.employer_company}</Text>}
                   </View>
                   <View style={S.fieldGroup}>
                     <Text style={S.fieldLabel}>Job Title</Text>
-                    <TextInput style={$input} value={form.job_title} onChangeText={v => setField("job_title", v)} placeholder="e.g. Software Developer" placeholderTextColor="rgba(245,240,232,0.15)" />
+                    <TextInput style={$input} value={form.job_title} onChangeText={v => setField("job_title", v)} placeholder="e.g. Software Developer" placeholderTextColor={C.textMuted} />
                   </View>
                   <View style={S.fieldGroup}>
                     <Text style={S.fieldLabel}>Monthly Income (R) *</Text>
-                    <TextInput style={inputStyle("monthly_income")} value={form.monthly_income} onChangeText={v => setField("monthly_income", v)} placeholder="e.g. 25000" placeholderTextColor="rgba(245,240,232,0.15)" keyboardType="numeric" />
+                    <TextInput style={inputStyle("monthly_income")} value={form.monthly_income} onChangeText={v => setField("monthly_income", v)} placeholder="e.g. 25000" placeholderTextColor={C.textMuted} keyboardType="numeric" />
                     {errors.monthly_income && <Text style={S.fieldError}>{errors.monthly_income}</Text>}
                   </View>
                   <View style={S.fieldGroup}>
                     <Text style={S.fieldLabel}>Employer Contact (Optional)</Text>
-                    <TextInput style={$input} value={form.employer_contact} onChangeText={v => setField("employer_contact", v)} placeholder="HR phone number" placeholderTextColor="rgba(245,240,232,0.15)" keyboardType="phone-pad" />
+                    <TextInput style={$input} value={form.employer_contact} onChangeText={v => setField("employer_contact", formatPhoneInput(v))} placeholder="HR phone number" placeholderTextColor={C.textMuted} keyboardType="phone-pad" />
                   </View>
                 </>
               )}
@@ -294,28 +351,51 @@ export default function CompleteProfile({ route, navigation, onProfileComplete }
               <Text style={S.sectionTitle}>EMERGENCY CONTACT</Text>
               <View style={S.fieldGroup}>
                 <Text style={S.fieldLabel}>Full Name *</Text>
-                <TextInput style={inputStyle("emergency_name")} value={form.emergency_name} onChangeText={v => setField("emergency_name", v)} placeholder="Emergency contact name" placeholderTextColor="rgba(245,240,232,0.15)" />
+                <TextInput style={inputStyle("emergency_name")} value={form.emergency_name} onChangeText={v => setField("emergency_name", v)} placeholder="Emergency contact name" placeholderTextColor={C.textMuted} />
                 {errors.emergency_name && <Text style={S.fieldError}>{errors.emergency_name}</Text>}
               </View>
               <View style={S.rowFields}>
                 <View style={[S.fieldGroup, { flex: 1 }]}>
                   <Text style={S.fieldLabel}>Relationship</Text>
-                  <TextInput style={$input} value={form.emergency_relationship} onChangeText={v => setField("emergency_relationship", v)} placeholder="e.g. Spouse" placeholderTextColor="rgba(245,240,232,0.15)" />
+                  <TextInput style={$input} value={form.emergency_relationship} onChangeText={v => setField("emergency_relationship", v)} placeholder="e.g. Spouse" placeholderTextColor={C.textMuted} />
                 </View>
                 <View style={[S.fieldGroup, { flex: 1 }]}>
                   <Text style={S.fieldLabel}>Phone *</Text>
-                  <TextInput style={inputStyle("emergency_phone")} value={form.emergency_phone} onChangeText={v => setField("emergency_phone", v)} placeholder="0821234567" placeholderTextColor="rgba(245,240,232,0.15)" keyboardType="phone-pad" />
+                  <TextInput style={inputStyle("emergency_phone")} value={form.emergency_phone} onChangeText={v => setField("emergency_phone", formatPhoneInput(v))} placeholder="0821234567" placeholderTextColor={C.textMuted} keyboardType="phone-pad" />
                   {errors.emergency_phone && <Text style={S.fieldError}>{errors.emergency_phone}</Text>}
                 </View>
               </View>
               <View style={S.fieldGroup}>
                 <Text style={S.fieldLabel}>Email (Optional)</Text>
-                <TextInput style={$input} value={form.emergency_email} onChangeText={v => setField("emergency_email", v)} placeholder="emergency@email.com" placeholderTextColor="rgba(245,240,232,0.15)" keyboardType="email-address" autoCapitalize="none" />
+                <TextInput style={$input} value={form.emergency_email} onChangeText={v => setField("emergency_email", v)} placeholder="emergency@email.com" placeholderTextColor={C.textMuted} keyboardType="email-address" autoCapitalize="none" />
               </View>
               <View style={S.fieldGroup}>
                 <Text style={S.fieldLabel}>Number of Occupants</Text>
                 <View style={S.chipRow}>{[1, 2, 3, 4, 5, 6].map(n => <TouchableOpacity key={n} style={$chip(form.number_of_occupants === String(n))} onPress={() => setField("number_of_occupants", String(n))}><Text style={[S.chipText, form.number_of_occupants === String(n) && S.chipTextActive]}>{n} {n === 1 ? "person" : "people"}</Text></TouchableOpacity>)}</View>
               </View>
+            </>
+          )}
+
+          {/* STEP 5: REVIEW */}
+          {step === 5 && (
+            <>
+              <Text style={S.sectionTitle}>REVIEW YOUR DETAILS</Text>
+              {[
+                ["Date of Birth", form.date_of_birth],
+                ["Gender", form.gender],
+                ["Nationality", form.nationality],
+                ["ID Number", usePassport ? form.passport_number : form.id_number],
+                ["Address", `${form.home_address_line1}${form.home_address_line2 ? ", " + form.home_address_line2 : ""}, ${form.home_city}, ${form.home_postal_code}, ${form.home_province}`],
+                ["Employment", form.employment_status],
+                ["Monthly Income", form.monthly_income ? `R ${Number(form.monthly_income).toLocaleString()}` : "—"],
+                ["Emergency Contact", `${form.emergency_name} (${form.emergency_relationship || "Relationship"}) ${form.emergency_phone}`],
+                ["Occupants", form.number_of_occupants],
+              ].map(([label, val]) => (
+                <View key={label} style={S.reviewRow}>
+                  <Text style={S.reviewLabel}>{label}</Text>
+                  <Text style={S.reviewValue}>{val || "—"}</Text>
+                </View>
+              ))}
             </>
           )}
 
@@ -330,14 +410,14 @@ export default function CompleteProfile({ route, navigation, onProfileComplete }
             <TouchableOpacity style={$btnGhost} onPress={handleSkip}><Text style={S.btnGhostText}>Skip for now</Text></TouchableOpacity>
           )}
           {step < totalSteps ? (
-            <TouchableOpacity style={[$btnGold, { flex: 1 }]} onPress={handleNext}>
-              <Text style={S.btnGoldText}>CONTINUE</Text>
-              <Feather name="chevron-right" size={16} color={C.black} />
+            <TouchableOpacity style={[$btnPrimary, { flex: 1 }]} onPress={handleNext}>
+              <Text style={S.btnPrimaryText}>CONTINUE</Text>
+              <Feather name="chevron-right" size={16} color="#ffffff" />
             </TouchableOpacity>
           ) : (
-            <TouchableOpacity style={[$btnGold, { flex: 1 }, loading && { opacity: 0.6 }]} onPress={handleSubmit} disabled={loading}>
-              {loading ? <ActivityIndicator color={C.black} size="small" /> : (
-                <><Text style={S.btnGoldText}>COMPLETE PROFILE</Text><Ionicons name="checkmark" size={16} color={C.black} /></>
+            <TouchableOpacity style={[$btnPrimary, { flex: 1 }, loading && { opacity: 0.6 }]} onPress={handleSubmit} disabled={loading}>
+              {loading ? <ActivityIndicator color="#ffffff" size="small" /> : (
+                <><Text style={S.btnPrimaryText}>SUBMIT</Text><Ionicons name="checkmark" size={16} color="#ffffff" /></>
               )}
             </TouchableOpacity>
           )}
@@ -347,43 +427,47 @@ export default function CompleteProfile({ route, navigation, onProfileComplete }
   );
 }
 
-
 const S = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.black },
-  header: { padding: 16, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: C.border, backgroundColor: C.muted2 },
-  headerTitle: { fontSize: 20, fontWeight: "700", color: C.white, fontFamily: F.bebas, letterSpacing: 1, marginBottom: 2 },
-  headerSub: { fontSize: 11, color: "rgba(245,240,232,0.35)", fontFamily: F.mono, marginBottom: 14 },
+  safe: { flex: 1, backgroundColor: C.background },
+  header: { padding: 16, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: C.border, backgroundColor: C.surface },
+  headerTitle: { fontSize: 20, fontWeight: "700", color: C.textPrimary, fontFamily: F.bebas, letterSpacing: 1, marginBottom: 2 },
+  headerSub: { fontSize: 11, color: C.textMuted, fontFamily: F.mono, marginBottom: 14 },
+  autoSavedText: { fontSize: 10, color: C.green, fontFamily: F.mono, position: "absolute", right: 16, top: 16 },
   progressRow: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 8 },
   progressStep: { alignItems: "center" },
-  progressDot: { width: 26, height: 26, borderRadius: 13, backgroundColor: C.muted, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: C.border },
-  progressDotText: { fontSize: 11, fontWeight: "700", color: "rgba(245,240,232,0.3)", fontFamily: F.mono },
-  progressLabel: { fontSize: 9, fontWeight: "600", color: "rgba(245,240,232,0.2)", fontFamily: F.mono, marginTop: 3 },
+  progressDot: { width: 26, height: 26, borderRadius: 13, backgroundColor: C.surface, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: C.border },
+  progressDotText: { fontSize: 11, fontWeight: "700", color: C.textMuted, fontFamily: F.mono },
+  progressLabel: { fontSize: 9, fontWeight: "600", color: C.textMuted, fontFamily: F.mono, marginTop: 3 },
 
   scroll: { flex: 1 },
   scrollPad: { padding: 14 },
 
-  sectionTitle: { fontSize: 10, fontWeight: "700", color: "rgba(245,240,232,0.2)", fontFamily: F.mono, letterSpacing: 2, marginBottom: 14 },
+  sectionTitle: { fontSize: 10, fontWeight: "700", color: "#888888", fontFamily: F.mono, letterSpacing: 2, marginBottom: 14 },
 
   fieldGroup: { marginBottom: 14 },
-  fieldLabel: { fontSize: 10, fontWeight: "600", color: "rgba(245,240,232,0.3)", fontFamily: F.mono, letterSpacing: 1, marginBottom: 5, textTransform: "uppercase" },
-  fieldError: { fontSize: 10, color: C.redLight, fontFamily: F.mono, marginTop: 3 },
+  fieldLabel: { fontSize: 10, fontWeight: "600", color: C.textMuted, fontFamily: F.mono, letterSpacing: 1, marginBottom: 5, textTransform: "uppercase" },
+  fieldError: { fontSize: 10, color: C.red, fontFamily: F.mono, marginTop: 3 },
 
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
-  chipText: { fontSize: 12, fontWeight: "500", color: "rgba(245,240,232,0.4)", fontFamily: F.dm },
-  chipTextActive: { color: C.gold, fontWeight: "600" },
+  chipText: { fontSize: 12, fontWeight: "500", color: C.textMuted, fontFamily: F.dm },
+  chipTextActive: { color: C.primary, fontWeight: "600" },
 
-  pickerWrap: { backgroundColor: C.muted2, borderRadius: 3, borderWidth: 1, borderColor: C.border, overflow: "hidden" },
+  pickerWrap: { backgroundColor: C.card, borderRadius: 3, borderWidth: 1, borderColor: C.border, overflow: "hidden" },
   pickerOption: { paddingHorizontal: 12, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: C.border },
-  pickerOptionActive: { backgroundColor: "rgba(232,160,18,0.06)" },
-  pickerText: { fontSize: 13, color: "rgba(245,240,232,0.4)", fontFamily: F.dm },
-  pickerTextActive: { color: C.gold, fontWeight: "600" },
+  pickerOptionActive: { backgroundColor: "rgba(44,62,80,0.06)" },
+  pickerText: { fontSize: 13, color: C.textMuted, fontFamily: F.dm },
+  pickerTextActive: { color: C.primary, fontWeight: "600" },
 
   rowFields: { flexDirection: "row", gap: 10 },
 
-  errorBanner: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "rgba(224,90,74,0.06)", borderRadius: 3, borderWidth: 1, borderColor: "rgba(224,90,74,0.15)", padding: 10, marginBottom: 14 },
-  errorText: { flex: 1, fontSize: 12, color: C.redLight, fontFamily: F.dm },
+  errorBanner: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "rgba(158,58,58,0.06)", borderRadius: 3, borderWidth: 1, borderColor: "rgba(158,58,58,0.15)", padding: 10, marginBottom: 14 },
+  errorText: { flex: 1, fontSize: 12, color: C.red, fontFamily: F.dm },
 
-  footer: { flexDirection: "row", gap: 10, padding: 14, borderTopWidth: 1, borderTopColor: C.border, backgroundColor: C.muted2 },
-  btnGoldText: { fontSize: 12, fontWeight: "700", color: C.black, fontFamily: F.dm, letterSpacing: 1, textTransform: "uppercase" },
-  btnGhostText: { fontSize: 12, fontWeight: "500", color: "rgba(245,240,232,0.5)", fontFamily: F.dm, letterSpacing: 0.5 },
+  reviewRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.border },
+  reviewLabel: { fontSize: 12, color: C.textMuted, fontFamily: F.mono },
+  reviewValue: { fontSize: 12, fontWeight: "600", color: C.textPrimary, fontFamily: F.dm, textAlign: "right", flex: 1, marginLeft: 12 },
+
+  footer: { flexDirection: "row", gap: 10, padding: 14, borderTopWidth: 1, borderTopColor: C.border, backgroundColor: C.surface },
+  btnPrimaryText: { fontSize: 12, fontWeight: "700", color: "#ffffff", fontFamily: F.dm, letterSpacing: 1, textTransform: "uppercase" },
+  btnGhostText: { fontSize: 12, fontWeight: "500", color: C.textSecondary, fontFamily: F.dm, letterSpacing: 0.5 },
 });

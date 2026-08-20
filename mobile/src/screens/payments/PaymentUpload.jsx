@@ -1,4 +1,4 @@
-// TENANT PAYMENT UPLOAD PROOF PAGE 
+// TENANT PAYMENT UPLOAD PROOF PAGE
 import { useState, useEffect } from "react";
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
@@ -11,25 +11,19 @@ import { Feather, MaterialIcons, Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import api from "../../utils/api";
+import { C, F } from "../../styles/theme";
 
-const C = {
-  black:        "#0a0a0a",
-  muted:        "#141414",
-  muted2:       "#1a1a1a",
-  border:       "#2a2a2a",
-  gold:         "#E8A012",
-  white:        "#F5F0E8",
-  blue:         "#3A8FD4",
-  greenLight:   "#1A7A4A",
-  redLight:     "#E05A4A",
-  purple:       "#8B5CF6",
+const INVOICE_TYPE_CONFIG = {
+  rent:    { label: "Rent",    color: C.blue },
+  deposit: { label: "Deposit", color: C.green },
+  damage:  { label: "Damage",  color: C.red },
+  utility: { label: "Utility", color: C.primary },
+  other:   { label: "Other",   color: C.textMuted },
 };
 
-const F = {
-  bebas: "bebas-neue",
-  dm:    "dm-sans",
-  mono:  "space-mono",
-};
+function invoiceTypeConfig(type) {
+  return INVOICE_TYPE_CONFIG[type] || INVOICE_TYPE_CONFIG.other;
+}
 
 function fmt(amount) { return `R ${Number(amount || 0).toLocaleString("en-ZA")}`; }
 
@@ -59,7 +53,6 @@ function generatePaymentReference(invoice, tenant) {
   }
   
   let initials = 'XX';
-  console.log("Tenant name:", tenant?.name);
   if (tenant?.first_name && tenant?.last_name) {
     initials = (tenant.first_name[0] + tenant.last_name[0]).toUpperCase();
   }
@@ -77,6 +70,9 @@ export default function PaymentUpload() {
   const [totalDue, setTotalDue] = useState(0);
   const [isPartial, setIsPartial] = useState(false);
   const [paidAmount, setPaidAmount] = useState(0);
+
+  const invoiceType = invoice?.invoice_type || "rent";
+  const typeCfg = invoiceTypeConfig(invoiceType);
 
   useEffect(() => {
     if (invoice) {
@@ -234,15 +230,15 @@ export default function PaymentUpload() {
 
   return (
     <SafeAreaView style={S.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={C.black} />
+      <StatusBar barStyle="dark-content" backgroundColor={C.surface} />
 
       {/* HEADER */}
       <View style={S.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={S.backBtn}>
-          <Feather name="arrow-left" size={20} color={C.white} />
+          <Feather name="arrow-left" size={20} color={C.textPrimary} />
         </TouchableOpacity>
         <Text style={S.headerTitle}>
-          {isPartialScenario ? "Partial Payment" : "Upload Proof"}
+          {typeCfg.label} · {isPartialScenario ? "Partial Payment" : "Upload Proof"}
         </Text>
         <View style={{ width: 40 }} />
       </View>
@@ -254,9 +250,14 @@ export default function PaymentUpload() {
             <Text style={S.amountLabel}>
               {isPartialScenario ? "REMAINING BALANCE" : "INVOICE AMOUNT"}
             </Text>
-            <Text style={[S.amountValue, isPartialScenario && { color: C.gold }]}>
-              {isPartialScenario ? fmt(remainingBalance) : fmt(invoice.amount_due || invoice.amount)}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
+              <Text style={[S.amountValue, isPartialScenario && { color: C.blue }]}>
+                {isPartialScenario ? fmt(remainingBalance) : fmt(invoice.amount_due || invoice.amount)}
+              </Text>
+              <View style={[S.invoiceTypeBadge, { borderColor: typeCfg.color + "40", backgroundColor: typeCfg.color + "15" }]}>
+                <Text style={[S.invoiceTypeText, { color: typeCfg.color }]}>{typeCfg.label}</Text>
+              </View>
+            </View>
             <Text style={S.amountPeriod}>
               {invoice.billing_period_start 
                 ? formatPeriod(invoice.billing_period_start)
@@ -294,7 +295,7 @@ export default function PaymentUpload() {
           }}
           keyboardType="numeric"
           placeholder={isPartialScenario ? `Enter amount (max ${fmt(remainingBalance)})` : "e.g. 5800"}
-          placeholderTextColor="rgba(245,240,232,0.2)"
+          placeholderTextColor={C.textMuted}
         />
         {errors.amount && <Text style={S.error}>{errors.amount}</Text>}
 
@@ -352,7 +353,7 @@ export default function PaymentUpload() {
             setErrors(e => ({ ...e, reference: undefined })); 
           }}
           placeholder="e.g. EFT-SW-JAN26"
-          placeholderTextColor="rgba(245,240,232,0.2)"
+          placeholderTextColor={C.textMuted}
           autoCapitalize="characters"
           editable={true}
         />
@@ -372,9 +373,9 @@ export default function PaymentUpload() {
         >
           {file ? (
             <View style={S.fileRow}>
-              <MaterialIcons name="picture-as-pdf" size={26} color={C.greenLight} />
+              <MaterialIcons name="picture-as-pdf" size={26} color={C.green} />
               <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={[S.fileName, { color: C.greenLight }]} numberOfLines={1}>
+                <Text style={[S.fileName, { color: C.green }]} numberOfLines={1}>
                   {file.name}
                 </Text>
                 <Text style={S.fileMeta}>
@@ -382,13 +383,13 @@ export default function PaymentUpload() {
                 </Text>
               </View>
               <TouchableOpacity onPress={() => setFile(null)} style={S.removeBtn}>
-                <Feather name="x" size={15} color="rgba(245,240,232,0.3)" />
+                <Feather name="x" size={15} color={C.textMuted} />
               </TouchableOpacity>
             </View>
           ) : (
             <View style={S.fileEmpty}>
               <View style={S.fileIconWrap}>
-                <Feather name="file" size={26} color={C.gold} />
+                <Feather name="file" size={26} color={C.primary} />
               </View>
               <Text style={S.filePrompt}>Tap to select PDF file</Text>
               <Text style={S.fileHint}>PDF only · Max 5 MB</Text>
@@ -400,7 +401,7 @@ export default function PaymentUpload() {
         {/* PARTIAL PAYMENT INFO */}
         {isPartialScenario && remainingBalance > 0 && parseFloat(amount) < remainingBalance && parseFloat(amount) > 0 && (
           <View style={S.partialInfoBox}>
-            <Ionicons name="information-circle" size={16} color={C.gold} />
+            <Ionicons name="information-circle" size={16} color={C.blue} />
             <Text style={S.partialInfoText}>
               You're making a partial payment. {fmt(remainingBalance - parseFloat(amount))} will remain outstanding.
             </Text>
@@ -409,9 +410,9 @@ export default function PaymentUpload() {
 
         {/* FULL PAYMENT INFO */}
         {isPartialScenario && parseFloat(amount) === remainingBalance && remainingBalance > 0 && (
-          <View style={[S.partialInfoBox, { borderColor: C.greenLight + "30", backgroundColor: "rgba(26,122,74,0.06)" }]}>
-            <Ionicons name="checkmark-circle" size={16} color={C.greenLight} />
-            <Text style={[S.partialInfoText, { color: C.greenLight }]}>
+          <View style={[S.partialInfoBox, { borderColor: C.green + "30", backgroundColor: "rgba(43,122,75,0.06)" }]}>
+            <Ionicons name="checkmark-circle" size={16} color={C.green} />
+            <Text style={[S.partialInfoText, { color: C.green }]}>
               You're paying the full remaining balance. This will clear the invoice.
             </Text>
           </View>
@@ -438,7 +439,7 @@ export default function PaymentUpload() {
           activeOpacity={0.8}
         >
           {loading ? (
-            <ActivityIndicator color={C.black} size="small" />
+            <ActivityIndicator color="#ffffff" size="small" />
           ) : (
             <Text style={S.btnSubmitText}>
               {isPartialScenario && parseFloat(amount) < remainingBalance 
@@ -453,7 +454,7 @@ export default function PaymentUpload() {
 }
 
 const S = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.black },
+  safe: { flex: 1, backgroundColor: C.background },
   
   header: {
     flexDirection: "row", 
@@ -461,20 +462,18 @@ const S = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 14, 
     paddingVertical: 12,
-    backgroundColor: C.muted2, 
+    backgroundColor: C.surface, 
     borderBottomWidth: 1, 
     borderBottomColor: C.border,
   },
   backBtn: { width: 38, height: 38, alignItems: "center", justifyContent: "center" },
-  headerTitle: { fontSize: 16, fontWeight: "700", color: C.white, fontFamily: F.bebas, letterSpacing: 1 },
+  headerTitle: { fontSize: 16, fontWeight: "700", color: C.textPrimary, fontFamily: F.bebas, letterSpacing: 1 },
   
-  // Scroll
   scroll: { flex: 1 },
   scrollPad: { padding: 16 },
 
-  // Amount Card
   amountCard: {
-    backgroundColor: C.muted2, 
+    backgroundColor: C.card, 
     borderRadius: 6, 
     borderWidth: 1, 
     borderColor: C.border,
@@ -484,21 +483,21 @@ const S = StyleSheet.create({
   },
   amountLabel: { 
     fontSize: 10, 
-    color: "rgba(245,240,232,0.25)", 
+    color: "#888888", 
     fontFamily: F.mono, 
     letterSpacing: 2 
   },
   amountValue: { 
     fontSize: 30, 
     fontWeight: "700", 
-    color: C.white, 
+    color: C.textPrimary, 
     fontFamily: F.bebas, 
     letterSpacing: 1, 
     marginTop: 4 
   },
   amountPeriod: { 
     fontSize: 11, 
-    color: "rgba(245,240,232,0.3)", 
+    color: C.textMuted, 
     fontFamily: F.mono, 
     marginTop: 4 
   },
@@ -510,30 +509,32 @@ const S = StyleSheet.create({
   },
   paidText: { 
     fontSize: 11, 
-    color: "rgba(245,240,232,0.4)", 
+    color: C.textMuted, 
     fontFamily: F.mono 
   },
   statusBadge: { 
-    backgroundColor: "rgba(232,160,18,0.1)", 
+    backgroundColor: "rgba(52,152,219,0.1)", 
     paddingHorizontal: 8, 
     paddingVertical: 2, 
     borderRadius: 3, 
     borderWidth: 1, 
-    borderColor: "rgba(232,160,18,0.15)" 
+    borderColor: "rgba(52,152,219,0.15)" 
   },
   statusBadgeText: { 
     fontSize: 9, 
     fontWeight: "600", 
-    color: C.gold, 
+    color: C.blue, 
     fontFamily: F.mono, 
     textTransform: "uppercase" 
   },
 
-  // Labels
+  invoiceTypeBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 3, borderWidth: 1, alignSelf: 'center' },
+  invoiceTypeText:  { fontSize: 9, fontWeight: '700', textTransform: 'uppercase', fontFamily: F.mono, letterSpacing: 1 },
+
   label: {
     fontSize: 10, 
     fontWeight: "700", 
-    color: "rgba(245,240,232,0.3)",
+    color: "#888888",
     fontFamily: F.mono, 
     textTransform: "uppercase", 
     letterSpacing: 1.5,
@@ -542,38 +543,35 @@ const S = StyleSheet.create({
   },
   labelHint: { 
     fontSize: 10, 
-    color: "rgba(245,240,232,0.2)", 
+    color: C.textMuted, 
     fontFamily: F.mono, 
     marginBottom: 8 
   },
 
-  // Inputs
   input: {
-    backgroundColor: C.muted2, 
+    backgroundColor: C.card, 
     borderWidth: 1, 
     borderColor: C.border,
     borderRadius: 3, 
     paddingHorizontal: 12, 
     paddingVertical: 12,
     fontSize: 14, 
-    color: C.white, 
+    color: C.textPrimary, 
     fontFamily: F.dm,
   },
-  inputErr: { borderColor: C.redLight },
+  inputErr: { borderColor: C.red },
 
-  // Reference
   referenceInput: {
     fontFamily: F.mono,
     letterSpacing: 0.5,
   },
   refHint: {
     fontSize: 10,
-    color: 'rgba(245,240,232,0.2)',
+    color: C.textMuted,
     fontFamily: F.mono,
     marginTop: 4,
   },
 
-  // Quick Amount Buttons
   quickAmounts: { 
     flexDirection: "row", 
     gap: 8, 
@@ -584,37 +582,36 @@ const S = StyleSheet.create({
     flex: 1, 
     paddingVertical: 8, 
     alignItems: "center",
-    backgroundColor: C.muted2, 
+    backgroundColor: C.card, 
     borderRadius: 3, 
     borderWidth: 1, 
     borderColor: C.border,
   },
   quickAmountBtnActive: { 
-    borderColor: C.gold, 
-    backgroundColor: "rgba(232,160,18,0.06)" 
+    borderColor: C.primary, 
+    backgroundColor: "rgba(44,62,80,0.06)" 
   },
   quickAmountText: { 
     fontSize: 11, 
-    color: "rgba(245,240,232,0.4)", 
+    color: C.textMuted, 
     fontFamily: F.mono 
   },
   quickAmountTextActive: { 
-    color: C.gold 
+    color: C.primary 
   },
 
-  // File Picker - PDF Only
   filePicker: {
     borderWidth: 1.5, 
     borderColor: C.border, 
     borderStyle: "dashed",
     borderRadius: 4, 
     padding: 18, 
-    backgroundColor: C.muted2,
+    backgroundColor: C.card,
   },
   filePickerDone: { 
-    borderColor: C.greenLight, 
+    borderColor: C.green, 
     borderStyle: "solid", 
-    backgroundColor: "rgba(26,122,74,0.04)" 
+    backgroundColor: "rgba(43,122,75,0.04)" 
   },
   fileRow: { 
     flexDirection: "row", 
@@ -628,21 +625,21 @@ const S = StyleSheet.create({
     width: 48, 
     height: 48, 
     borderRadius: 6, 
-    backgroundColor: "rgba(232,160,18,0.1)", 
+    backgroundColor: "rgba(44,62,80,0.1)", 
     borderWidth: 1, 
-    borderColor: "rgba(232,160,18,0.15)", 
+    borderColor: "rgba(44,62,80,0.15)", 
     alignItems: "center", 
     justifyContent: "center" 
   },
   filePrompt: { 
     fontSize: 13, 
     fontWeight: "600", 
-    color: C.white, 
+    color: C.textPrimary, 
     fontFamily: F.dm 
   },
   fileHint: { 
     fontSize: 10, 
-    color: "rgba(245,240,232,0.25)", 
+    color: C.textMuted, 
     fontFamily: F.mono 
   },
   fileName: { 
@@ -652,7 +649,7 @@ const S = StyleSheet.create({
   },
   fileMeta: { 
     fontSize: 10, 
-    color: "rgba(245,240,232,0.25)", 
+    color: C.textMuted, 
     fontFamily: F.mono, 
     marginTop: 2 
   },
@@ -660,22 +657,21 @@ const S = StyleSheet.create({
     padding: 4 
   },
 
-  // Info Boxes
   partialInfoBox: {
     flexDirection: "row", 
     alignItems: "center", 
     gap: 8,
     padding: 12, 
-    backgroundColor: "rgba(232,160,18,0.04)", 
+    backgroundColor: "rgba(52,152,219,0.04)", 
     borderRadius: 3,
     borderWidth: 1, 
-    borderColor: "rgba(232,160,18,0.15)", 
+    borderColor: "rgba(52,152,219,0.15)", 
     marginTop: 14,
   },
   partialInfoText: { 
     flex: 1, 
     fontSize: 11, 
-    color: C.gold, 
+    color: C.blue, 
     lineHeight: 16, 
     fontFamily: F.mono 
   },
@@ -684,36 +680,34 @@ const S = StyleSheet.create({
     alignItems: "flex-start", 
     gap: 8,
     padding: 12, 
-    backgroundColor: "rgba(58,143,212,0.06)", 
+    backgroundColor: "rgba(52,152,219,0.06)", 
     borderRadius: 3,
     borderWidth: 1, 
-    borderColor: "rgba(58,143,212,0.15)", 
+    borderColor: "rgba(52,152,219,0.15)", 
     marginTop: 22,
   },
   infoText: { 
     flex: 1, 
     fontSize: 11, 
-    color: "rgba(58,143,212,0.7)", 
+    color: C.blue, 
     lineHeight: 16, 
     fontFamily: F.mono 
   },
 
-  // Error
   error: { 
     fontSize: 10, 
-    color: C.redLight, 
+    color: C.red, 
     fontFamily: F.mono, 
     marginTop: 3 
   },
 
-  // Footer
   footer: {
     flexDirection: "row", 
     gap: 10, 
     padding: 14,
     borderTopWidth: 1, 
     borderTopColor: C.border, 
-    backgroundColor: C.muted2,
+    backgroundColor: C.surface,
   },
   btnCancel: {
     flex: 1, 
@@ -728,7 +722,7 @@ const S = StyleSheet.create({
   btnCancelText: { 
     fontSize: 13, 
     fontWeight: "500", 
-    color: "rgba(245,240,232,0.5)", 
+    color: C.textSecondary, 
     fontFamily: F.dm, 
     letterSpacing: 0.5 
   },
@@ -738,12 +732,12 @@ const S = StyleSheet.create({
     justifyContent: "center",
     paddingVertical: 13, 
     borderRadius: 3, 
-    backgroundColor: C.gold,
+    backgroundColor: C.primary,
   },
   btnSubmitText: { 
     fontSize: 13, 
     fontWeight: "700", 
-    color: C.black, 
+    color: "#ffffff", 
     fontFamily: F.dm, 
     letterSpacing: 1, 
     textTransform: "uppercase" 

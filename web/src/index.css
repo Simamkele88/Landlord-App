@@ -6,20 +6,22 @@
   @import "flowbite";
 }
 
-
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg: #f4f3ef;
+  --bg: #f8f9fa;
   --card: #ffffff;
-  --text: #1a1a1a;
-  --muted: #6b7280;
-  --accent: #2563eb;
-  --accent-hover: #1d4ed8;
-  --error-bg: #fef2f2;
-  --error: #dc2626;
-  --border: #e5e7eb;
-  --radius: 14px;
+  --text: #2c3e50;
+  --muted: #7f8c8d;
+  --accent: #2c3e50;
+  --accent-hover: #1a252f;
+  --error-bg: #fde8e5;
+  --error: #c0392b;
+  --border: #e8ecf0;
+  --radius: 8px;
+  --gold: #d4a02b;
+  --success: #1a7a4a;
+  --success-bg: #e8f5ee;
 }
 
 body {
@@ -29,16 +31,13 @@ body {
   min-height: 100vh;
 }
 
-
-
-/* ── Buttons ─────────────────────────────────────────────────── */
 .btn-primary {
   width: 100%;
   padding: 13px;
   background: var(--accent);
-  color: #fff;
+  color: #ffffff;
   border: none;
-  border-radius: 10px;
+  border-radius: 6px;
   font-size: 15px;
   font-weight: 600;
   font-family: inherit;
@@ -50,33 +49,32 @@ body {
 
 .btn-primary:hover { background: var(--accent-hover); }
 .btn-primary:active { transform: scale(0.98); }
-.btn-primary:disabled { background: #93c5fd; cursor: not-allowed; }
+.btn-primary:disabled { background: #95a5a6; cursor: not-allowed; }
 
 .btn-secondary {
   padding: 10px 18px;
   background: transparent;
   color: var(--muted);
   border: 1.5px solid var(--border);
-  border-radius: 10px;
+  border-radius: 6px;
   font-family: inherit;
   font-size: 14px;
   cursor: pointer;
   transition: all 0.15s;
 }
-.btn-secondary:hover { border-color: #9ca3af; color: var(--text); }
 
-/* ── Errors ──────────────────────────────────────────────────── */
+.btn-secondary:hover { border-color: #b0b8c0; color: var(--text); }
+
 .auth-error {
   background: var(--error-bg);
   color: var(--error);
-  border: 1px solid #fecaca;
-  border-radius: 10px;
+  border: 1px solid #f5c8c2;
+  border-radius: 6px;
   padding: 12px 14px;
   font-size: 14px;
   margin-bottom: 4px;
 }
 
-/* ── Switch Link ─────────────────────────────────────────────── */
 .auth-switch {
   text-align: center;
   margin-top: 24px;
@@ -85,12 +83,15 @@ body {
 }
 
 .auth-switch a {
-  color: var(--accent);
+  color: var(--gold);
   text-decoration: none;
   font-weight: 500;
 }
 
-/* ── Password Strength Bar ───────────────────────────────────── */
+.auth-switch a:hover {
+  text-decoration: underline;
+}
+
 .strength-bar {
   margin-top: 6px;
   display: flex;
@@ -107,7 +108,6 @@ body {
 
 .strength-bar span { font-size: 12px; font-weight: 500; white-space: nowrap; }
 
-/* ── Dashboard ───────────────────────────────────────────────── */
 .dashboard {
   min-height: 100vh;
   display: flex;
@@ -124,7 +124,7 @@ body {
   padding: 40px;
   width: 100%;
   max-width: 540px;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
 }
 
 .dashboard-header {
@@ -135,9 +135,9 @@ body {
 }
 
 .dashboard-info {
-  background: #f8fafc;
+  background: #f8f9fa;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 6px;
   padding: 18px;
   font-size: 14px;
   line-height: 1.6;
@@ -145,8 +145,8 @@ body {
 
 code {
   font-family: 'DM Mono', monospace;
-  background: #e8f0fe;
-  color: var(--accent);
+  background: #e5f0f8;
+  color: #2471a3;
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 12px;
@@ -165,4 +165,36 @@ code {
 
 .animate-slide-in {
   animation: slide-in 0.3s ease-out;
+}
+
+input, textarea, select {
+  font-family: 'DM Sans', sans-serif;
+}
+
+input:focus, textarea:focus, select:focus {
+  border-color: var(--gold) !important;
+  box-shadow: 0 0 0 3px rgba(212,160,43,0.08);
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f8f9fa;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d5d8dc;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #95a5a6;
+}
+
+::selection {
+  background: var(--gold);
+  color: #ffffff;
 }

@@ -57,7 +57,76 @@ router.get("/", requireAuth, async (req, res) => {
   }
 });
 
+// POST /properties/create - Landlord creates property
+router.post("/create", requireAuth, async (req, res) => {
+  try {
+    if (req.userRole !== "landlord") {
+      return res.status(403).json({ error: "Only landlords can create properties" });
+    }
+    
+    const landlord = await pool.query("SELECT id FROM landlord WHERE user_id = $1", [req.userId]);
+    if (!landlord.rows.length) {
+      return res.status(404).json({ error: "Landlord not found" });
+    }
+    
+    const {
+      name, property_type, address_line1, address_line2, city, province,
+      postal_code, country, total_floors, total_units,
+      has_elevator, has_parking, has_security, has_pool, pet_friendly,
+      parking_spots, monthly_rates, monthly_levies, latitude, longitude
+    } = req.body;
+    
+    if (!name || !address_line1 || !city) {
+      return res.status(400).json({ error: "Name, address, and city are required" });
+    }
+    
+    // Validate coordinates if provided
+    if (latitude !== undefined && latitude !== null && latitude !== '') {
+      const lat = parseFloat(latitude);
+      if (isNaN(lat) || lat < -90 || lat > 90) {
+        return res.status(400).json({ error: "Latitude must be between -90 and 90" });
+      }
+    }
+    
+    if (longitude !== undefined && longitude !== null && longitude !== '') {
+      const lng = parseFloat(longitude);
+      if (isNaN(lng) || lng < -180 || lng > 180) {
+        return res.status(400).json({ error: "Longitude must be between -180 and 180" });
+      }
+    }
+    
+    const result = await pool.query(
+      `INSERT INTO property (
+        landlord_id, name, property_type, address_line1, address_line2,
+        city, province, postal_code, country, total_floors, total_units,
+        has_elevator, has_parking, has_security, has_pool, pet_friendly,
+        parking_spots, monthly_rates, monthly_levies, latitude, longitude
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
+      RETURNING *`,
+      [
+        landlord.rows[0].id, name, property_type || "residential",
+        address_line1, address_line2 || null, city, province || null,
+        postal_code || null, country || "South Africa",
+        total_floors ? parseInt(total_floors) : null,
+        total_units ? parseInt(total_units) : null,
+        has_elevator || false, has_parking || false,
+        has_security || false, has_pool || false, pet_friendly || false,
+        parking_spots ? parseInt(parking_spots) : null,
+        monthly_rates ? parseFloat(monthly_rates) : null,
+        monthly_levies ? parseFloat(monthly_levies) : null,
+        latitude !== undefined && latitude !== null && latitude !== '' ? parseFloat(latitude) : null,
+        longitude !== undefined && longitude !== null && longitude !== '' ? parseFloat(longitude) : null
+      ]
+    );
+    
+    res.status(201).json({ message: "Property created", property: result.rows[0] });
+  } catch (err) {
+    console.error("Create property:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
 
+// GET /properties/:id - Landlord views a specific property with its units
 router.get("/:id", requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
@@ -107,49 +176,26 @@ router.get("/:id", requireAuth, async (req, res) => {
   }
 });
 
-// POST /properties - Landlord creates property
-router.post("/", requireAuth, async (req, res) => {
+// GET /properties/:id/leases - La  ndlord views all leases for a specific property
+router.get("/:id/leases", requireAuth, async (req, res) => {
   try {
-    if (req.userRole !== "landlord") {
-      return res.status(403).json({ error: "Only landlords can create properties" });
-    }
-    
-    const landlord = await pool.query("SELECT id FROM landlord WHERE user_id = $1", [req.userId]);
-    if (!landlord.rows.length) {
-      return res.status(404).json({ error: "Landlord not found" });
-    }
-    
-    const {
-      name, property_type, address_line1, address_line2, city, province,
-      postal_code, country, total_floors, total_units,
-      has_elevator, has_parking, has_security, has_pool, pet_friendly
-    } = req.body;
-    
-    if (!name || !address_line1 || !city) {
-      return res.status(400).json({ error: "Name, address, and city are required" });
-    }
+    const { id } = req.params;
     
     const result = await pool.query(
-      `INSERT INTO property (
-        landlord_id, name, property_type, address_line1, address_line2,
-        city, province, postal_code, country, total_floors, total_units,
-        has_elevator, has_parking, has_security, has_pool, pet_friendly
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
-      RETURNING *`,
-      [
-        landlord.rows[0].id, name, property_type || "residential",
-        address_line1, address_line2 || null, city, province || null,
-        postal_code || null, country || "South Africa",
-        total_floors ? parseInt(total_floors) : null,
-        total_units ? parseInt(total_units) : null,
-        has_elevator || false, has_parking || false,
-        has_security || false, has_pool || false, pet_friendly || false
-      ]
+      `SELECT l.*, l.status AS lease_status,
+              u.unit_number, u.unit_type, u.status,
+              t.id AS tenant_id, tu.full_name AS tenant_name
+       FROM lease l
+       JOIN unit u ON u.id = l.unit_id
+       LEFT JOIN tenant t ON t.id = l.tenant_id
+       LEFT JOIN users tu ON tu.id = t.user_id
+       WHERE u.property_id = $1`,
+      [id]
     );
     
-    res.status(201).json({ message: "Property created", property: result.rows[0] });
+    res.json({ leases: result.rows });
   } catch (err) {
-    console.error("Create property:", err);
+    console.error("Get property leases:", err);
     res.status(500).json({ error: "Server error" });
   }
 });
@@ -162,8 +208,24 @@ router.put("/:id", requireAuth, async (req, res) => {
     const {
       name, property_type, address_line1, address_line2, city, province,
       postal_code, country, total_floors, total_units,
-      has_elevator, has_parking, has_security, has_pool, pet_friendly
+      has_elevator, has_parking, has_security, has_pool, pet_friendly,
+      parking_spots, monthly_rates, monthly_levies, latitude, longitude
     } = req.body;
+    
+    // Validate coordinates if provided
+    if (latitude !== undefined && latitude !== null && latitude !== '') {
+      const lat = parseFloat(latitude);
+      if (isNaN(lat) || lat < -90 || lat > 90) {
+        return res.status(400).json({ error: "Latitude must be between -90 and 90" });
+      }
+    }
+    
+    if (longitude !== undefined && longitude !== null && longitude !== '') {
+      const lng = parseFloat(longitude);
+      if (isNaN(lng) || lng < -180 || lng > 180) {
+        return res.status(400).json({ error: "Longitude must be between -180 and 180" });
+      }
+    }
     
     const result = await pool.query(
       `UPDATE property SET
@@ -171,8 +233,10 @@ router.put("/:id", requireAuth, async (req, res) => {
         city = $5, province = $6, postal_code = $7, country = $8,
         total_floors = $9, total_units = $10,
         has_elevator = $11, has_parking = $12, has_security = $13,
-        has_pool = $14, pet_friendly = $15, updated_at = NOW()
-       WHERE id = $16 RETURNING *`,
+        has_pool = $14, pet_friendly = $15,
+        parking_spots = $16, monthly_rates = $17, monthly_levies = $18,
+        latitude = $19, longitude = $20, updated_at = NOW()
+       WHERE id = $21 RETURNING *`,
       [
         name, property_type, address_line1, address_line2 || null,
         city, province || null, postal_code || null,
@@ -181,6 +245,11 @@ router.put("/:id", requireAuth, async (req, res) => {
         total_units ? parseInt(total_units) : null,
         has_elevator || false, has_parking || false,
         has_security || false, has_pool || false, pet_friendly || false,
+        parking_spots ? parseInt(parking_spots) : null,
+        monthly_rates ? parseFloat(monthly_rates) : null,
+        monthly_levies ? parseFloat(monthly_levies) : null,
+        latitude !== undefined && latitude !== null && latitude !== '' ? parseFloat(latitude) : null,
+        longitude !== undefined && longitude !== null && longitude !== '' ? parseFloat(longitude) : null,
         id
       ]
     );

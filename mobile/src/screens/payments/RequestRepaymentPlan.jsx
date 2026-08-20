@@ -9,31 +9,19 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { Ionicons, Feather } from "@expo/vector-icons";
 import api from "../../utils/api";
-
-const C = {
-  black:      "#0a0a0a",
-  muted:      "#141414",
-  muted2:     "#1a1a1a",
-  border:     "#2a2a2a",
-  gold:       "#E8A012",
-  white:      "#F5F0E8",
-  blue:       "#3A8FD4",
-  greenLight: "#1A7A4A",
-  redLight:   "#E05A4A",
-};
-const F = { bebas: "bebas-neue", dm: "dm-sans", mono: "space-mono" };
+import { C, F } from "../../styles/theme";
 
 function fmt(n) { return `R ${Number(n || 0).toLocaleString("en-ZA")}`; }
 
 function InstalmentChip({ value, selected, onPress }) {
   return (
     <TouchableOpacity
-      style={[S.chip, selected && { backgroundColor: "rgba(232,160,18,0.1)", borderColor: C.gold }]}
+      style={[S.chip, selected && { backgroundColor: "rgba(44,62,80,0.08)", borderColor: C.primary }]}
       onPress={onPress}
       activeOpacity={0.75}
     >
-      <Text style={[S.chipText, selected && { color: C.gold }]}>{value}</Text>
-      <Text style={[S.chipSub, selected && { color: C.gold + "99" }]}>
+      <Text style={[S.chipText, selected && { color: C.primary }]}>{value}</Text>
+      <Text style={[S.chipSub, selected && { color: C.primary + "99" }]}>
         {value === 1 ? "month" : "months"}
       </Text>
     </TouchableOpacity>
@@ -44,7 +32,7 @@ function PreviewRow({ label, value, accent }) {
   return (
     <View style={S.previewRow}>
       <Text style={S.previewLabel}>{label}</Text>
-      <Text style={[S.previewVal, accent && { color: C.gold }]}>{value}</Text>
+      <Text style={[S.previewVal, accent && { color: C.primary }]}>{value}</Text>
     </View>
   );
 }
@@ -68,11 +56,11 @@ function MonthPicker({ value, onChange }) {
   return (
     <View style={S.monthPicker}>
       <TouchableOpacity onPress={prev} style={S.monthBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-        <Feather name="chevron-left" size={18} color="rgba(245,240,232,0.5)" />
+        <Feather name="chevron-left" size={18} color={C.textMuted} />
       </TouchableOpacity>
       <Text style={S.monthLabel}>{label}</Text>
       <TouchableOpacity onPress={next} style={S.monthBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-        <Feather name="chevron-right" size={18} color="rgba(245,240,232,0.5)" />
+        <Feather name="chevron-right" size={18} color={C.textMuted} />
       </TouchableOpacity>
     </View>
   );
@@ -138,12 +126,12 @@ export default function RequestRepaymentPlan() {
 
   return (
     <SafeAreaView style={S.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={C.black} />
+      <StatusBar barStyle="dark-content" backgroundColor={C.surface} />
 
       {/* HEADER */}
       <View style={S.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Feather name="arrow-left" size={20} color={C.white} />
+          <Feather name="arrow-left" size={20} color={C.textPrimary} />
         </TouchableOpacity>
         <Text style={S.headerTitle}>Request Repayment Plan</Text>
         <View style={{ width: 24 }} />
@@ -196,7 +184,7 @@ export default function RequestRepaymentPlan() {
         {/* STEP 3 — NOTE */}
         <View style={S.section}>
           <Text style={S.stepTitle}>
-            <Text style={S.stepNum}>03 </Text>Add a note <Text style={{ color: "rgba(245,240,232,0.25)", fontSize: 11 }}>(optional)</Text>
+            <Text style={S.stepNum}>03 </Text>Add a note <Text style={{ color: C.textMuted, fontSize: 11 }}>(optional)</Text>
           </Text>
           <Text style={S.stepHint}>Explain your circumstances to help your landlord understand your situation.</Text>
           <TextInput
@@ -204,12 +192,12 @@ export default function RequestRepaymentPlan() {
             value={note}
             onChangeText={setNote}
             placeholder="e.g. I lost my job last month and am looking for work. I can afford R2,000/month..."
-            placeholderTextColor="rgba(245,240,232,0.18)"
+            placeholderTextColor={C.textMuted}
             multiline
             maxLength={400}
-            color={C.white}
+            color={C.textPrimary}
             textAlignVertical="top"
-            keyboardAppearance="dark"
+            keyboardAppearance="light"
           />
           <Text style={S.charCount}>{note.length}/400</Text>
         </View>
@@ -245,9 +233,9 @@ export default function RequestRepaymentPlan() {
           activeOpacity={0.85}
         >
           {submitting
-            ? <ActivityIndicator color={C.black} size="small" />
+            ? <ActivityIndicator color="#ffffff" size="small" />
             : <>
-                <Ionicons name="paper-plane-outline" size={16} color={C.black} />
+                <Ionicons name="paper-plane-outline" size={16} color="#ffffff" />
                 <Text style={S.submitText}>Submit Proposal</Text>
               </>
           }
@@ -264,46 +252,46 @@ export default function RequestRepaymentPlan() {
 }
 
 const S = StyleSheet.create({
-  safe:   { flex: 1, backgroundColor: C.black },
+  safe:   { flex: 1, backgroundColor: C.background },
   scroll: { flex: 1 },
   pad:    { padding: 16 },
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 12, backgroundColor: C.muted2, borderBottomWidth: 1, borderBottomColor: C.border },
-  headerTitle: { fontSize: 16, fontWeight: "700", color: C.white, fontFamily: F.bebas, letterSpacing: 1 },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 12, backgroundColor: C.surface, borderBottomWidth: 1, borderBottomColor: C.border },
+  headerTitle: { fontSize: 16, fontWeight: "700", color: C.textPrimary, fontFamily: F.bebas, letterSpacing: 1 },
 
-  balanceBox: { backgroundColor: C.muted2, borderRadius: 6, borderWidth: 1, borderColor: "rgba(224,90,74,0.25)", padding: 20, alignItems: "center", marginBottom: 14, gap: 4 },
-  balanceLabel: { fontSize: 9, fontFamily: F.mono, color: "rgba(245,240,232,0.3)", letterSpacing: 2, textTransform: "uppercase" },
-  balanceAmount: { fontSize: 36, fontFamily: F.bebas, color: C.redLight, letterSpacing: 1 },
-  balanceSub: { fontSize: 11, color: "rgba(245,240,232,0.3)", fontFamily: F.mono, textAlign: "center" },
+  balanceBox: { backgroundColor: C.card, borderRadius: 6, borderWidth: 1, borderColor: C.border, padding: 20, alignItems: "center", marginBottom: 14, gap: 4 },
+  balanceLabel: { fontSize: 9, fontFamily: F.mono, color: C.textMuted, letterSpacing: 2, textTransform: "uppercase" },
+  balanceAmount: { fontSize: 36, fontFamily: F.bebas, color: C.red, letterSpacing: 1 },
+  balanceSub: { fontSize: 11, color: C.textMuted, fontFamily: F.mono, textAlign: "center" },
 
-  infoBox: { flexDirection: "row", gap: 10, backgroundColor: "rgba(58,143,212,0.06)", borderRadius: 4, borderWidth: 1, borderColor: "rgba(58,143,212,0.15)", padding: 12, marginBottom: 20 },
-  infoText: { flex: 1, fontSize: 12, color: "rgba(245,240,232,0.5)", fontFamily: F.dm, lineHeight: 18 },
+  infoBox: { flexDirection: "row", gap: 10, backgroundColor: "rgba(52,152,219,0.06)", borderRadius: 4, borderWidth: 1, borderColor: "rgba(52,152,219,0.15)", padding: 12, marginBottom: 20 },
+  infoText: { flex: 1, fontSize: 12, color: C.textSecondary, fontFamily: F.dm, lineHeight: 18 },
 
   section: { marginBottom: 24 },
-  stepNum: { color: C.gold, fontFamily: F.bebas, fontSize: 15, letterSpacing: 1 },
-  stepTitle: { fontSize: 14, fontWeight: "600", color: C.white, fontFamily: F.dm, marginBottom: 4 },
-  stepHint: { fontSize: 11, color: "rgba(245,240,232,0.35)", fontFamily: F.mono, lineHeight: 17, marginBottom: 12 },
-  errText: { fontSize: 11, color: C.redLight, fontFamily: F.mono, marginBottom: 6 },
+  stepNum: { color: C.primary, fontFamily: F.bebas, fontSize: 15, letterSpacing: 1 },
+  stepTitle: { fontSize: 14, fontWeight: "600", color: C.textPrimary, fontFamily: F.dm, marginBottom: 4 },
+  stepHint: { fontSize: 11, color: C.textMuted, fontFamily: F.mono, lineHeight: 17, marginBottom: 12 },
+  errText: { fontSize: 11, color: C.red, fontFamily: F.mono, marginBottom: 6 },
 
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chip: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 4, borderWidth: 1, borderColor: C.border, backgroundColor: C.muted2, alignItems: "center", minWidth: 52 },
-  chipText: { fontSize: 15, fontFamily: F.bebas, color: "rgba(245,240,232,0.5)", letterSpacing: 0.5, lineHeight: 18 },
-  chipSub: { fontSize: 8, fontFamily: F.mono, color: "rgba(245,240,232,0.25)", letterSpacing: 0.5, textTransform: "uppercase" },
+  chip: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 4, borderWidth: 1, borderColor: C.border, backgroundColor: C.card, alignItems: "center", minWidth: 52 },
+  chipText: { fontSize: 15, fontFamily: F.bebas, color: C.textMuted, letterSpacing: 0.5, lineHeight: 18 },
+  chipSub: { fontSize: 8, fontFamily: F.mono, color: C.textMuted, letterSpacing: 0.5, textTransform: "uppercase" },
 
-  monthPicker: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: C.muted2, borderRadius: 4, borderWidth: 1, borderColor: C.border, paddingHorizontal: 16, paddingVertical: 14 },
+  monthPicker: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: C.card, borderRadius: 4, borderWidth: 1, borderColor: C.border, paddingHorizontal: 16, paddingVertical: 14 },
   monthBtn: { padding: 4 },
-  monthLabel: { fontSize: 14, fontWeight: "600", color: C.white, fontFamily: F.dm },
+  monthLabel: { fontSize: 14, fontWeight: "600", color: C.textPrimary, fontFamily: F.dm },
 
-  textarea: { backgroundColor: C.muted2, borderRadius: 4, borderWidth: 1, borderColor: C.border, padding: 12, minHeight: 90, fontSize: 13, fontFamily: F.dm, lineHeight: 20 },
-  charCount: { fontSize: 9, color: "rgba(245,240,232,0.2)", fontFamily: F.mono, textAlign: "right", marginTop: 4 },
+  textarea: { backgroundColor: C.card, borderRadius: 4, borderWidth: 1, borderColor: C.border, padding: 12, minHeight: 90, fontSize: 13, fontFamily: F.dm, lineHeight: 20 },
+  charCount: { fontSize: 9, color: C.textMuted, fontFamily: F.mono, textAlign: "right", marginTop: 4 },
 
-  previewCard: { backgroundColor: C.muted2, borderRadius: 4, borderWidth: 1, borderColor: C.border, overflow: "hidden", marginBottom: 10 },
+  previewCard: { backgroundColor: C.card, borderRadius: 4, borderWidth: 1, borderColor: C.border, overflow: "hidden", marginBottom: 10 },
   previewRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 14, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: C.border },
-  previewLabel: { fontSize: 12, color: "rgba(245,240,232,0.4)", fontFamily: F.mono },
-  previewVal: { fontSize: 13, fontWeight: "600", color: C.white, fontFamily: F.dm },
-  disclaimer: { fontSize: 10, color: "rgba(245,240,232,0.2)", fontFamily: F.mono, lineHeight: 16, textAlign: "center" },
+  previewLabel: { fontSize: 12, color: C.textMuted, fontFamily: F.mono },
+  previewVal: { fontSize: 13, fontWeight: "600", color: C.textPrimary, fontFamily: F.dm },
+  disclaimer: { fontSize: 10, color: C.textMuted, fontFamily: F.mono, lineHeight: 16, textAlign: "center" },
 
-  submitBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: C.gold, borderRadius: 4, paddingVertical: 14, marginBottom: 10 },
-  submitText: { fontSize: 13, fontWeight: "700", color: C.black, fontFamily: F.dm, letterSpacing: 0.5, textTransform: "uppercase" },
+  submitBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: C.primary, borderRadius: 4, paddingVertical: 14, marginBottom: 10 },
+  submitText: { fontSize: 13, fontWeight: "700", color: "#ffffff", fontFamily: F.dm, letterSpacing: 0.5, textTransform: "uppercase" },
   cancelBtn: { alignItems: "center", paddingVertical: 12 },
-  cancelText: { fontSize: 12, color: "rgba(245,240,232,0.3)", fontFamily: F.mono },
+  cancelText: { fontSize: 12, color: C.textMuted, fontFamily: F.mono },
 });

@@ -72,6 +72,103 @@ router.get("/", requireAuth, requireLandlord, async (req, res) => {
   }
 });
 
+// GET /landlord/caretakers/assigned - Get caretakers assigned to properties
+router.get("/assigned", requireAuth, requireLandlord, async (req, res) => {
+  try {
+    const landlordId = await getLandlordId(req.userId);
+    if (!landlordId) return res.status(404).json({ error: "Landlord not found" });
+
+    const result = await pool.query(
+      `SELECT 
+        c.id,
+        u.first_name,
+        u.last_name,
+        u.phone,
+        c.is_active,
+        c.assigned_property AS assigned_property_id,
+        c.created_at,
+        u.email,
+        u.last_login,
+        p.name AS property_name,
+        p.address_line1 AS property_address,
+        COALESCE(
+          (SELECT COUNT(*) FROM maintenance_request mr
+           JOIN unit un ON un.id = mr.unit_id
+           WHERE un.property_id = c.assigned_property
+             AND mr.status IN ('needs_repair','assigned','in_progress')),
+          0
+        ) AS open_maintenance_count,
+        COALESCE(
+          (SELECT COUNT(*) FROM complaint comp
+           WHERE comp.property_id = c.assigned_property
+             AND comp.status IN ('open','under_review','escalated')),
+          0
+        ) AS open_complaint_count
+       FROM caretaker c
+       JOIN users u ON u.id = c.user_id
+       LEFT JOIN property p ON p.id = c.assigned_property
+       WHERE c.landlord_id = $1 AND c.assigned_property IS NOT NULL
+       ORDER BY c.created_at DESC`,
+      [landlordId]
+    );
+
+    const caretakers = result.rows.map(c => ({
+      ...c,
+      status: c.is_active ? "active" : "inactive",
+      name: `${c.first_name || ""} ${c.last_name || ""}`.trim(),
+    }));
+
+    res.json({ 
+      caretakers,
+      total: caretakers.length,
+      active: caretakers.filter(c => c.is_active).length
+    });
+  } catch (err) {
+    console.error("Get assigned caretakers:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// GET /landlord/caretakers/not-assigned - Get caretakers not assigned to any property
+router.get("/not-assigned", requireAuth, requireLandlord, async (req, res) => {
+  try {
+    const landlordId = await getLandlordId(req.userId);
+    if (!landlordId) return res.status(404).json({ error: "Landlord not found" });
+
+    const result = await pool.query(
+      `SELECT 
+        c.id,
+        u.first_name,
+        u.last_name,
+        u.phone,
+        c.is_active,
+        c.created_at,
+        u.email,
+        u.last_login
+       FROM caretaker c
+       JOIN users u ON u.id = c.user_id
+       WHERE c.landlord_id = $1 AND c.assigned_property IS NULL
+       ORDER BY c.created_at DESC`,
+      [landlordId]
+    );
+
+    const caretakers = result.rows.map(c => ({
+      ...c,
+      status: c.is_active ? "active" : "inactive",
+      name: `${c.first_name || ""} ${c.last_name || ""}`.trim(),
+    }));
+
+    res.json({ 
+      caretakers,
+      total: caretakers.length,
+      active: caretakers.filter(c => c.is_active).length
+    });
+  } catch (err) {
+    console.error("Get not assigned caretakers:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 // POST /landlord/caretakers - Register a new caretaker
 router.post("/", requireAuth, requireLandlord, async (req, res) => {
   const { first_name, last_name, email, phone, assigned_property, notes } = req.body;

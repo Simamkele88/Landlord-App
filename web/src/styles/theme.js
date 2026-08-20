@@ -1,54 +1,46 @@
-// COLORS
 export const c = {
-  black: '#111315',
-  white: '#FFFFFF',
-
-  gold: '#F2B51D',
-  orange: '#E58A17',
-
-  green: '#22C55E',
-  greenLight: '#4ADE80',
-
-  redLight: '#EF4444',
-
-  blue: '#4EA3FF',
-
-  purple: '#8B5CF6',
-
-  muted: '#1C222B',
-  muted2: '#161B22',
-
-  border: '#313A46',
-  borderFocus: 'rgba(242,181,29,0.45)',
-
-  // Brighter text
-  textMuted: '#BFC7D3',
-  textDim: '#D0D7E2',
-  textBody: '#E6EDF7',
-  textLabel: '#FFFFFF',
-
-  bubbleOut: '#262C35',
-  bubbleIn: '#1F252E',
+  black: '#2c3e50',
+  white: '#ffffff',
+  gold: '#2c3e50',
+  orange: '#e67e22',
+  green: '#27ae60',
+  greenLight: '#2ecc71',
+  redLight: '#e74c3c',
+  blue: '#3498db',
+  purple: '#8e44ad',
+  muted: '#95a5a6',
+  muted2: '#ecf0f1',
+  border: '#e8ecf0',
+  borderFocus: 'rgba(52,152,219,0.5)',
+  textMuted: 'rgba(44,62,80,0.35)',
+  textDim: 'rgba(44,62,80,0.25)',
+  textBody: 'rgba(44,62,80,0.6)',
+  textLabel: 'rgba(44,62,80,0.75)',
+  bubbleOut: '#f0f3f7',
+  bubbleIn: '#e8edf2',
+  bgLight: '#f8f9fa',
+  bgCard: '#ffffff',
+  shadow: '0 1px 3px rgba(0,0,0,0.06)',
+  shadowHover: '0 4px 16px rgba(0,0,0,0.08)',
 };
 
-// FONTS
 export const f = {
   bebas: "'Bebas Neue', sans-serif",
   dm: "'DM Sans', sans-serif",
   mono: "'Space Mono', monospace",
 };
 
-// SHARED INPUT STYLES
 export const inputStyle = {
   width: '100%',
-  background: c.muted2,
+  background: c.white,
   border: `1px solid ${c.border}`,
-  color: c.white,
+  color: c.black,
   fontFamily: f.dm,
-  fontSize: '1rem',
-  padding: '0.9rem 1rem',
+  fontSize: '0.88rem',
+  padding: '0.8rem 1rem',
   borderRadius: '4px',
   outline: 'none',
+  transition: 'all 0.2s ease',
 };
 
 export const textareaStyle = {
@@ -58,109 +50,61 @@ export const textareaStyle = {
   lineHeight: 1.6,
 };
 
-// SHARED BUTTON STYLES
 export const btnPrimary = {
-  background: c.gold,
-  color: '#111315',
-  padding: '0.95rem 2rem',
+  background: c.blue,
+  color: c.white,
+  padding: '0.9rem 2rem',
   fontFamily: f.dm,
-  fontWeight: 700,
-  fontSize: '1rem',
+  fontWeight: 600,
+  fontSize: '0.88rem',
   letterSpacing: '0.04em',
-  textTransform: 'uppercase',
   border: 'none',
   borderRadius: '4px',
   cursor: 'pointer',
+  transition: 'all 0.2s ease',
 };
 
 export const btnGhost = {
   background: 'transparent',
   color: c.textBody,
-  padding: '0.95rem 2rem',
+  padding: '0.9rem 2rem',
   fontFamily: f.dm,
-  fontWeight: 600,
-  fontSize: '1rem',
+  fontWeight: 500,
+  fontSize: '0.88rem',
+  letterSpacing: '0.04em',
   border: `1px solid ${c.border}`,
   borderRadius: '4px',
   cursor: 'pointer',
+  transition: 'all 0.2s ease',
 };
 
 export const btnSmall = {
-  background: c.gold,
-  color: c.black,
+  background: c.blue,
+  color: c.white,
   padding: '0.55rem 1.2rem',
   fontFamily: f.dm,
-  fontWeight: 700,
-  fontSize: '1rem',
-  letterSpacing: '0.06em',
-  textTransform: 'uppercase',
+  fontWeight: 600,
+  fontSize: '0.75rem',
+  letterSpacing: '0.04em',
   border: 'none',
-  borderRadius: '2px',
+  borderRadius: '4px',
   cursor: 'pointer',
+  transition: 'all 0.2s ease',
 };
 
-// STATUS PILL STYLES 
 export const statusStyles = {
-   active: {
-    bg: 'rgba(34,197,94,.14)',
-    color: '#4ADE80',
-    border: '1px solid rgba(74,222,128,.25)'
-  },
-
-  pending: {
-    bg: 'rgba(242,181,29,.14)',
-    color: '#F2B51D',
-    border: '1px solid rgba(242,181,29,.25)'
-  },
-
-  paid: {
-    bg: 'rgba(34,197,94,.14)',
-    color: '#4ADE80',
-    border: '1px solid rgba(74,222,128,.25)'
-  },
-
-  failed: {
-    bg: 'rgba(239,68,68,.14)',
-    color: '#EF4444',
-    border: '1px solid rgba(239,68,68,.25)'
-  },
-
-  quoting: {
-    bg: 'rgba(78,163,255,.14)',
-    color: '#4EA3FF',
-    border: '1px solid rgba(78,163,255,.25)'
-  },
-
-  escrow: {
-    bg: 'rgba(78,163,255,.14)',
-    color: '#4EA3FF',
-    border: '1px solid rgba(78,163,255,.25)'
-  },
-
-  online: {
-    bg: 'rgba(34,197,94,.14)',
-    color: '#4ADE80'
-  },
-
-  busy: {
-    bg: 'rgba(229,138,23,.14)',
-    color: '#E58A17'
-  },
-
-  away: {
-    bg: 'rgba(255,255,255,.08)',
-    color: '#D0D7E2'
-  },
-
-  done: {
-    bg: 'rgba(255,255,255,.06)',
-    color: '#BFC7D3',
-    border: `1px solid ${c.border}`
-  }
+  active:   { bg: 'rgba(52,152,219,0.10)', color: c.blue, border: '1px solid rgba(52,152,219,0.2)' },
+  pending:  { bg: 'rgba(241,196,15,0.10)', color: '#f39c12', border: '1px solid rgba(241,196,15,0.2)' },
+  done:     { bg: 'rgba(44,62,80,0.04)', color: c.textMuted, border: `1px solid ${c.border}` },
+  quoting:  { bg: 'rgba(52,152,219,0.10)', color: c.blue, border: '1px solid rgba(52,152,219,0.2)' },
+  online:   { bg: 'rgba(46,204,113,0.10)', color: c.greenLight },
+  busy:     { bg: 'rgba(230,126,34,0.10)', color: c.orange },
+  away:     { bg: 'rgba(44,62,80,0.04)', color: c.textBody },
+  escrow:   { bg: 'rgba(52,152,219,0.10)', color: c.blue, border: '1px solid rgba(52,152,219,0.2)' },
+  paid:     { bg: 'rgba(46,204,113,0.10)', color: c.greenLight, border: '1px solid rgba(46,204,113,0.2)' },
+  failed:   { bg: 'rgba(231,76,60,0.08)', color: c.redLight, border: '1px solid rgba(231,76,60,0.2)' },
 };
 
-
-// KEYFRAMES
 export const globalKeyframes = `
   @keyframes fadeUp {
     from { opacity: 0; transform: translateY(12px); }
@@ -175,12 +119,12 @@ export const globalKeyframes = `
     100% { transform: translateX(-50%); }
   }
   @keyframes pulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(76,186,122,0.5); }
-    50% { box-shadow: 0 0 0 5px rgba(76,186,122,0); }
+    0%, 100% { box-shadow: 0 0 0 0 rgba(52,152,219,0.4); }
+    50% { box-shadow: 0 0 0 5px rgba(52,152,219,0); }
   }
   @keyframes glow {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(232,160,18,0.4); }
-    50% { box-shadow: 0 0 0 6px rgba(232,160,18,0); }
+    0%, 100% { box-shadow: 0 0 0 0 rgba(52,152,219,0.4); }
+    50% { box-shadow: 0 0 0 6px rgba(52,152,219,0); }
   }
   @keyframes bounce {
     0%, 60%, 100% { transform: translateY(0); }
@@ -192,28 +136,169 @@ export const globalKeyframes = `
   }
 `;
 
-//s GLOBAL RESET STYLES
 export const globalReset = `
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html { scroll-behavior: smooth; }
   body {
-    background: #0a0a0a;
-    color: #f5f0e8;
+    background: #f8f9fa;
+    color: #2c3e50;
     font-family: 'DM Sans', sans-serif;
     font-weight: 300;
     overflow-x: hidden;
-     font-size: 16px;
-  }
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-    pointer-events: none;
-    z-index: 9999;
-    opacity: 0.4;
   }
   input:focus, textarea:focus, select:focus {
-    border-color: ${c.borderFocus} !important;
+    border-color: ${c.blue} !important;
+    box-shadow: 0 0 0 3px rgba(52,152,219,0.08);
+  }
+  ::selection {
+    background: ${c.blue};
+    color: ${c.white};
   }
 `;
+
+export const cardStyle = {
+  background: c.bgCard,
+  borderRadius: '4px',
+  boxShadow: c.shadow,
+  border: `1px solid ${c.border}`,
+  padding: '1.5rem',
+  transition: 'all 0.3s ease',
+};
+
+export const cardHover = {
+  ...cardStyle,
+  boxShadow: c.shadowHover,
+  transform: 'translateY(-2px)',
+};
+
+export const pageContainer = {
+  maxWidth: '1200px',
+  margin: '0 auto',
+  padding: '2rem 1.5rem',
+};
+
+export const sectionTitle = {
+  fontFamily: f.dm,
+  fontSize: '1.6rem',
+  fontWeight: 600,
+  letterSpacing: '0.02em',
+  color: c.black,
+  marginBottom: '0.5rem',
+};
+
+export const sectionSubtitle = {
+  fontFamily: f.dm,
+  fontSize: '0.95rem',
+  color: c.textBody,
+  marginBottom: '2rem',
+};
+
+export const tableStyle = {
+  width: '100%',
+  borderCollapse: 'collapse',
+  fontSize: '0.88rem',
+};
+
+export const tableHead = {
+  background: c.bgLight,
+  color: c.textLabel,
+  fontWeight: 600,
+  textTransform: 'uppercase',
+  fontSize: '0.7rem',
+  letterSpacing: '0.06em',
+  padding: '0.8rem 1rem',
+  textAlign: 'left',
+  borderBottom: `2px solid ${c.border}`,
+};
+
+export const tableRow = {
+  padding: '0.8rem 1rem',
+  borderBottom: `1px solid ${c.border}`,
+  color: c.black,
+};
+
+export const tagStyle = {
+  display: 'inline-block',
+  padding: '0.2rem 0.8rem',
+  borderRadius: '20px',
+  fontSize: '0.7rem',
+  fontWeight: 600,
+  letterSpacing: '0.04em',
+  textTransform: 'uppercase',
+};
+
+export const formGroup = {
+  marginBottom: '1.5rem',
+};
+
+export const formLabel = {
+  display: 'block',
+  fontFamily: f.dm,
+  fontSize: '0.82rem',
+  fontWeight: 600,
+  color: c.textLabel,
+  marginBottom: '0.4rem',
+  letterSpacing: '0.02em',
+};
+
+export const gridLayout = {
+  display: 'grid',
+  gap: '1.5rem',
+};
+
+export const flexBetween = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+};
+
+export const flexCenter = {
+  display: 'flex',
+  justifyContent: 'center',
+  alignItems: 'center',
+};
+
+export const flexColumn = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '0.5rem',
+};
+
+export const badgeStyle = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '0.3rem',
+  padding: '0.25rem 0.75rem',
+  borderRadius: '20px',
+  fontSize: '0.75rem',
+  fontWeight: 500,
+};
+
+export const linkStyle = {
+  color: c.blue,
+  textDecoration: 'none',
+  fontWeight: 500,
+  transition: 'color 0.2s ease',
+};
+
+export const modalOverlay = {
+  position: 'fixed',
+  inset: 0,
+  background: 'rgba(44,62,80,0.5)',
+  backdropFilter: 'blur(4px)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  zIndex: 1000,
+};
+
+export const modalContent = {
+  background: c.bgCard,
+  borderRadius: '8px',
+  padding: '2rem',
+  maxWidth: '560px',
+  width: '90%',
+  boxShadow: c.shadowHover,
+  maxHeight: '90vh',
+  overflow: 'auto',
+};

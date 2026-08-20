@@ -9,26 +9,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons, MaterialIcons, Feather } from "@expo/vector-icons";
 import api from "../../utils/api";
-
-const C = {
-  black:        "#0a0a0a",
-  muted:        "#141414",
-  muted2:       "#1a1a1a",
-  border:       "#2a2a2a",
-  gold:         "#E8A012",
-  white:        "#F5F0E8",
-  blue:         "#3A8FD4",
-  greenLight:   "#1A7A4A",
-  redLight:     "#E05A4A",
-  purple:       "#8B5CF6",
-};
-const F = { bebas: "bebas-neue", dm: "dm-sans", mono: "space-mono" };
+import { C, F } from "../../styles/theme";
 
 function ToggleRow({ icon, label, desc, value, onToggle }) {
   return (
     <View style={S.toggleRow}>
       <View style={S.toggleIcon}>
-        <Ionicons name={icon} size={18} color={value ? C.gold : "rgba(245,240,232,0.3)"} />
+        <Ionicons name={icon} size={18} color={value ? C.primary : C.textMuted} />
       </View>
       <View style={S.toggleContent}>
         <Text style={S.toggleLabel}>{label}</Text>
@@ -37,8 +24,8 @@ function ToggleRow({ icon, label, desc, value, onToggle }) {
       <Switch
         value={value}
         onValueChange={onToggle}
-        trackColor={{ false: C.border, true: "rgba(232,160,18,0.3)" }}
-        thumbColor={value ? C.gold : "rgba(245,240,232,0.4)"}
+        trackColor={{ false: C.border, true: "rgba(44,62,80,0.3)" }}
+        thumbColor={value ? C.primary : "#cccccc"}
         ios_backgroundColor={C.border}
       />
     </View>
@@ -76,9 +63,15 @@ export default function SettingsScreen() {
   const [biometricLock, setBiometricLock] = useState(false);
 
   const $input = {
-    backgroundColor: C.black, borderWidth: 1, borderColor: C.border,
-    borderRadius: 3, paddingHorizontal: 12, paddingVertical: 11,
-    fontSize: 13, color: C.white, fontFamily: F.dm,
+    backgroundColor: C.background,
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 3,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    fontSize: 13,
+    color: C.textPrimary,
+    fontFamily: F.dm,
   };
 
   async function handleChangePassword() {
@@ -124,7 +117,6 @@ export default function SettingsScreen() {
         onPress: async () => {
           await AsyncStorage.removeItem("token");
           await AsyncStorage.removeItem("user");
-          
         },
       },
     ]);
@@ -132,7 +124,7 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={S.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={C.black} />
+      <StatusBar barStyle="dark-content" backgroundColor={C.surface} />
 
       {/* HEADER */}
       <View style={S.header}>
@@ -150,7 +142,7 @@ export default function SettingsScreen() {
                 value={currentPassword}
                 onChangeText={setCurrentPassword}
                 placeholder="Enter current password"
-                placeholderTextColor="rgba(245,240,232,0.15)"
+                placeholderTextColor={C.textMuted}
                 secureTextEntry={!showPassword}
               />
             </View>
@@ -161,7 +153,7 @@ export default function SettingsScreen() {
                 value={newPassword}
                 onChangeText={setNewPassword}
                 placeholder="At least 8 characters"
-                placeholderTextColor="rgba(245,240,232,0.15)"
+                placeholderTextColor={C.textMuted}
                 secureTextEntry={!showPassword}
               />
             </View>
@@ -172,13 +164,13 @@ export default function SettingsScreen() {
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 placeholder="Re-enter new password"
-                placeholderTextColor="rgba(245,240,232,0.15)"
+                placeholderTextColor={C.textMuted}
                 secureTextEntry={!showPassword}
               />
             </View>
             <View style={S.passwordActions}>
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={S.showPwBtn}>
-                <Ionicons name={showPassword ? "eye-off" : "eye"} size={16} color="rgba(245,240,232,0.4)" />
+                <Ionicons name={showPassword ? "eye-off" : "eye"} size={16} color={C.textMuted} />
                 <Text style={S.showPwText}>{showPassword ? "Hide" : "Show"} passwords</Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -188,7 +180,7 @@ export default function SettingsScreen() {
                 activeOpacity={0.7}
               >
                 {changingPassword ? (
-                  <ActivityIndicator size="small" color={C.black} />
+                  <ActivityIndicator size="small" color="#ffffff" />
                 ) : (
                   <Text style={S.changePwBtnText}>UPDATE PASSWORD</Text>
                 )}
@@ -222,15 +214,15 @@ export default function SettingsScreen() {
         {/* DATA & PRIVACY */}
         <SectionCard title="DATA & PRIVACY">
           <TouchableOpacity style={S.menuRow} onPress={() => Alert.alert("Coming Soon", "Data export will be available soon.")} activeOpacity={0.7}>
-            <Ionicons name="download-outline" size={18} color="rgba(245,240,232,0.4)" style={{ marginRight: 10 }} />
+            <Ionicons name="download-outline" size={18} color={C.textMuted} style={{ marginRight: 10 }} />
             <Text style={S.menuLabel}>Export My Data</Text>
-            <Feather name="chevron-right" size={14} color="rgba(245,240,232,0.2)" style={{ marginLeft: "auto" }} />
+            <Feather name="chevron-right" size={14} color={C.textMuted} style={{ marginLeft: "auto" }} />
           </TouchableOpacity>
           <View style={S.toggleDivider} />
           <TouchableOpacity style={S.menuRow} onPress={() => Alert.alert("Coming Soon", "Privacy settings will be available soon.")} activeOpacity={0.7}>
-            <Ionicons name="shield-checkmark-outline" size={18} color="rgba(245,240,232,0.4)" style={{ marginRight: 10 }} />
+            <Ionicons name="shield-checkmark-outline" size={18} color={C.textMuted} style={{ marginRight: 10 }} />
             <Text style={S.menuLabel}>Privacy Settings</Text>
-            <Feather name="chevron-right" size={14} color="rgba(245,240,232,0.2)" style={{ marginLeft: "auto" }} />
+            <Feather name="chevron-right" size={14} color={C.textMuted} style={{ marginLeft: "auto" }} />
           </TouchableOpacity>
         </SectionCard>
 
@@ -242,15 +234,15 @@ export default function SettingsScreen() {
           </View>
           <View style={S.toggleDivider} />
           <TouchableOpacity style={S.menuRow} onPress={() => Alert.alert("Help", "Contact your landlord or caretaker for assistance.")} activeOpacity={0.7}>
-            <Ionicons name="help-circle-outline" size={18} color="rgba(245,240,232,0.4)" style={{ marginRight: 10 }} />
+            <Ionicons name="help-circle-outline" size={18} color={C.textMuted} style={{ marginRight: 10 }} />
             <Text style={S.menuLabel}>Help & Support</Text>
-            <Feather name="chevron-right" size={14} color="rgba(245,240,232,0.2)" style={{ marginLeft: "auto" }} />
+            <Feather name="chevron-right" size={14} color={C.textMuted} style={{ marginLeft: "auto" }} />
           </TouchableOpacity>
         </SectionCard>
 
         {/* LOGOUT */}
         <TouchableOpacity style={S.logoutBtn} onPress={handleLogout} activeOpacity={0.7}>
-          <MaterialIcons name="logout" size={18} color={C.redLight} style={{ marginRight: 8 }} />
+          <MaterialIcons name="logout" size={18} color={C.red} style={{ marginRight: 8 }} />
           <Text style={S.logoutText}>Log Out</Text>
         </TouchableOpacity>
 
@@ -261,20 +253,20 @@ export default function SettingsScreen() {
 }
 
 const S = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.black },
+  safe: { flex: 1, backgroundColor: C.background },
 
   header: {
     paddingHorizontal: 16, paddingTop: 14, paddingBottom: 12,
-    backgroundColor: C.muted2, borderBottomWidth: 1, borderBottomColor: C.border,
+    backgroundColor: C.surface, borderBottomWidth: 1, borderBottomColor: C.border,
   },
-  headerTitle: { fontSize: 22, fontWeight: "700", color: C.white, fontFamily: F.bebas, letterSpacing: 1 },
+  headerTitle: { fontSize: 22, fontWeight: "700", color: C.textPrimary, fontFamily: F.bebas, letterSpacing: 1 },
 
   scroll: { flex: 1 },
   pad: { padding: 14, gap: 12 },
 
   // SECTION CARD
   sectionCard: {
-    backgroundColor: C.muted2, borderRadius: 6, borderWidth: 1, borderColor: C.border,
+    backgroundColor: C.card, borderRadius: 6, borderWidth: 1, borderColor: C.border,
     overflow: "hidden",
   },
   sectionHeader: {
@@ -282,7 +274,7 @@ const S = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: C.border,
   },
   sectionTitle: {
-    fontSize: 10, fontWeight: "700", color: "rgba(245,240,232,0.2)",
+    fontSize: 10, fontWeight: "700", color: "#888888",
     fontFamily: F.mono, letterSpacing: 2,
   },
 
@@ -290,7 +282,7 @@ const S = StyleSheet.create({
   passwordForm: { padding: 14 },
   inputGroup: { marginBottom: 10 },
   inputLabel: {
-    fontSize: 10, fontWeight: "600", color: "rgba(245,240,232,0.3)",
+    fontSize: 10, fontWeight: "600", color: C.textMuted,
     fontFamily: F.mono, letterSpacing: 1, marginBottom: 5, textTransform: "uppercase",
   },
   passwordActions: {
@@ -298,12 +290,12 @@ const S = StyleSheet.create({
     marginTop: 6,
   },
   showPwBtn: { flexDirection: "row", alignItems: "center", gap: 5 },
-  showPwText: { fontSize: 11, color: "rgba(245,240,232,0.3)", fontFamily: F.mono },
+  showPwText: { fontSize: 11, color: C.textMuted, fontFamily: F.mono },
   changePwBtn: {
-    backgroundColor: C.gold, borderRadius: 3,
+    backgroundColor: C.primary, borderRadius: 3,
     paddingHorizontal: 14, paddingVertical: 9,
   },
-  changePwBtnText: { fontSize: 10, fontWeight: "700", color: C.black, fontFamily: F.dm, letterSpacing: 1 },
+  changePwBtnText: { fontSize: 10, fontWeight: "700", color: "#ffffff", fontFamily: F.dm, letterSpacing: 1 },
 
   // TOGGLE ROW
   toggleRow: {
@@ -312,8 +304,8 @@ const S = StyleSheet.create({
   },
   toggleIcon: { width: 24, alignItems: "center" },
   toggleContent: { flex: 1 },
-  toggleLabel: { fontSize: 13, fontWeight: "600", color: C.white, fontFamily: F.dm },
-  toggleDesc: { fontSize: 10, color: "rgba(245,240,232,0.3)", fontFamily: F.mono, marginTop: 2 },
+  toggleLabel: { fontSize: 13, fontWeight: "600", color: C.textPrimary, fontFamily: F.dm },
+  toggleDesc: { fontSize: 10, color: C.textMuted, fontFamily: F.mono, marginTop: 2 },
   toggleDivider: { height: 1, backgroundColor: C.border, marginHorizontal: 14 },
 
   // MENU ROW
@@ -321,22 +313,22 @@ const S = StyleSheet.create({
     flexDirection: "row", alignItems: "center",
     paddingHorizontal: 14, paddingVertical: 13,
   },
-  menuLabel: { fontSize: 13, fontWeight: "500", color: C.white, fontFamily: F.dm },
+  menuLabel: { fontSize: 13, fontWeight: "500", color: C.textPrimary, fontFamily: F.dm },
 
   // ABOUT
   aboutRow: {
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
     paddingHorizontal: 14, paddingVertical: 13,
   },
-  aboutLabel: { fontSize: 13, fontWeight: "500", color: C.white, fontFamily: F.dm },
-  aboutValue: { fontSize: 12, color: "rgba(245,240,232,0.35)", fontFamily: F.mono },
+  aboutLabel: { fontSize: 13, fontWeight: "500", color: C.textPrimary, fontFamily: F.dm },
+  aboutValue: { fontSize: 12, color: C.textMuted, fontFamily: F.mono },
 
   // LOGOUT
   logoutBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center",
     paddingVertical: 14, borderRadius: 6,
-    backgroundColor: "rgba(224,90,74,0.06)", borderWidth: 1, borderColor: "rgba(224,90,74,0.15)",
+    backgroundColor: "rgba(158,58,58,0.06)", borderWidth: 1, borderColor: "rgba(158,58,58,0.15)",
     marginTop: 4,
   },
-  logoutText: { fontSize: 14, fontWeight: "700", color: C.redLight, fontFamily: F.dm },
+  logoutText: { fontSize: 14, fontWeight: "700", color: C.red, fontFamily: F.dm },
 });

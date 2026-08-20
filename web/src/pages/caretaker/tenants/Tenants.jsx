@@ -1,29 +1,76 @@
 /* eslint-disable no-unused-vars */
-// CARETAKER TENANTS PAGE 
+// CARETAKER TENANTS PAGE — UNITS STYLE
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
 import useDocumentTitle from "../../../hooks/useDocumentTitle";
-import { Icon } from "../../../components/Icon";
-import { c as C, f as F } from "../../../styles/theme";
+import { useToast } from "../../../contexts/ToastContext";
+import {
+  FiChevronRight, FiSearch, FiRefreshCw
+} from "react-icons/fi";
 
 const API = "http://localhost:4000";
+const FONT = '"Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif';
+const PAGE_SIZE = 10;
 
-function format(n) { return n ? `R ${Number(n).toLocaleString("en-ZA")}` : "—"; }
-function formatDate(d) { return d ? new Date(d).toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" }) : "—"; }
-function initials(name = "") { return (name || "").split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase(); }
-
-const SCORE_CONFIG = {
-  "reliable":      { color: C.greenLight, bg: 'rgba(26,122,74,0.06)', border: '1px solid rgba(76,186,122,0.1)', dot: C.greenLight },
-  "moderate_risk": { color: C.gold,       bg: 'rgba(232,160,18,0.04)', border: '1px solid rgba(232,160,18,0.1)', dot: C.gold       },
-  "high_risk":     { color: C.redLight,   bg: 'rgba(224,90,74,0.06)', border: '1px solid rgba(224,90,74,0.1)',  dot: C.redLight   },
+const RELIABILITY_MAP = {
+  "All": "All",
+  "Reliable": "reliable",
+  "Moderate Risk": "moderate_risk",
+  "High Risk": "high_risk",
 };
 
-function ScoreBadge({ score }) {
-  const cfg = SCORE_CONFIG[score?.toLowerCase()?.replace(/\s+/g, "_")] || SCORE_CONFIG["moderate_risk"];
+const reliabilityConfig = {
+  "reliable":      { color: "#2b7a4b", bg: "#eef5e8", border: "1px solid #c5d9b8", dot: "#2b7a4b", label: "Reliable" },
+  "moderate_risk": { color: "#8b6e1a", bg: "#faf6ed", border: "1px solid #e5dbb8", dot: "#8b6e1a", label: "Moderate Risk" },
+  "high_risk":     { color: "#9e3a3a", bg: "#fbeaea", border: "1px solid #e5bdbd", dot: "#9e3a3a", label: "High Risk" },
+};
+
+const thStyle = {
+  padding: '0.6rem 0.8rem',
+  fontSize: '12px',
+  fontWeight: 600,
+  color: '#000',
+  textTransform: 'uppercase',
+  letterSpacing: '0.06em',
+  background: '#e9eced52',
+  border: '1px solid #9a9d9e52',
+  textAlign: 'left',
+  whiteSpace: 'nowrap',
+};
+
+const tdStyle = {
+  padding: '0.6rem 0.8rem',
+  fontSize: '12px',
+  color: '#151515',
+  border: '1px solid #9a9d9e52',
+  verticalAlign: 'middle',
+  fontWeight: 400,
+  background: '#e9eced52',
+};
+
+function formatAmount(n) {
+  return n ? `R ${Number(n).toLocaleString("en-ZA")}` : "—";
+}
+
+function formatDate(d) {
+  return d ? new Date(d).toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+}
+
+function initials(name = "") {
+  return (name || "").split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
+}
+
+function ReliabilityBadge({ score }) {
+  const cfg = reliabilityConfig[score?.toLowerCase()?.replace(/\s+/g, "_")] ?? reliabilityConfig["moderate_risk"];
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.58rem', fontWeight: 600, padding: '0.12rem 0.45rem', borderRadius: '3px', fontFamily: F.mono, letterSpacing: '0.04em', textTransform: 'uppercase', color: cfg.color, background: cfg.bg, border: cfg.border }}>
-      <span style={{ width: 5, height: 5, borderRadius: '50%', background: cfg.dot }} />{score}
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+      fontSize: '12px', fontWeight: 500, padding: '0.15rem 0.6rem',
+      borderRadius: '12px', color: cfg.color, background: cfg.bg, border: cfg.border,
+    }}>
+      <span style={{ width: 6, height: 6, borderRadius: '50%', background: cfg.dot }} />
+      {cfg.label}
     </span>
   );
 }
@@ -31,15 +78,20 @@ function ScoreBadge({ score }) {
 export default function CaretakerTenants() {
   useDocumentTitle("Tenants");
   const navigate = useNavigate();
+  const toast = useToast();
 
   const [tenants, setTenants] = useState([]);
   const [propertyName, setPropertyName] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const [reliabilityFilter, setReliabilityFilter] = useState("All");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
 
   const fetchTenants = useCallback(async () => {
-    setLoading(true); setError("");
+    setLoading(true);
+    setError("");
     try {
       const token = localStorage.getItem("token");
       const { data } = await axios.get(`${API}/caretaker/tenants`, {
@@ -48,7 +100,7 @@ export default function CaretakerTenants() {
       setTenants(data.tenants || []);
       setPropertyName(data.property_name || "Your Property");
     } catch (err) {
-    
+      // Fallback data for demo — replace with actual error handling in production
       setTenants([
         { id: 1, first_name: "Sipho", last_name: "Dlamini", unit_number: "101", rent_amount: 5800, payment_frequency: "monthly", lease_end_date: "2026-12-31", reliability_score: "Reliable", phone: "0821234567", email: "sipho@email.com", outstanding_balance: 0 },
         { id: 2, first_name: "Lerato", last_name: "Mokoena", unit_number: "102", rent_amount: 6500, payment_frequency: "monthly", lease_end_date: "2026-09-15", reliability_score: "Moderate Risk", phone: "0839876543", email: "lerato@email.com", outstanding_balance: 1500 },
@@ -57,94 +109,298 @@ export default function CaretakerTenants() {
         { id: 5, first_name: "Zandile", last_name: "Khumalo", unit_number: "302", rent_amount: 5500, payment_frequency: "monthly", lease_end_date: "2027-01-15", reliability_score: "Reliable", phone: "0765544332", email: "zandile@email.com", outstanding_balance: 0 },
       ]);
       setPropertyName("Hillbrow Heights");
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { fetchTenants(); }, [fetchTenants]);
 
+  // Filtering
   const filtered = tenants.filter(t => {
+    const actualReliability = RELIABILITY_MAP[reliabilityFilter];
+    const matchReliability = actualReliability === "All" || (t.reliability_score || "").toLowerCase().replace(/\s+/g, "_") === actualReliability;
     const q = search.toLowerCase();
-    return !q || [`${t.first_name} ${t.last_name}`, t.unit_number?.toString(), t.email, t.phone].some(s => (s || "").toLowerCase().includes(q));
+    const matchSearch = !q || [
+      `${t.first_name} ${t.last_name}`,
+      t.unit_number?.toString(),
+      t.email,
+      t.phone,
+    ].some(s => (s || "").toLowerCase().includes(q));
+    return matchReliability && matchSearch;
   });
 
-  const S = {
-    container: { maxWidth: 1280, padding: '1.5rem 1rem 3rem', margin: '-1rem -1.8rem' },
-    headerRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.2rem', gap: '1rem', flexWrap: 'wrap' },
-    title: { fontSize: '1.5rem', fontWeight: 700, color: C.white, fontFamily: F.bebas, letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: '0.5rem' },
-    subtitle: { fontSize: '0.7rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono },
-    searchWrap: { position: 'relative', marginLeft: 'auto' },
-    searchInput: { padding: '0.4rem 0.7rem 0.4rem 2rem', borderRadius: '3px', background: C.black, border: `1px solid ${C.border}`, color: C.white, fontFamily: F.dm, fontSize: '0.74rem', outline: 'none', width: 220 },
-    table: { width: '100%', fontSize: '0.75rem', borderCollapse: 'collapse' },
-    th: { fontSize: '0.58rem', fontWeight: 600, color: 'rgba(245,240,232,0.25)', fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '0.65rem 1rem', textAlign: 'left', borderBottom: `1px solid ${C.border}` },
-    td: { padding: '0.65rem 1rem', borderBottom: `1px solid ${C.border}` },
-    footer: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.7rem 1rem', fontSize: '0.7rem', color: 'rgba(245,240,232,0.25)', fontFamily: F.mono, borderTop: `1px solid ${C.border}` },
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const startIndex = (currentPage - 1) * pageSize;
+  const paginatedTenants = filtered.slice(startIndex, startIndex + pageSize);
+
+  useEffect(() => { setPage(1); }, [reliabilityFilter, search, pageSize]);
+
+  const outlineBtnStyle = {
+    display: 'flex', alignItems: 'center', gap: '0.35rem',
+    background: '#fdfdfd', color: '#000', border: '1px solid #ccc',
+    padding: '0.3rem 0.6rem', fontSize: '14px', fontWeight: 400,
+    cursor: 'pointer', borderRadius: '2px',
   };
 
   return (
-    <div style={S.container}>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } } input:focus { border-color: ${C.borderFocus} !important; }`}</style>
+    <div style={{ fontFamily: FONT, fontSize: '14px', fontWeight: 400, color: '#000', background: '#ffffff' }}>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .rb-link { color: #2471a3; text-decoration: none; font-size: 14px; }
+        .rb-link:hover { text-decoration: underline; }
+        .rb-row:hover { background: #fafbfc; }
+      `}</style>
 
-      <div style={S.headerRow}>
-        <div>
-          <h1 style={S.title}><Icon name="users" size={20} color={C.blue} />Tenants</h1>
-          <p style={S.subtitle}>{propertyName} · {tenants.length} tenant{tenants.length !== 1 ? "s" : ""}</p>
-        </div>
-        <div style={S.searchWrap}>
-          <Icon name="search" size={13} style={{ position: 'absolute', left: '0.6rem', top: '50%', transform: 'translateY(-50%)', color: 'rgba(245,240,232,0.2)', pointerEvents: 'none' }} />
-          <input type="text" placeholder="Search tenants..." value={search} onChange={e => setSearch(e.target.value)} style={S.searchInput} />
-        </div>
+      {/* Breadcrumb */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.75rem',
+        fontSize: '14px', fontWeight: 400, color: '#333', padding: '0.55rem 0.8rem',
+        background: '#fdfdfd', boxShadow: '0 1px 3px rgba(0,0,0,0.03)', border: '1px solid #e9ecef',
+      }}>
+        <FiChevronRight size={13} style={{ color: '#555' }} />
+        <Link to="/caretaker/dashboard" className="rb-link">Dashboard</Link>
+        <span style={{ color: '#555' }}>/</span>
+        <span style={{ color: '#000' }}>Tenants</span>
       </div>
 
-      {error && (
-        <div style={{ padding: '0.7rem 1rem', borderRadius: '3px', marginBottom: '1rem', background: 'rgba(224,90,74,0.06)', border: '1px solid rgba(224,90,74,0.12)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <Icon name="warning" size={15} color={C.redLight} />
-          <p style={{ fontSize: '0.72rem', color: C.redLight, flex: 1 }}>{error}</p>
-          <button onClick={fetchTenants} style={{ fontSize: '0.68rem', color: C.blue, background: 'none', border: 'none', cursor: 'pointer', fontFamily: F.mono }}>Retry</button>
+      {/* Main card */}
+      <div style={{
+        background: '#fdfdfd', border: '1px solid #dfe3e8', borderRadius: '3px',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden',
+      }}>
+        {/* Card header */}
+        <div style={{
+          background: '#f7f8fa', padding: '0.4rem 0 0.2rem 0.7rem', borderBottom: '3px solid #3498db',
+        }}>
+          <h4 style={{ fontSize: '16px', color: '#000', margin: 0, fontFamily: FONT, fontWeight: 500 }}>
+            List of Tenants
+          </h4>
         </div>
-      )}
 
-      <div style={{ background: C.muted2, border: `1px solid ${C.border}`, borderRadius: '6px', overflow: 'hidden' }}>
+        {/* Toolbar */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '0.85rem 1.1rem', gap: '1rem', flexWrap: 'wrap',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginLeft: '0.6rem' }}>
+            <button onClick={fetchTenants} style={outlineBtnStyle}>
+              <FiRefreshCw size={14} /> Refresh
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            {/* Search */}
+            <div style={{ position: 'relative', width: '240px' }}>
+              <FiSearch size={14} style={{ position: 'absolute', left: '0.6rem', top: '50%', transform: 'translateY(-50%)', color: '#555' }} />
+              <input
+                type="text"
+                placeholder="Search tenants..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                style={{
+                  padding: '0.3rem 0.75rem 0.3rem 2rem', fontSize: '14px',
+                  border: '1px solid #d0d1d3', borderRadius: '2px', width: '240px',
+                  fontFamily: FONT, color: '#000', outline: 'none',
+                }}
+              />
+            </div>
+
+            {/* Reliability filter */}
+            <select
+              value={reliabilityFilter}
+              onChange={e => setReliabilityFilter(e.target.value)}
+              style={{ border: '1px solid #d0d1d3', borderRadius: '2px', fontSize: '14px', padding: '0.3rem 1.5rem 0.3rem 0.5rem', background: '#fdfdfd', color: '#000', fontFamily: FONT }}
+            >
+              {Object.keys(RELIABILITY_MAP).map(r => <option key={r} value={r}>{r}</option>)}
+            </select>
+
+            {/* Page size */}
+            <select
+              value={pageSize}
+              onChange={e => setPageSize(Number(e.target.value))}
+              style={{ border: '1px solid #d0d1d3', borderRadius: '2px', fontSize: '14px', padding: '0.3rem 1.5rem 0.3rem 0.5rem', background: '#fdfdfd', color: '#000', fontFamily: FONT, marginRight: '0.6rem' }}
+            >
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Table */}
         {loading ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4rem 0', color: 'rgba(245,240,232,0.3)', gap: '0.6rem' }}>
-            <span style={{ width: 20, height: 20, border: '2px solid rgba(245,240,232,0.06)', borderTopColor: C.blue, borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
-            Loading tenants...
+          <div style={{ padding: '3rem 1rem', textAlign: 'center', color: '#555' }}>
+            <span style={{ width: 20, height: 20, border: '2px solid rgba(44,62,80,0.1)', borderTopColor: '#2c3e50', borderRadius: '50%', animation: 'spin 0.6s linear infinite', display: 'inline-block' }} />
+            <span style={{ marginLeft: '0.5rem' }}>Loading tenants...</span>
+          </div>
+        ) : error ? (
+          <div style={{ padding: '3rem 1rem', textAlign: 'center' }}>
+            <p style={{ color: '#c0392b' }}>{error}</p>
+            <button onClick={fetchTenants} style={{ background: 'none', border: 'none', color: '#2471a3', cursor: 'pointer', textDecoration: 'underline', marginTop: '0.5rem' }}>
+              Try again
+            </button>
+          </div>
+        ) : paginatedTenants.length === 0 ? (
+          <div style={{ padding: '3rem 1rem', textAlign: 'center', color: '#555' }}>
+            <p>No tenants match your filters.</p>
+            <button onClick={() => { setReliabilityFilter("All"); setSearch(""); }} style={{ background: 'none', border: 'none', color: '#2471a3', cursor: 'pointer', textDecoration: 'underline', marginTop: '0.5rem' }}>
+              Clear all filters
+            </button>
           </div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={S.table}>
-              <thead><tr>{["Tenant", "Unit", "Rent", "Lease Ends", "Balance", "Reliability", "Contact"].map(h => <th key={h} style={S.th}>{h}</th>)}</tr></thead>
+          <div style={{ overflowX: 'auto', margin: '0 1.7rem 1.7rem 1.7rem' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  <th style={thStyle}></th> {/* Tenant ID link */}
+                  <th style={thStyle}>Tenant</th>
+                  <th style={thStyle}>Unit</th>
+                  <th style={thStyle}>Rent</th>
+                  <th style={thStyle}>Lease Ends</th>
+                  <th style={thStyle}>Balance</th>
+                  <th style={thStyle}>Reliability</th>
+                  <th style={thStyle}>Contact</th>
+                </tr>
+              </thead>
               <tbody>
-                {filtered.length === 0 && <tr><td colSpan={7} style={{ ...S.td, textAlign: 'center', padding: '3rem 0', color: 'rgba(245,240,232,0.2)' }}>No tenants found.</td></tr>}
-                {filtered.map(t => (
-                  <tr key={t.id} style={{ transition: 'background 0.15s' }}
-                    onMouseEnter={e => e.currentTarget.style.background = C.muted}
-                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                    <td style={S.td}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                        <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(232,160,18,0.08)', color: C.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: F.bebas, fontSize: '0.65rem', flexShrink: 0 }}>
-                          {initials(`${t.first_name} ${t.last_name}`)}
+                {paginatedTenants.map((t, index) => {
+                  const tenantId = `TEN${String((currentPage - 1) * pageSize + index + 1).padStart(6, "0")}`;
+                  return (
+                    <tr
+                      key={t.id}
+                      className="rb-row"
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => navigate(`/caretaker/tenants/${t.id}`)}
+                    >
+                      {/* Tenant ID */}
+                      <td style={tdStyle}>
+                        <span style={{ fontWeight: 600, color: '#2471a3', fontSize: '13px' }}>
+                          {tenantId}
+                        </span>
+                      </td>
+
+                      {/* Tenant name with avatar */}
+                      <td style={tdStyle}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                          <div style={{
+                            width: 32, height: 32, borderRadius: '50%',
+                            background: 'rgba(44,62,80,0.08)', color: '#2c3e50',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontFamily: FONT, fontSize: '12px', fontWeight: 600,
+                          }}>
+                            {initials(`${t.first_name} ${t.last_name}`)}
+                          </div>
+                          <span style={{ fontWeight: 600, color: '#151515' }}>
+                            {t.first_name} {t.last_name}
+                          </span>
                         </div>
-                        <span style={{ fontWeight: 600, color: C.white, fontSize: '0.78rem' }}>{t.first_name} {t.last_name}</span>
-                      </div>
-                    </td>
-                    <td style={{ ...S.td, color: 'rgba(245,240,232,0.4)', fontSize: '0.72rem', fontFamily: F.mono }}>Unit {t.unit_number || "—"}</td>
-                    <td style={{ ...S.td, fontWeight: 600, color: C.white, fontSize: '0.74rem' }}>{format(t.rent_amount)}<span style={{ fontSize: '0.6rem', color: 'rgba(245,240,232,0.25)', fontFamily: F.mono, marginLeft: '0.2rem' }}>/{t.payment_frequency === "monthly" ? "mo" : "wk"}</span></td>
-                    <td style={{ ...S.td, color: 'rgba(245,240,232,0.35)', fontSize: '0.7rem', fontFamily: F.mono }}>{formatDate(t.lease_end_date)}</td>
-                    <td style={{ ...S.td, fontWeight: 600, color: t.outstanding_balance > 0 ? C.redLight : C.greenLight, fontSize: '0.74rem' }}>{t.outstanding_balance > 0 ? format(t.outstanding_balance) : "Clear"}</td>
-                    <td style={S.td}><ScoreBadge score={t.reliability_score} /></td>
-                    <td style={S.td}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                        <span style={{ fontSize: '0.68rem', color: 'rgba(245,240,232,0.4)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Icon name="mail" size={10} /> {t.email || "—"}</span>
-                        <span style={{ fontSize: '0.68rem', color: 'rgba(245,240,232,0.4)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Icon name="phone" size={10} /> {t.phone || "—"}</span>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+
+                      {/* Unit */}
+                      <td style={tdStyle}>
+                        <div style={{ fontWeight: 500 }}>
+                          Unit {t.unit_number || "—"}
+                        </div>
+                      </td>
+
+                      {/* Rent */}
+                      <td style={tdStyle}>
+                        <div style={{ fontWeight: 500 }}>
+                          {formatAmount(t.rent_amount)}
+                          <span style={{ fontSize: '11px', color: '#333', marginLeft: '0.2rem' }}>
+                            /{t.payment_frequency === "monthly" ? "mo" : "wk"}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Lease ends */}
+                      <td style={tdStyle}>
+                        <div style={{ fontSize: '11px', color: '#333' }}>
+                          {formatDate(t.lease_end_date)}
+                        </div>
+                      </td>
+
+                      {/* Balance */}
+                      <td style={tdStyle}>
+                        <div style={{ fontWeight: 600, color: t.outstanding_balance > 0 ? '#9e3a3a' : '#2b7a4b' }}>
+                          {t.outstanding_balance > 0 ? formatAmount(t.outstanding_balance) : "Clear"}
+                        </div>
+                      </td>
+
+                      {/* Reliability */}
+                      <td style={tdStyle}>
+                        <ReliabilityBadge score={t.reliability_score} />
+                      </td>
+
+                      {/* Contact */}
+                      <td style={tdStyle}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                          <span style={{ fontSize: '11px', color: '#333', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                            <FiSearch size={10} style={{ color: '#555' }} /> {t.email || "—"}
+                          </span>
+                          <span style={{ fontSize: '11px', color: '#333', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                            <FiSearch size={10} style={{ color: '#555' }} /> {t.phone || "—"}
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
-        <div style={S.footer}><span>Showing <span style={{ color: C.white, fontWeight: 500 }}>{filtered.length}</span> of <span style={{ color: C.white, fontWeight: 500 }}>{tenants.length}</span> tenants</span></div>
+
+        {/* Footer with pagination */}
+        {!loading && !error && paginatedTenants.length > 0 && (
+          <div style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            padding: '0 1.7rem 1.7rem', marginTop: '-1.5rem', fontSize: '13px', color: '#333',
+          }}>
+            <span>
+              Showing {startIndex + 1}-{Math.min(startIndex + pageSize, filtered.length)} of {filtered.length} tenants
+            </span>
+            {totalPages > 1 && (
+              <div style={{ display: 'flex', gap: '0.3rem' }}>
+                <button
+                  disabled={currentPage <= 1}
+                  onClick={() => setPage(prev => Math.max(1, prev - 1))}
+                  style={{ padding: '0.2rem 0.5rem', border: '1px solid #d0d1d3', background: '#fdfdfd', color: '#000', cursor: 'pointer', fontSize: '13px', borderRadius: '2px' }}
+                >
+                  ‹
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+                  <button
+                    key={p}
+                    onClick={() => setPage(p)}
+                    style={{
+                      padding: '0.2rem 0.5rem',
+                      border: p === currentPage ? '1px solid #2c3e50' : '1px solid #d0d1d3',
+                      background: p === currentPage ? '#2c3e50' : '#fdfdfd',
+                      color: p === currentPage ? '#ffffff' : '#000',
+                      cursor: 'pointer',
+                      fontSize: '13px',
+                      fontWeight: p === currentPage ? 600 : 400,
+                      borderRadius: '2px',
+                    }}
+                  >
+                    {p}
+                  </button>
+                ))}
+                <button
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setPage(prev => Math.min(totalPages, prev + 1))}
+                  style={{ padding: '0.2rem 0.5rem', border: '1px solid #d0d1d3', background: '#fdfdfd', color: '#000', cursor: 'pointer', fontSize: '13px', borderRadius: '2px' }}
+                >
+                  ›
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -5,9 +5,21 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import useDocumentTitle from "../../../hooks/useDocumentTitle";
 import { Icon } from "../../../components/Icon";
-import { c as C, f as F } from "../../../styles/theme";
 
 const API = "http://localhost:4000";
+
+const FONT = '"Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif';
+
+const COLORS = {
+  text: "#000000",       
+  textMuted: "#333333",  
+  link: "#2471a3",
+  border: "#dfe3e8",
+  green: "#2b7a4b",
+  gold: "#8b6e1a",
+  red: "#9e3a3a",
+  blue: "#2c6b9b",
+};
 
 function formatAmount(amount) {
   if (amount === null || amount === undefined) return "R 0.00";
@@ -54,11 +66,42 @@ function formatPaymentMethod(method) {
   return methods[method] || method.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
 }
 
-function Row({ label, value, mono = false, highlight = false, color }) {
+// InfoRow component similar to other pages
+function InfoRow({ label, children, mono = false, highlight = false, color }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 0', borderBottom: `1px solid ${C.border}20` }}>
-      <span style={{ fontSize: '0.8rem', color: 'rgba(245,240,232,0.4)', fontFamily: F.dm }}>{label}</span>
-      <span style={{ fontSize: highlight ? '0.95rem' : '0.8rem', fontWeight: highlight ? 700 : 500, color: color || (highlight ? C.gold : C.white), fontFamily: mono ? F.mono : F.dm, textAlign: 'right' }}>{value}</span>
+    <div style={{
+      display: 'flex',
+      overflow: 'hidden',
+      border: '1px solid #e2e3e4',
+      marginBottom: '0.4rem',
+      fontSize: '14px',
+      fontWeight: 400,
+    }}>
+      <div style={{
+        width: '150px',
+        flexShrink: 0,
+        padding: '0.4rem 0.6rem',
+        color: '#000',
+        fontWeight: 500,
+        background: '#fdfdfd',
+        borderRight: '1px solid #e9ecef',
+        display: 'flex',
+        alignItems: 'center',
+      }}>
+        {label}
+      </div>
+      <div style={{
+        padding: '0.4rem 0.6rem',
+        color: color || '#000',
+        background: '#f5f5f5',
+        flex: 1,
+        display: 'flex',
+        alignItems: 'center',
+        fontWeight: highlight ? 600 : 400,
+        fontFamily: mono ? 'monospace' : FONT,
+      }}>
+        {children}
+      </div>
     </div>
   );
 }
@@ -80,7 +123,7 @@ export default function PaymentReceipt() {
     try {
       const token = localStorage.getItem("token");
       const { data } = await axios.get(`${API}/landlord/payments/${paymentId}`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
       setPayment(data.payment);
     } catch (err) {
@@ -92,10 +135,21 @@ export default function PaymentReceipt() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', background: C.black, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ textAlign: 'center' }}>
-          <span style={{ width: 28, height: 28, border: '2px solid rgba(245,240,232,0.1)', borderTopColor: C.gold, borderRadius: '50%', animation: 'spin 0.6s linear infinite', display: 'inline-block', marginBottom: '0.8rem' }} />
-          <p style={{ fontSize: '0.85rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono }}>Loading receipt...</p>
+      <div style={{ minHeight: "100vh", background: "#f4f5f7", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FONT }}>
+        <div style={{ textAlign: "center" }}>
+          <span
+            style={{
+              width: 28,
+              height: 28,
+              border: "2px solid rgba(44,62,80,0.1)",
+              borderTopColor: "#2c3e50",
+              borderRadius: "50%",
+              animation: "spin 0.6s linear infinite",
+              display: "inline-block",
+              marginBottom: "0.8rem",
+            }}
+          />
+          <p style={{ fontSize: "14px", color: "#333" }}>Loading receipt...</p>
         </div>
       </div>
     );
@@ -103,11 +157,23 @@ export default function PaymentReceipt() {
 
   if (!payment) {
     return (
-      <div style={{ minHeight: '100vh', background: C.black, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'center' }}>
-          <Icon name="file-text" size={40} color="rgba(245,240,232,0.12)" />
-          <p style={{ fontSize: '0.9rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.dm }}>No receipt data found</p>
-          <button onClick={() => navigate("/landlord/payments")} style={{ fontSize: '0.78rem', color: C.gold, background: 'none', border: 'none', cursor: 'pointer', fontFamily: F.mono, transition: 'color 0.15s' }} onMouseEnter={e => e.currentTarget.style.color = C.white} onMouseLeave={e => e.currentTarget.style.color = C.gold}>
+      <div style={{ minHeight: "100vh", background: "#f4f5f7", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FONT }}>
+        <div style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: "1rem", alignItems: "center" }}>
+          <Icon name="file-text" size={40} color="#ccc" />
+          <p style={{ fontSize: "14px", color: "#333" }}>No receipt data found</p>
+          <button
+            onClick={() => navigate("/landlord/payments")}
+            style={{
+              fontSize: "14px",
+              color: COLORS.link,
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              fontFamily: FONT,
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.textDecoration = "underline")}
+            onMouseLeave={(e) => (e.currentTarget.style.textDecoration = "none")}
+          >
             ← Back to Payments
           </button>
         </div>
@@ -123,7 +189,7 @@ export default function PaymentReceipt() {
   const allocatedRent = Number(payment.allocated_rent || 0);
   const allocatedUtilities = Number(payment.allocated_utilities || 0);
   const allocatedLateFees = Number(payment.allocated_late_fees || 0);
-  const hasAllocation = (allocatedRent + allocatedUtilities + allocatedLateFees) > 0;
+  const hasAllocation = allocatedRent + allocatedUtilities + allocatedLateFees > 0;
 
   const invoiceAmountDue = Number(payment.amount_due || 0);
   const invoiceRentAmount = Number(payment.rent_amount || 0);
@@ -146,7 +212,7 @@ export default function PaymentReceipt() {
   const hasProof = !!payment.proof_of_payment_url;
   const isPartial = payment.invoice_status === "partial" || invoiceRemaining > 0;
   const statusLabel = payment.status === "paid" ? (isPartial ? "Partial Payment" : "Paid") : payment.status;
-  const statusColor = isPartial ? C.gold : C.greenLight;
+  const statusColor = isPartial ? COLORS.gold : COLORS.green;
   const rcpNo = payment.receipt_no || payment.receipt_number || `RCP-${String(payment.id).slice(0, 8)}`;
   const issuedOn = new Date().toLocaleDateString("en-ZA", { day: "2-digit", month: "long", year: "numeric" });
 
@@ -155,7 +221,7 @@ export default function PaymentReceipt() {
   }
 
   return (
-    <div style={{ maxWidth: 1280, padding: '1.5rem 1rem 3rem', margin: '-1rem -1.8rem' }}>
+    <div style={{ maxWidth: 1280, padding: "1.5rem 1rem 3rem", margin: "-1rem -1.8rem", fontFamily: FONT, color: COLORS.text }}>
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         @media print {
@@ -165,108 +231,265 @@ export default function PaymentReceipt() {
         }
       `}</style>
 
-      <div className="no-print" style={{ marginBottom: '1.2rem' }}>
-        <button onClick={() => navigate("/landlord/payments")} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono, background: 'none', border: 'none', cursor: 'pointer', transition: 'color 0.15s' }} onMouseEnter={e => e.currentTarget.style.color = C.white} onMouseLeave={e => e.currentTarget.style.color = 'rgba(245,240,232,0.3)'}>
+      <div className="no-print" style={{ marginBottom: "1.2rem" }}>
+        <button
+          onClick={() => navigate("/landlord/payments")}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "0.4rem",
+            fontSize: "13px",
+            color: "#333",
+            fontFamily: FONT,
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "#000")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "#333")}
+        >
           <Icon name="chevronLeft" size={14} /> Back to Payments
         </button>
       </div>
 
-      <div id="receipt-panel" className="receipt-panel" style={{ width: '100%', background: C.muted2, borderRadius: '8px', border: `1px solid ${C.border}`, overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }}>
-
-        <div style={{ padding: '2rem 2.5rem', borderBottom: `1px solid ${C.border}`, display: 'grid', gridTemplateColumns: '1fr auto', gap: '2rem', alignItems: 'start' }}>
+      <div
+        id="receipt-panel"
+        className="receipt-panel"
+        style={{
+          width: "100%",
+          background: "#fdfdfd",
+          borderRadius: "3px",
+          border: "1px solid #e9ecef",
+          overflow: "hidden",
+          boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+        }}
+      >
+        {/* Receipt header */}
+        <div
+          style={{
+            padding: "1.5rem 2rem",
+            borderBottom: "1px solid #e9ecef",
+            display: "grid",
+            gridTemplateColumns: "1fr auto",
+            gap: "2rem",
+            alignItems: "start",
+          }}
+        >
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.8rem' }}>
-              <div style={{ width: 36, height: 36, borderRadius: '8px', background: 'rgba(232,160,18,0.1)', border: '1px solid rgba(232,160,18,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Icon name="home" size={18} color={C.gold} />
+            <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "0.8rem" }}>
+              <div
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: "6px",
+                  background: "#eaf2f8",
+                  border: "1px solid #b0cfe0",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Icon name="home" size={18} color={COLORS.blue} />
               </div>
               <div>
-                <span style={{ fontWeight: 600, color: C.gold, fontSize: '0.8rem', fontFamily: F.bebas, letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block' }}>Chihwa Rentals</span>
-                <span style={{ fontSize: '0.65rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono }}>{propertyName}</span>
+                <span
+                  style={{
+                    fontWeight: 600,
+                    color: COLORS.text,
+                    fontSize: "14px",
+                    letterSpacing: "0.04em",
+                    textTransform: "uppercase",
+                    display: "block",
+                  }}
+                >
+                  Chihwa Rentals
+                </span>
+                <span style={{ fontSize: "13px", color: "#333" }}>{propertyName}</span>
               </div>
             </div>
-            <h2 style={{ fontSize: '1.6rem', fontWeight: 700, color: C.white, fontFamily: F.bebas, letterSpacing: '0.04em', marginBottom: '0.2rem' }}>Payment Receipt</h2>
-            <p style={{ fontSize: '0.72rem', color: 'rgba(245,240,232,0.35)', fontFamily: F.mono }}>Official record of payment</p>
+            <h2 style={{ fontSize: "1.4rem", fontWeight: 500, color: COLORS.text, margin: 0 }}>Payment Receipt</h2>
+            <p style={{ fontSize: "13px", color: "#333", margin: "0.2rem 0 0" }}>Official record of payment</p>
           </div>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.62rem', fontWeight: 700, padding: '0.25rem 0.65rem', borderRadius: '3px', fontFamily: F.mono, letterSpacing: '0.04em', textTransform: 'uppercase', color: statusColor, background: `${statusColor}14`, border: `1px solid ${statusColor}25`, marginBottom: '0.6rem' }}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: statusColor }} /> {statusLabel}
+          <div style={{ textAlign: "right" }}>
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.35rem",
+                fontSize: "12px",
+                fontWeight: 500,
+                padding: "0.2rem 0.65rem",
+                borderRadius: "12px",
+                color: statusColor,
+                background: statusColor === COLORS.green ? "#eef5e8" : "#faf6ed",
+                border: `1px solid ${statusColor === COLORS.green ? "#c5d9b8" : "#e5dbb8"}`,
+                marginBottom: "0.6rem",
+              }}
+            >
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: statusColor }} />
+              {statusLabel}
             </div>
-            <p style={{ fontSize: '0.65rem', color: 'rgba(245,240,232,0.25)', fontFamily: F.mono }}>{rcpNo}</p>
-          </div>
-        </div>
-
-        <div style={{ padding: '2rem 2.5rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
-          <style>{`@media (max-width: 768px) { .receipt-grid { grid-template-columns: 1fr !important; } }`}</style>
-          <div className="receipt-grid" style={{ display: 'contents' }}>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
-              <div>
-                <p style={{ fontSize: '0.62rem', fontWeight: 600, color: 'rgba(245,240,232,0.2)', fontFamily: F.mono, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '0.6rem' }}>Tenant</p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', padding: '1rem 1.2rem', borderRadius: '6px', background: C.black, border: `1px solid ${C.border}` }}>
-                  <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(232,160,18,0.12)', color: C.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: F.bebas, fontSize: '0.85rem', flexShrink: 0 }}>{initials(tenantName)}</div>
-                  <div>
-                    <p style={{ fontWeight: 600, color: C.white, fontSize: '0.9rem', fontFamily: F.dm }}>{tenantName}</p>
-                    <p style={{ fontSize: '0.68rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono }}>{unitInfo} · {propertyName}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <p style={{ fontSize: '0.62rem', fontWeight: 600, color: 'rgba(245,240,232,0.2)', fontFamily: F.mono, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '0.6rem' }}>Payment Details</p>
-                <div style={{ borderRadius: '6px', border: `1px solid ${C.border}`, overflow: 'hidden', padding: '0 1.2rem', background: C.black }}>
-                  <Row label="Invoice" value={invoiceNo} mono />
-                  <Row label="Period" value={periodLabel} />
-                  <Row label="Due Date" value={formatDate(dueDate)} />
-                  <Row label="Paid On" value={formatDate(paidDate)} />
-                  <Row label="Method" value={method} />
-                  <Row label="Reference" value={bankRef} mono />
-                  {hasProof && <Row label="Proof" value="Verified" color={C.greenLight} />}
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
-              <div>
-                <p style={{ fontSize: '0.62rem', fontWeight: 600, color: 'rgba(245,240,232,0.2)', fontFamily: F.mono, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '0.6rem' }}>Amount Breakdown</p>
-                <div style={{ borderRadius: '6px', border: `1px solid ${C.border}`, overflow: 'hidden', padding: '0 1.2rem', background: C.black }}>
-                  <Row label="Rent" value={formatAmount(showRent)} />
-                  {showUtilities > 0 && <Row label="Utilities" value={formatAmount(showUtilities)} />}
-                  {showLateFees > 0 && <Row label="Late Fees" value={formatAmount(showLateFees)} color={C.redLight} />}
-                  {showInvoiceTotal && <Row label="Invoice Total" value={formatAmount(invoiceAmountDue)} color="rgba(245,240,232,0.3)" />}
-                  {invoiceRemaining > 0 && <Row label="Balance Due" value={formatAmount(invoiceRemaining)} color={C.redLight} />}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.2rem', margin: '0 -1.2rem', background: 'rgba(232,160,18,0.04)', borderTop: `1px solid rgba(232,160,18,0.15)` }}>
-                    <span style={{ fontWeight: 600, color: C.white, fontSize: '0.9rem', fontFamily: F.dm }}>Total Paid</span>
-                    <span style={{ fontSize: '1.3rem', fontWeight: 700, color: C.gold, fontFamily: F.bebas, letterSpacing: '0.03em' }}>{formatAmount(totalPaid)}</span>
-                  </div>
-                </div>
-              </div>
-
-              {isPartial && (
-                <div style={{ padding: '0.8rem 1rem', borderRadius: '4px', background: 'rgba(232,160,18,0.06)', border: '1px solid rgba(232,160,18,0.15)', display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
-                  <Icon name="info" size={15} color={C.gold} style={{ marginTop: 1 }} />
-                  <p style={{ fontSize: '0.7rem', color: 'rgba(232,160,18,0.7)', fontFamily: F.dm, lineHeight: 1.5, flex: 1 }}>Partial payment received. {formatAmount(invoiceRemaining)} still outstanding on invoice {invoiceNo}.</p>
-                </div>
-              )}
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: 'rgba(245,240,232,0.2)', fontFamily: F.mono, paddingTop: '0.5rem', flexWrap: 'wrap', gap: '0.4rem' }}>
-                <span>Approved by Landlord</span>
-                <span>Issued {issuedOn}</span>
-              </div>
-            </div>
+            <p style={{ fontSize: "13px", color: "#333", fontFamily: FONT }}>{rcpNo}</p>
           </div>
         </div>
 
-        <div style={{ borderTop: `1px solid ${C.border}`, padding: '1.2rem 2.5rem' }}>
-          <p style={{ textAlign: 'center', fontSize: '0.65rem', color: 'rgba(245,240,232,0.15)', fontFamily: F.mono, lineHeight: 1.6 }}>
-            Official payment receipt@Chihwa Rentals 
+        {/* Receipt body */}
+        <div style={{ padding: "1.5rem 2rem", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2rem" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "1.2rem" }}>
+            {/* Tenant section */}
+            <div>
+              <p style={{ fontSize: "12px", fontWeight: 500, color: "#000", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "0.5rem" }}>Tenant</p>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.8rem",
+                  padding: "1rem 1.2rem",
+                  borderRadius: "2px",
+                  background: "#f9fafb",
+                  border: "1px solid #e9ecef",
+                }}
+              >
+                <div
+                  style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: "50%",
+                    background: "#eaf2f8",
+                    color: COLORS.blue,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "16px",
+                    fontWeight: 600,
+                    flexShrink: 0,
+                  }}
+                >
+                  {initials(tenantName)}
+                </div>
+                <div>
+                  <p style={{ fontWeight: 500, color: COLORS.text, fontSize: "14px", margin: 0 }}>{tenantName}</p>
+                  <p style={{ fontSize: "13px", color: "#333" }}>{unitInfo} · {propertyName}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Payment details */}
+            <div>
+              <p style={{ fontSize: "12px", fontWeight: 500, color: "#000", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "0.5rem" }}>Payment Details</p>
+              <div>
+                <InfoRow label="Invoice">{invoiceNo}</InfoRow>
+                <InfoRow label="Period">{periodLabel}</InfoRow>
+                <InfoRow label="Due Date">{formatDate(dueDate)}</InfoRow>
+                <InfoRow label="Paid On">{formatDate(paidDate)}</InfoRow>
+                <InfoRow label="Method">{method}</InfoRow>
+                <InfoRow label="Reference" mono>{bankRef}</InfoRow>
+                {hasProof && <InfoRow label="Proof" color={COLORS.green}>Verified</InfoRow>}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "1.2rem" }}>
+            {/* Amount breakdown */}
+            <div>
+              <p style={{ fontSize: "12px", fontWeight: 500, color: "#000", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "0.5rem" }}>Amount Breakdown</p>
+              <div>
+                <InfoRow label="Rent">{formatAmount(showRent)}</InfoRow>
+                {showUtilities > 0 && <InfoRow label="Utilities">{formatAmount(showUtilities)}</InfoRow>}
+                {showLateFees > 0 && <InfoRow label="Late Fees" color={COLORS.red}>{formatAmount(showLateFees)}</InfoRow>}
+                {showInvoiceTotal && <InfoRow label="Invoice Total">{formatAmount(invoiceAmountDue)}</InfoRow>}
+                {invoiceRemaining > 0 && <InfoRow label="Balance Due" color={COLORS.red}>{formatAmount(invoiceRemaining)}</InfoRow>}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "1rem 0",
+                    marginTop: "0.5rem",
+                    borderTop: "2px solid #e9ecef",
+                  }}
+                >
+                  <span style={{ fontWeight: 500, color: COLORS.text, fontSize: "14px" }}>Total Paid</span>
+                  <span style={{ fontSize: "18px", fontWeight: 600, color: COLORS.text }}>{formatAmount(totalPaid)}</span>
+                </div>
+              </div>
+            </div>
+
+            {isPartial && (
+              <div
+                style={{
+                  padding: "0.8rem 1rem",
+                  borderRadius: "2px",
+                  background: "#faf6ed",
+                  border: "1px solid #e5dbb8",
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: "0.5rem",
+                }}
+              >
+                <Icon name="info" size={15} color={COLORS.gold} style={{ marginTop: 1 }} />
+                <p style={{ fontSize: "13px", color: COLORS.gold, lineHeight: 1.5, margin: 0 }}>
+                  Partial payment received. {formatAmount(invoiceRemaining)} still outstanding on invoice {invoiceNo}.
+                </p>
+              </div>
+            )}
+
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", color: "#333", paddingTop: "0.5rem", flexWrap: "wrap", gap: "0.4rem" }}>
+              <span>Approved by Landlord</span>
+              <span>Issued {issuedOn}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{ borderTop: "1px solid #e9ecef", padding: "1rem 2rem" }}>
+          <p style={{ textAlign: "center", fontSize: "13px", color: "#333", lineHeight: 1.6, margin: 0 }}>
+            Official payment receipt · Chihwa Rentals
           </p>
         </div>
 
-        <div className="no-print" style={{ padding: '0 2.5rem 1.5rem', display: 'flex', gap: '0.8rem' }}>
-          <button onClick={() => navigate("/landlord/payments")} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', padding: '0.7rem 1rem', borderRadius: '3px', fontSize: '0.76rem', fontWeight: 500, fontFamily: F.dm, letterSpacing: '0.04em', border: `1px solid ${C.border}`, background: 'transparent', color: 'rgba(245,240,232,0.5)', cursor: 'pointer', transition: 'all 0.15s' }} onMouseEnter={e => { e.currentTarget.style.background = C.muted; e.currentTarget.style.color = C.white; }} onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(245,240,232,0.5)'; }}>
+        {/* Action buttons */}
+        <div className="no-print" style={{ padding: "0 2rem 1.5rem", display: "flex", gap: "0.8rem" }}>
+          <button
+            onClick={() => navigate("/landlord/payments")}
+            style={{
+              flex: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "0.4rem",
+              padding: "0.5rem 1rem",
+              borderRadius: "2px",
+              fontSize: "14px",
+              fontWeight: 400,
+              fontFamily: FONT,
+              border: "1px solid #ccc",
+              background: "transparent",
+              color: "#333",
+              cursor: "pointer",
+            }}
+          >
             <Icon name="chevronLeft" size={14} /> Back to Payments
           </button>
-          <button onClick={handleDownload} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', padding: '0.7rem 1rem', borderRadius: '3px', fontSize: '0.76rem', fontWeight: 600, fontFamily: F.dm, letterSpacing: '0.04em', border: 'none', cursor: 'pointer', background: C.gold, color: C.black, transition: 'opacity 0.15s' }} onMouseEnter={e => e.currentTarget.style.opacity = '0.85'} onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
+          <button
+            onClick={handleDownload}
+            style={{
+              flex: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "0.4rem",
+              padding: "0.5rem 1rem",
+              borderRadius: "2px",
+              fontSize: "14px",
+              fontWeight: 500,
+              fontFamily: FONT,
+              border: "none",
+              cursor: "pointer",
+              background: "#2c3e50",
+              color: "#ffffff",
+            }}
+          >
             <Icon name="download" size={14} /> Download Receipt
           </button>
         </div>

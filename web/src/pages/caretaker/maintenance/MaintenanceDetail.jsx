@@ -1,49 +1,72 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, Link } from "react-router-dom";
 import axios from "axios";
 import useDocumentTitle from "../../../hooks/useDocumentTitle";
 import { useToast } from "../../../contexts/ToastContext";
 import { Icon } from "../../../components/Icon";
-import { c as C, f as F } from "../../../styles/theme";
+import { FiChevronRight } from "react-icons/fi";
 
 const API = "http://localhost:4000";
+const FONT = '"Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif';
+
+// ---- Local light theme ----
+const C = {
+  background: "#f4f5f7",
+  card: "#ffffff",
+  border: "#e9ecef",
+  primary: "#2c3e50",
+  blue: "#3498db",
+  green: "#2b7a4b",
+  red: "#9e3a3a",
+  purple: "#6f42c1",
+  gold: "#d99e0b",
+};
+
+const F = {
+  bebas: '"Bebas Neue", sans-serif',
+  dm: '"DM Sans", sans-serif',
+  mono: '"Space Mono", monospace',
+};
+
+const TEXT = "#000";
+const SECONDARY_TEXT = "#333";
 
 const STATUS_CONFIG = {
-  "needs_repair":     { label: "Needs Repair",    color: C.redLight,   bg: 'rgba(224,90,74,0.06)',  border: '1px solid rgba(224,90,74,0.12)',  dot: C.redLight,   icon: 'alertCircle' },
-  "assigned":         { label: "Assigned",         color: C.blue,       bg: 'rgba(58,143,212,0.06)',  border: '1px solid rgba(58,143,212,0.12)',  dot: C.blue,       icon: 'user-check' },
-  "in_progress":      { label: "In Progress",      color: C.gold,       bg: 'rgba(232,160,18,0.04)',  border: '1px solid rgba(232,160,18,0.1)',   dot: C.gold,       icon: 'clock' },
-  "completed":        { label: "Completed",        color: C.greenLight, bg: 'rgba(26,122,74,0.04)',   border: '1px solid rgba(76,186,122,0.1)',   dot: C.greenLight, icon: 'check-circle' },
-  "closed":           { label: "Closed",           color: 'rgba(245,240,232,0.4)', bg: 'rgba(245,240,232,0.03)', border: '1px solid rgba(245,240,232,0.08)', dot: 'rgba(245,240,232,0.3)', icon: 'lock' },
-  "cancelled":        { label: "Cancelled",        color: 'rgba(245,240,232,0.4)', bg: 'rgba(245,240,232,0.03)', border: '1px solid rgba(245,240,232,0.08)', dot: 'rgba(245,240,232,0.3)', icon: 'x-circle' },
-  "pending_approval": { label: "Pending Approval", color: C.purple,     bg: 'rgba(139,92,246,0.06)',  border: '1px solid rgba(139,92,246,0.12)',  dot: C.purple,     icon: 'clock' },
+  "needs_repair":     { label: "Needs Repair",    color: C.red,       bg: 'rgba(158,58,58,0.06)',  border: '1px solid rgba(158,58,58,0.12)',  dot: C.red,       icon: 'alertCircle' },
+  "assigned":         { label: "Assigned",         color: C.blue,      bg: 'rgba(52,152,219,0.06)', border: '1px solid rgba(52,152,219,0.12)', dot: C.blue,      icon: 'user-check' },
+  "in_progress":      { label: "In Progress",      color: C.gold,      bg: 'rgba(217,158,11,0.06)', border: '1px solid rgba(217,158,11,0.12)', dot: C.gold,      icon: 'clock' },
+  "completed":        { label: "Completed",        color: C.green,     bg: 'rgba(43,122,75,0.06)',  border: '1px solid rgba(43,122,75,0.12)',  dot: C.green,     icon: 'check-circle' },
+  "closed":           { label: "Closed",           color: SECONDARY_TEXT, bg: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.1)', dot: SECONDARY_TEXT, icon: 'lock' },
+  "cancelled":        { label: "Cancelled",        color: SECONDARY_TEXT, bg: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.1)', dot: SECONDARY_TEXT, icon: 'x-circle' },
+  "pending_approval": { label: "Pending Approval", color: C.purple,    bg: 'rgba(111,66,193,0.06)', border: '1px solid rgba(111,66,193,0.12)', dot: C.purple,    icon: 'clock' },
 };
 
 const PRIORITY_CONFIG = {
-  low:      { color: C.blue,       bg: 'rgba(58,143,212,0.1)',  label: 'Low' },
-  medium:   { color: C.gold,       bg: 'rgba(232,160,18,0.1)',  label: 'Medium' },
-  high:     { color: '#f97316',    bg: 'rgba(249,115,22,0.1)',  label: 'High' },
-  urgent:   { color: C.redLight,   bg: 'rgba(224,90,74,0.12)',  label: 'Urgent' },
-  emergency:{ color: '#ffffff',    bg: 'rgba(224,90,74,0.2)',   label: 'Emergency' },
+  low:      { color: C.blue,       bg: 'rgba(52,152,219,0.1)',  label: 'Low' },
+  medium:   { color: C.gold,       bg: 'rgba(217,158,11,0.1)',  label: 'Medium' },
+  high:     { color: C.primary,    bg: 'rgba(44,62,80,0.1)',    label: 'High' },
+  urgent:   { color: C.red,        bg: 'rgba(158,58,58,0.12)',  label: 'Urgent' },
+  emergency:{ color: "#ffffff",    bg: 'rgba(158,58,58,0.2)',   label: 'Emergency' },
 };
 
 const CATEGORY_CONFIG = {
   plumbing:     { label: "Plumbing",     icon: 'droplet',  color: C.blue },
   electrical:   { label: "Electrical",   icon: 'zap',      color: C.gold },
   structural:   { label: "Structural",   icon: 'home',     color: C.purple },
-  appliance:    { label: "Appliance",    icon: 'tv',       color: '#48ecb5' },
-  hvac:         { label: "HVAC",         icon: 'wind',     color: '#062fd4' },
-  painting:     { label: "Painting",     icon: 'pen-tool', color: '#84CC16' },
-  cleaning:     { label: "Cleaning",     icon: 'sparkles', color: C.greenLight },
-  pest_control: { label: "Pest Control", icon: 'shield',   color: C.redLight },
-  other:        { label: "Other",        icon: 'more-horizontal', color: 'rgba(245,240,232,0.4)' },
+  appliance:    { label: "Appliance",    icon: 'tv',       color: C.green },
+  hvac:         { label: "HVAC",         icon: 'wind',     color: C.blue },
+  painting:     { label: "Painting",     icon: 'pen-tool', color: C.primary },
+  cleaning:     { label: "Cleaning",     icon: 'sparkles', color: C.green },
+  pest_control: { label: "Pest Control", icon: 'shield',   color: C.red },
+  other:        { label: "Other",        icon: 'more-horizontal', color: SECONDARY_TEXT },
 };
 
 const ALL_STATUSES = Object.keys(STATUS_CONFIG);
 const ACTION_COLORS = {
-  assign:    { bg: 'rgba(58,143,212,0.12)', color: C.blue,    hoverBg: 'rgba(58,143,212,0.2)' },
-  status:    { bg: 'rgba(232,160,18,0.12)', color: C.gold,    hoverBg: 'rgba(232,160,18,0.2)' },
-  escalate:  { bg: 'rgba(139,92,246,0.12)', color: C.purple,  hoverBg: 'rgba(139,92,246,0.2)' },
-  complete:  { bg: 'rgba(26,122,74,0.12)',  color: C.greenLight, hoverBg: 'rgba(26,122,74,0.2)' },
+  assign:    { bg: 'rgba(52,152,219,0.12)', color: C.blue,    hoverBg: 'rgba(52,152,219,0.2)' },
+  status:    { bg: 'rgba(217,158,11,0.12)', color: C.gold,    hoverBg: 'rgba(217,158,11,0.2)' },
+  escalate:  { bg: 'rgba(111,66,193,0.12)', color: C.purple,  hoverBg: 'rgba(111,66,193,0.2)' },
+  complete:  { bg: 'rgba(43,122,75,0.12)',  color: C.green,   hoverBg: 'rgba(43,122,75,0.2)' },
 };
 
 function getFullUrl(url) {
@@ -75,9 +98,9 @@ function PriorityBadge({ priority }) {
   );
 }
 
-const cardStyle = { background: C.muted2, border: `1px solid ${C.border}`, borderRadius: '6px', padding: '1.5rem' };
-const inputStyle = { width: '100%', fontSize: '0.8rem', padding: '0.55rem 0.8rem', borderRadius: '3px', background: C.black, border: `1px solid ${C.border}`, color: C.white, fontFamily: F.dm, outline: 'none', resize: 'none' };
-const modalOverlay = { position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' };
+const cardStyle = { background: C.card, border: `1px solid ${C.border}`, borderRadius: '6px', padding: '1.5rem' };
+const inputStyle = { width: '100%', fontSize: '0.8rem', padding: '0.55rem 0.8rem', borderRadius: '3px', background: C.background, border: `1px solid ${C.border}`, color: TEXT, fontFamily: F.dm, outline: 'none', resize: 'none' };
+const modalOverlay = { position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)' };
 
 const actionBtnStyle = (colorKey) => ({
   width: '100%', padding: '0.7rem 1rem', borderRadius: '3px', fontSize: '0.76rem', fontWeight: 600,
@@ -89,15 +112,15 @@ const actionBtnStyle = (colorKey) => ({
 function ModalShell({ title, sub, icon, iconBg, onClose, children, footer }) {
   return (
     <div style={modalOverlay}>
-      <div style={{ width: '100%', maxWidth: 460, background: C.muted2, border: `1px solid ${C.border}`, borderRadius: '6px', boxShadow: '0 20px 60px rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
+      <div style={{ width: '100%', maxWidth: 460, background: C.card, border: `1px solid ${C.border}`, borderRadius: '6px', boxShadow: '0 20px 60px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.5rem', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem' }}>
             <div style={{ width: 34, height: 34, borderRadius: '6px', ...iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <Icon name={icon} size={16} />
             </div>
-            <div><h3 style={{ fontSize: '0.9rem', fontWeight: 600, color: C.white, fontFamily: F.bebas, letterSpacing: '0.04em' }}>{title}</h3>{sub && <p style={{ fontSize: '0.62rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono }}>{sub}</p>}</div>
+            <div><h3 style={{ fontSize: '0.9rem', fontWeight: 600, color: TEXT, fontFamily: F.bebas, letterSpacing: '0.04em' }}>{title}</h3>{sub && <p style={{ fontSize: '0.62rem', color: SECONDARY_TEXT, fontFamily: F.mono }}>{sub}</p>}</div>
           </div>
-          <button onClick={onClose} style={{ padding: '0.2rem', borderRadius: '3px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.3)' }} onMouseEnter={e => e.currentTarget.style.color = C.white} onMouseLeave={e => e.currentTarget.style.color = 'rgba(245,240,232,0.3)'}><Icon name="x" size={17} /></button>
+          <button onClick={onClose} style={{ padding: '0.2rem', borderRadius: '3px', background: 'transparent', border: 'none', cursor: 'pointer', color: SECONDARY_TEXT }} onMouseEnter={e => e.currentTarget.style.color = TEXT} onMouseLeave={e => e.currentTarget.style.color = SECONDARY_TEXT}><Icon name="x" size={17} /></button>
         </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: '1.2rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>{children}</div>
         {footer && <div style={{ display: 'flex', gap: '0.7rem', padding: '1rem 1.5rem 1.5rem', borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>{footer}</div>}
@@ -121,16 +144,16 @@ function AssignModal({ request, onClose, onSubmit }) {
   }
 
   return (
-    <ModalShell title={request.contractor_name ? "Reassign Contractor" : "Assign Contractor"} sub={`${request.request_number} · ${request.title}`} icon="user" iconBg={{ background: 'rgba(58,143,212,0.1)', border: '1px solid rgba(58,143,212,0.15)', color: C.blue }}
+    <ModalShell title={request.contractor_name ? "Reassign Contractor" : "Assign Contractor"} sub={`${request.request_number} · ${request.title}`} icon="user" iconBg={{ background: 'rgba(52,152,219,0.1)', border: '1px solid rgba(52,152,219,0.15)', color: C.blue }}
       onClose={onClose}
-      footer={<><button onClick={onClose} style={{ flex: 1, padding: '0.55rem', borderRadius: '3px', background: 'transparent', border: `1px solid ${C.border}`, color: 'rgba(245,240,232,0.4)', cursor: 'pointer', fontFamily: F.dm, fontSize: '0.74rem' }}>Cancel</button>
-        <button onClick={handleSubmit} style={{ flex: 1, padding: '0.55rem', borderRadius: '3px', background: 'rgba(58,143,212,0.15)', color: C.blue, border: '1px solid rgba(58,143,212,0.2)', cursor: 'pointer', fontFamily: F.dm, fontWeight: 600, fontSize: '0.74rem' }}>{request.contractor_name ? "Reassign" : "Assign"}</button></>}>
-      {error && <div style={{ padding: '0.5rem 0.7rem', borderRadius: '3px', background: 'rgba(224,90,74,0.06)', border: '1px solid rgba(224,90,74,0.12)', fontSize: '0.7rem', color: C.redLight, display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Icon name="alertCircle" size={12} /> {error}</div>}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}><label style={{ fontSize: '0.62rem', fontWeight: 600, color: 'rgba(245,240,232,0.35)', fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Contractor Name *</label><input value={name} onChange={e => { setName(e.target.value); setError(""); }} style={inputStyle} /></div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}><label style={{ fontSize: '0.62rem', fontWeight: 600, color: 'rgba(245,240,232,0.35)', fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Phone</label><input value={phone} onChange={e => setPhone(e.target.value)} style={inputStyle} /></div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}><label style={{ fontSize: '0.62rem', fontWeight: 600, color: 'rgba(245,240,232,0.35)', fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Scheduled Date</label><input type="date" value={date} onChange={e => setDate(e.target.value)} style={inputStyle} /></div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}><label style={{ fontSize: '0.62rem', fontWeight: 600, color: 'rgba(245,240,232,0.35)', fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Estimated Cost (R)</label><input type="number" value={cost} onChange={e => setCost(e.target.value)} style={inputStyle} /></div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}><label style={{ fontSize: '0.62rem', fontWeight: 600, color: 'rgba(245,240,232,0.35)', fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Notes</label><textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)} style={{ ...inputStyle, minHeight: 50 }} /></div>
+      footer={<><button onClick={onClose} style={{ flex: 1, padding: '0.55rem', borderRadius: '3px', background: 'transparent', border: `1px solid ${C.border}`, color: SECONDARY_TEXT, cursor: 'pointer', fontFamily: F.dm, fontSize: '0.74rem' }}>Cancel</button>
+        <button onClick={handleSubmit} style={{ flex: 1, padding: '0.55rem', borderRadius: '3px', background: 'rgba(52,152,219,0.15)', color: C.blue, border: '1px solid rgba(52,152,219,0.2)', cursor: 'pointer', fontFamily: F.dm, fontWeight: 600, fontSize: '0.74rem' }}>{request.contractor_name ? "Reassign" : "Assign"}</button></>}>
+      {error && <div style={{ padding: '0.5rem 0.7rem', borderRadius: '3px', background: 'rgba(158,58,58,0.06)', border: '1px solid rgba(158,58,58,0.12)', fontSize: '0.7rem', color: C.red, display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Icon name="alertCircle" size={12} /> {error}</div>}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}><label style={{ fontSize: '0.62rem', fontWeight: 600, color: SECONDARY_TEXT, fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Contractor Name *</label><input value={name} onChange={e => { setName(e.target.value); setError(""); }} style={inputStyle} /></div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}><label style={{ fontSize: '0.62rem', fontWeight: 600, color: SECONDARY_TEXT, fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Phone</label><input value={phone} onChange={e => setPhone(e.target.value)} style={inputStyle} /></div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}><label style={{ fontSize: '0.62rem', fontWeight: 600, color: SECONDARY_TEXT, fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Scheduled Date</label><input type="date" value={date} onChange={e => setDate(e.target.value)} style={inputStyle} /></div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}><label style={{ fontSize: '0.62rem', fontWeight: 600, color: SECONDARY_TEXT, fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Estimated Cost (R)</label><input type="number" value={cost} onChange={e => setCost(e.target.value)} style={inputStyle} /></div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}><label style={{ fontSize: '0.62rem', fontWeight: 600, color: SECONDARY_TEXT, fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Notes</label><textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)} style={{ ...inputStyle, minHeight: 50 }} /></div>
     </ModalShell>
   );
 }
@@ -150,12 +173,12 @@ function StatusModal({ request, onClose, onSubmit }) {
   }
 
   return (
-    <ModalShell title="Update Status" sub={request.request_number} icon="clock" iconBg={{ background: 'rgba(232,160,18,0.08)', border: '1px solid rgba(232,160,18,0.12)', color: C.gold }}
+    <ModalShell title="Update Status" sub={request.request_number} icon="clock" iconBg={{ background: 'rgba(217,158,11,0.08)', border: '1px solid rgba(217,158,11,0.12)', color: C.gold }}
       onClose={onClose}
-      footer={<><button onClick={onClose} style={{ flex: 1, padding: '0.55rem', borderRadius: '3px', background: 'transparent', border: `1px solid ${C.border}`, color: 'rgba(245,240,232,0.4)', cursor: 'pointer', fontFamily: F.dm, fontSize: '0.74rem' }}>Cancel</button>
-        <button onClick={handleSubmit} style={{ flex: 1, padding: '0.55rem', borderRadius: '3px', background: 'rgba(232,160,18,0.15)', color: C.gold, border: '1px solid rgba(232,160,18,0.2)', cursor: 'pointer', fontFamily: F.dm, fontWeight: 600, fontSize: '0.74rem' }}>Update Status</button></>}>
-      {error && <div style={{ padding: '0.5rem 0.7rem', borderRadius: '3px', background: 'rgba(224,90,74,0.06)', border: '1px solid rgba(224,90,74,0.12)', fontSize: '0.7rem', color: C.redLight, display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Icon name="alertCircle" size={12} /> {error}</div>}
-      <p style={{ fontSize: '0.62rem', fontWeight: 600, color: 'rgba(245,240,232,0.25)', fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Select New Status</p>
+      footer={<><button onClick={onClose} style={{ flex: 1, padding: '0.55rem', borderRadius: '3px', background: 'transparent', border: `1px solid ${C.border}`, color: SECONDARY_TEXT, cursor: 'pointer', fontFamily: F.dm, fontSize: '0.74rem' }}>Cancel</button>
+        <button onClick={handleSubmit} style={{ flex: 1, padding: '0.55rem', borderRadius: '3px', background: 'rgba(217,158,11,0.15)', color: C.gold, border: '1px solid rgba(217,158,11,0.2)', cursor: 'pointer', fontFamily: F.dm, fontWeight: 600, fontSize: '0.74rem' }}>Update Status</button></>}>
+      {error && <div style={{ padding: '0.5rem 0.7rem', borderRadius: '3px', background: 'rgba(158,58,58,0.06)', border: '1px solid rgba(158,58,58,0.12)', fontSize: '0.7rem', color: C.red, display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Icon name="alertCircle" size={12} /> {error}</div>}
+      <p style={{ fontSize: '0.62rem', fontWeight: 600, color: SECONDARY_TEXT, fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Select New Status</p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
         {availableStatuses.map(s => {
           const cfg = STATUS_CONFIG[s] ?? STATUS_CONFIG["needs_repair"];
@@ -164,22 +187,22 @@ function StatusModal({ request, onClose, onSubmit }) {
             <button key={s} onClick={() => { setNewStatus(s); setError(""); }} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.65rem 0.8rem', borderRadius: '3px', border: `1px solid ${active ? cfg.color : C.border}`, background: active ? cfg.bg : 'transparent', cursor: 'pointer', textAlign: 'left', width: '100%', transition: 'all 0.15s' }}>
               <div style={{ width: 28, height: 28, borderRadius: '4px', background: cfg.bg, border: cfg.border, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name={cfg.icon} size={12} color={cfg.color} /></div>
               <div>
-                <span style={{ fontSize: '0.78rem', fontWeight: 600, color: active ? cfg.color : C.white, fontFamily: F.dm, display: 'block' }}>{cfg.label}</span>
-                <span style={{ fontSize: '0.6rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono }}>Current: {STATUS_CONFIG[request.status]?.label}</span>
+                <span style={{ fontSize: '0.78rem', fontWeight: 600, color: active ? cfg.color : TEXT, fontFamily: F.dm, display: 'block' }}>{cfg.label}</span>
+                <span style={{ fontSize: '0.6rem', color: SECONDARY_TEXT, fontFamily: F.mono }}>Current: {STATUS_CONFIG[request.status]?.label}</span>
               </div>
             </button>
           );
         })}
       </div>
       {newStatus === "completed" && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', padding: '0.7rem', borderRadius: '3px', background: 'rgba(26,122,74,0.04)', border: '1px solid rgba(76,186,122,0.12)' }}>
-          <p style={{ fontSize: '0.65rem', color: C.greenLight, fontFamily: F.dm, marginBottom: '0.5rem' }}>Completing this request will notify the tenant to confirm.</p>
-          <label style={{ fontSize: '0.62rem', fontWeight: 600, color: 'rgba(245,240,232,0.35)', fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '0.2rem' }}>Actual Cost (R)</label>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', padding: '0.7rem', borderRadius: '3px', background: 'rgba(43,122,75,0.04)', border: '1px solid rgba(43,122,75,0.12)' }}>
+          <p style={{ fontSize: '0.65rem', color: C.green, fontFamily: F.dm, marginBottom: '0.5rem' }}>Completing this request will notify the tenant to confirm.</p>
+          <label style={{ fontSize: '0.62rem', fontWeight: 600, color: SECONDARY_TEXT, fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '0.2rem' }}>Actual Cost (R)</label>
           <input type="number" value={actualCost} onChange={e => setActualCost(e.target.value)} style={inputStyle} />
         </div>
       )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <label style={{ fontSize: '0.62rem', fontWeight: 600, color: 'rgba(245,240,232,0.35)', fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Notes</label>
+        <label style={{ fontSize: '0.62rem', fontWeight: 600, color: SECONDARY_TEXT, fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Notes</label>
         <textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)} style={{ ...inputStyle, minHeight: 60 }} />
       </div>
     </ModalShell>
@@ -199,13 +222,13 @@ function EscalateModal({ request, onClose, onSubmit }) {
   }
 
   return (
-    <ModalShell title="Escalate to Landlord" sub="Requires landlord approval" icon="trending-up" iconBg={{ background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.15)', color: C.purple }}
+    <ModalShell title="Escalate to Landlord" sub="Requires landlord approval" icon="trending-up" iconBg={{ background: 'rgba(111,66,193,0.08)', border: '1px solid rgba(111,66,193,0.15)', color: C.purple }}
       onClose={onClose}
-      footer={<><button onClick={onClose} style={{ flex: 1, padding: '0.55rem', borderRadius: '3px', background: 'transparent', border: `1px solid ${C.border}`, color: 'rgba(245,240,232,0.4)', cursor: 'pointer', fontFamily: F.dm, fontSize: '0.74rem' }}>Cancel</button>
-        <button onClick={handleSubmit} style={{ flex: 1, padding: '0.55rem', borderRadius: '3px', background: 'rgba(139,92,246,0.15)', color: C.purple, border: '1px solid rgba(139,92,246,0.2)', cursor: 'pointer', fontFamily: F.dm, fontWeight: 600, fontSize: '0.74rem' }}>Escalate</button></>}>
-      {error && <div style={{ padding: '0.5rem 0.7rem', borderRadius: '3px', background: 'rgba(224,90,74,0.06)', border: '1px solid rgba(224,90,74,0.12)', fontSize: '0.7rem', color: C.redLight, display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Icon name="alertCircle" size={12} /> {error}</div>}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}><label style={{ fontSize: '0.62rem', fontWeight: 600, color: 'rgba(245,240,232,0.35)', fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Estimated Cost (R) *</label><input type="number" value={cost} onChange={e => { setCost(e.target.value); setError(""); }}  style={inputStyle} /></div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}><label style={{ fontSize: '0.62rem', fontWeight: 600, color: 'rgba(245,240,232,0.35)', fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Reason for Escalation *</label><textarea rows={4} value={reason} onChange={e => { setReason(e.target.value); setError(""); }}  style={{ ...inputStyle, minHeight: 70 }} /></div>
+      footer={<><button onClick={onClose} style={{ flex: 1, padding: '0.55rem', borderRadius: '3px', background: 'transparent', border: `1px solid ${C.border}`, color: SECONDARY_TEXT, cursor: 'pointer', fontFamily: F.dm, fontSize: '0.74rem' }}>Cancel</button>
+        <button onClick={handleSubmit} style={{ flex: 1, padding: '0.55rem', borderRadius: '3px', background: 'rgba(111,66,193,0.15)', color: C.purple, border: '1px solid rgba(111,66,193,0.2)', cursor: 'pointer', fontFamily: F.dm, fontWeight: 600, fontSize: '0.74rem' }}>Escalate</button></>}>
+      {error && <div style={{ padding: '0.5rem 0.7rem', borderRadius: '3px', background: 'rgba(158,58,58,0.06)', border: '1px solid rgba(158,58,58,0.12)', fontSize: '0.7rem', color: C.red, display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Icon name="alertCircle" size={12} /> {error}</div>}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}><label style={{ fontSize: '0.62rem', fontWeight: 600, color: SECONDARY_TEXT, fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Estimated Cost (R) *</label><input type="number" value={cost} onChange={e => { setCost(e.target.value); setError(""); }} style={inputStyle} /></div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}><label style={{ fontSize: '0.62rem', fontWeight: 600, color: SECONDARY_TEXT, fontFamily: F.mono, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Reason for Escalation *</label><textarea rows={4} value={reason} onChange={e => { setReason(e.target.value); setError(""); }} style={{ ...inputStyle, minHeight: 70 }} /></div>
     </ModalShell>
   );
 }
@@ -253,8 +276,8 @@ export default function CaretakerMaintenanceDetail() {
   if (loading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', flexDirection: 'column', gap: '1rem' }}>
-        <span style={{ width: 28, height: 28, border: '3px solid rgba(245,240,232,0.06)', borderTopColor: C.gold, borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
-        <span style={{ fontSize: '0.75rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono }}>Loading request...</span>
+        <span style={{ width: 28, height: 28, border: '3px solid rgba(0,0,0,0.1)', borderTopColor: C.primary, borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+        <span style={{ fontSize: '0.75rem', color: SECONDARY_TEXT, fontFamily: F.mono }}>Loading request...</span>
       </div>
     );
   }
@@ -262,11 +285,11 @@ export default function CaretakerMaintenanceDetail() {
   if (error || !request) {
     return (
       <div style={{ textAlign: 'center', padding: '4rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
-        <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(224,90,74,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Icon name="alertCircle" size={22} color={C.redLight} />
+        <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(158,58,58,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Icon name="alertCircle" size={22} color={C.red} />
         </div>
-        <p style={{ color: 'rgba(245,240,232,0.4)', fontFamily: F.dm }}>{error || "Request not found"}</p>
-        <button onClick={() => navigate("/caretaker/maintenance")} style={{ color: C.gold, background: 'none', border: 'none', cursor: 'pointer', fontFamily: F.mono, fontSize: '0.75rem' }}>← Back to Maintenance</button>
+        <p style={{ color: SECONDARY_TEXT, fontFamily: F.dm }}>{error || "Request not found"}</p>
+        <button onClick={() => navigate("/caretaker/maintenance")} style={{ color: C.primary, background: 'none', border: 'none', cursor: 'pointer', fontFamily: F.mono, fontSize: '0.75rem' }}>← Back to Maintenance</button>
       </div>
     );
   }
@@ -285,8 +308,8 @@ export default function CaretakerMaintenanceDetail() {
 
   const S = {
     container: { maxWidth: 1200, padding: '1.5rem 1rem 3rem', margin: '-1rem -1.8rem' },
-    backBtn: { display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.72rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono, background: 'none', border: 'none', cursor: 'pointer', marginBottom: '1.2rem', transition: 'color 0.15s' },
-    sectionTitle: { fontSize: '0.65rem', fontWeight: 600, color: 'rgba(245,240,232,0.2)', fontFamily: F.mono, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '0.7rem' },
+    backBtn: { display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.72rem', color: SECONDARY_TEXT, fontFamily: F.mono, background: 'none', border: 'none', cursor: 'pointer', marginBottom: '1.2rem', transition: 'color 0.15s' },
+    sectionTitle: { fontSize: '0.65rem', fontWeight: 600, color: TEXT, fontFamily: F.mono, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '0.7rem' },
   };
 
   return (
@@ -294,21 +317,21 @@ export default function CaretakerMaintenanceDetail() {
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
       {saving && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: C.muted2, padding: '1rem 1.5rem', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '0.6rem', border: `1px solid ${C.border}` }}>
-            <span style={{ width: 16, height: 16, border: '2px solid rgba(245,240,232,0.06)', borderTopColor: C.gold, borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
-            <span style={{ color: C.white, fontFamily: F.dm, fontSize: '0.8rem' }}>Processing...</span>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: C.card, padding: '1rem 1.5rem', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '0.6rem', border: `1px solid ${C.border}` }}>
+            <span style={{ width: 16, height: 16, border: '2px solid rgba(0,0,0,0.1)', borderTopColor: C.primary, borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+            <span style={{ color: TEXT, fontFamily: F.dm, fontSize: '0.8rem' }}>Processing...</span>
           </div>
         </div>
       )}
 
       {viewerOpen && photos.length > 0 && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(0,0,0,0.96)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setViewerOpen(false)}>
-          <button onClick={() => setViewerOpen(false)} style={{ position: 'absolute', top: '1.2rem', right: '1.2rem', color: 'rgba(255,255,255,0.6)', background: 'rgba(0,0,0,0.3)', border: 'none', borderRadius: '50%', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 10 }}><Icon name="x" size={22} /></button>
-          {viewerIndex > 0 && <button onClick={e => { e.stopPropagation(); setViewerIndex(v => v - 1); }} style={{ position: 'absolute', left: '1rem', color: 'rgba(255,255,255,0.5)', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '50%', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Icon name="chevronLeft" size={22} /></button>}
-          {viewerIndex < photos.length - 1 && <button onClick={e => { e.stopPropagation(); setViewerIndex(v => v + 1); }} style={{ position: 'absolute', right: '1rem', color: 'rgba(255,255,255,0.5)', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '50%', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Icon name="chevronRight" size={22} /></button>}
+        <div style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setViewerOpen(false)}>
+          <button onClick={() => setViewerOpen(false)} style={{ position: 'absolute', top: '1.2rem', right: '1.2rem', color: '#fff', background: 'rgba(0,0,0,0.3)', border: 'none', borderRadius: '50%', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 10 }}><Icon name="x" size={22} /></button>
+          {viewerIndex > 0 && <button onClick={e => { e.stopPropagation(); setViewerIndex(v => v - 1); }} style={{ position: 'absolute', left: '1rem', color: '#fff', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '50%', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Icon name="chevronLeft" size={22} /></button>}
+          {viewerIndex < photos.length - 1 && <button onClick={e => { e.stopPropagation(); setViewerIndex(v => v + 1); }} style={{ position: 'absolute', right: '1rem', color: '#fff', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '50%', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Icon name="chevronRight" size={22} /></button>}
           <img src={getFullUrl(photos[viewerIndex]?.document_url)} alt="" style={{ maxHeight: '85vh', maxWidth: '90%', objectFit: 'contain', borderRadius: '4px' }} onClick={e => e.stopPropagation()} />
-          <div style={{ position: 'absolute', bottom: '1.5rem', color: 'rgba(255,255,255,0.5)', fontSize: '0.8rem', fontFamily: F.mono }}>{viewerIndex + 1} / {photos.length}</div>
+          <div style={{ position: 'absolute', bottom: '1.5rem', color: '#fff', fontSize: '0.8rem', fontFamily: F.mono }}>{viewerIndex + 1} / {photos.length}</div>
         </div>
       )}
 
@@ -316,16 +339,16 @@ export default function CaretakerMaintenanceDetail() {
       {showStatus && <StatusModal request={request} onClose={() => setShowStatus(false)} onSubmit={p => handleAction('/status', p, "Status updated")} />}
       {showEscalate && <EscalateModal request={request} onClose={() => setShowEscalate(false)} onSubmit={p => handleAction('/escalate', p, "Escalated to landlord")} />}
 
-      <button onClick={() => navigate("/caretaker/maintenance")} style={S.backBtn} onMouseEnter={e => e.currentTarget.style.color = C.white} onMouseLeave={e => e.currentTarget.style.color = 'rgba(245,240,232,0.3)'}>
+      <button onClick={() => navigate("/caretaker/maintenance")} style={S.backBtn} onMouseEnter={e => e.currentTarget.style.color = TEXT} onMouseLeave={e => e.currentTarget.style.color = SECONDARY_TEXT}>
         <Icon name="chevronLeft" size={13} /> Back to Maintenance
       </button>
 
       {isPendingApproval && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', padding: '0.9rem 1.2rem', borderRadius: '4px', marginBottom: '1rem', background: 'rgba(139,92,246,0.06)', border: '1px solid rgba(139,92,246,0.15)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', padding: '0.9rem 1.2rem', borderRadius: '4px', marginBottom: '1rem', background: 'rgba(111,66,193,0.06)', border: '1px solid rgba(111,66,193,0.15)' }}>
           <Icon name="clock" size={18} color={C.purple} />
           <div>
             <p style={{ fontSize: '0.75rem', fontWeight: 600, color: C.purple, fontFamily: F.dm }}>Awaiting Landlord Approval</p>
-            <p style={{ fontSize: '0.62rem', color: 'rgba(139,92,246,0.6)', fontFamily: F.mono }}>This request has been escalated. You'll be notified when the landlord responds.</p>
+            <p style={{ fontSize: '0.62rem', color: C.purple, fontFamily: F.mono }}>This request has been escalated. You'll be notified when the landlord responds.</p>
           </div>
         </div>
       )}
@@ -342,14 +365,14 @@ export default function CaretakerMaintenanceDetail() {
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.58rem', fontWeight: 600, padding: '0.15rem 0.5rem', borderRadius: '3px', fontFamily: F.mono, color: catCfg.color, background: `${catCfg.color}10`, border: `1px solid ${catCfg.color}25` }}>
                   <Icon name={catCfg.icon} size={9} /> {catCfg.label}
                 </span>
-                <span style={{ marginLeft: 'auto', fontSize: '0.62rem', color: 'rgba(245,240,232,0.2)', fontFamily: F.mono }}>{request.request_number}</span>
+                <span style={{ marginLeft: 'auto', fontSize: '0.62rem', color: SECONDARY_TEXT, fontFamily: F.mono }}>{request.request_number}</span>
               </div>
-              <h2 style={{ fontSize: '1.05rem', fontWeight: 600, color: C.white, fontFamily: F.dm, marginBottom: '0.5rem' }}>{request.title}</h2>
-              <p style={{ fontSize: '0.82rem', color: 'rgba(245,240,232,0.45)', lineHeight: 1.7 }}>{request.description}</p>
+              <h2 style={{ fontSize: '1.05rem', fontWeight: 600, color: TEXT, fontFamily: F.dm, marginBottom: '0.5rem' }}>{request.title}</h2>
+              <p style={{ fontSize: '0.82rem', color: SECONDARY_TEXT, lineHeight: 1.7 }}>{request.description}</p>
               {request.completion_notes && (
-                <div style={{ marginTop: '0.8rem', padding: '0.7rem 0.9rem', borderRadius: '3px', background: 'rgba(26,122,74,0.04)', border: '1px solid rgba(76,186,122,0.12)' }}>
-                  <p style={{ fontSize: '0.58rem', fontWeight: 600, color: C.greenLight, fontFamily: F.mono, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: '0.2rem' }}>Completion Notes</p>
-                  <p style={{ fontSize: '0.72rem', color: C.greenLight, lineHeight: 1.5 }}>{request.completion_notes}</p>
+                <div style={{ marginTop: '0.8rem', padding: '0.7rem 0.9rem', borderRadius: '3px', background: 'rgba(43,122,75,0.04)', border: '1px solid rgba(43,122,75,0.12)' }}>
+                  <p style={{ fontSize: '0.58rem', fontWeight: 600, color: C.green, fontFamily: F.mono, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: '0.2rem' }}>Completion Notes</p>
+                  <p style={{ fontSize: '0.72rem', color: C.green, lineHeight: 1.5 }}>{request.completion_notes}</p>
                 </div>
               )}
             </div>
@@ -359,7 +382,7 @@ export default function CaretakerMaintenanceDetail() {
                 <h3 style={S.sectionTitle}>Before Photos</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '0.5rem' }}>
                   {beforePhotos.map((p, i) => (
-                    <button key={p.id || i} onClick={() => { const idx = photos.indexOf(p); setViewerIndex(idx); setViewerOpen(true); }} style={{ aspectRatio: '1', borderRadius: '4px', overflow: 'hidden', border: `1px solid ${C.border}`, cursor: 'pointer', background: C.black, position: 'relative' }}>
+                    <button key={p.id || i} onClick={() => { const idx = photos.indexOf(p); setViewerIndex(idx); setViewerOpen(true); }} style={{ aspectRatio: '1', borderRadius: '4px', overflow: 'hidden', border: `1px solid ${C.border}`, cursor: 'pointer', background: C.background, position: 'relative' }}>
                       <img src={getFullUrl(p.document_url)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     </button>
                   ))}
@@ -369,10 +392,10 @@ export default function CaretakerMaintenanceDetail() {
 
             {afterPhotos.length > 0 && (
               <div style={cardStyle}>
-                <h3 style={{ ...S.sectionTitle, color: C.greenLight }}>After Photos </h3>
+                <h3 style={{ ...S.sectionTitle, color: C.green }}>After Photos </h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '0.5rem' }}>
                   {afterPhotos.map((p, i) => (
-                    <button key={p.id || i} onClick={() => { const idx = photos.indexOf(p); setViewerIndex(idx); setViewerOpen(true); }} style={{ aspectRatio: '1', borderRadius: '4px', overflow: 'hidden', border: '1px solid rgba(76,186,122,0.2)', cursor: 'pointer', background: C.black, position: 'relative' }}>
+                    <button key={p.id || i} onClick={() => { const idx = photos.indexOf(p); setViewerIndex(idx); setViewerOpen(true); }} style={{ aspectRatio: '1', borderRadius: '4px', overflow: 'hidden', border: '1px solid rgba(43,122,75,0.2)', cursor: 'pointer', background: C.background, position: 'relative' }}>
                       <img src={getFullUrl(p.document_url)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     </button>
                   ))}
@@ -388,9 +411,9 @@ export default function CaretakerMaintenanceDetail() {
                   { label: 'Unit', value: request.unit_number ? `Unit ${request.unit_number}` : "—" },
                   { label: 'Property', value: request.property_name || "—" }
                 ].map(i => (
-                  <div key={i.label} style={{ padding: '0.7rem', borderRadius: '3px', background: C.black, border: `1px solid ${C.border}` }}>
-                    <p style={{ fontSize: '0.55rem', fontWeight: 600, color: 'rgba(245,240,232,0.25)', fontFamily: F.mono, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '3px' }}>{i.label}</p>
-                    <p style={{ fontSize: '0.75rem', fontWeight: 500, color: C.white, fontFamily: F.dm }}>{i.value}</p>
+                  <div key={i.label} style={{ padding: '0.7rem', borderRadius: '3px', background: C.background, border: `1px solid ${C.border}` }}>
+                    <p style={{ fontSize: '0.55rem', fontWeight: 600, color: SECONDARY_TEXT, fontFamily: F.mono, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '3px' }}>{i.label}</p>
+                    <p style={{ fontSize: '0.75rem', fontWeight: 500, color: TEXT, fontFamily: F.dm }}>{i.value}</p>
                   </div>
                 ))}
               </div>
@@ -402,24 +425,24 @@ export default function CaretakerMaintenanceDetail() {
                   <h3 style={S.sectionTitle}>Contractor</h3>
                   {canReassign && (
                     <button onClick={() => setShowAssign(true)} style={{ fontSize: '0.62rem', color: C.blue, background: 'none', border: 'none', cursor: 'pointer', fontFamily: F.mono, transition: 'color 0.15s' }}
-                      onMouseEnter={e => e.currentTarget.style.color = C.white}
+                      onMouseEnter={e => e.currentTarget.style.color = TEXT}
                       onMouseLeave={e => e.currentTarget.style.color = C.blue}>
                       Reassign
                     </button>
                   )}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-                  <div style={{ width: 40, height: 40, borderRadius: '6px', background: 'rgba(58,143,212,0.08)', border: '1px solid rgba(58,143,212,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ width: 40, height: 40, borderRadius: '6px', background: 'rgba(52,152,219,0.08)', border: '1px solid rgba(52,152,219,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <Icon name="user" size={18} color={C.blue} />
                   </div>
                   <div style={{ flex: 1 }}>
-                    <p style={{ fontWeight: 600, color: C.white, fontSize: '0.85rem', fontFamily: F.dm }}>{contractorName}</p>
-                    {request.contractor_phone && <p style={{ fontSize: '0.65rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono }}>{request.contractor_phone}</p>}
+                    <p style={{ fontWeight: 600, color: TEXT, fontSize: '0.85rem', fontFamily: F.dm }}>{contractorName}</p>
+                    {request.contractor_phone && <p style={{ fontSize: '0.65rem', color: SECONDARY_TEXT, fontFamily: F.mono }}>{request.contractor_phone}</p>}
                   </div>
                   {request.scheduled_date && (
                     <div style={{ textAlign: 'right' }}>
-                      <p style={{ fontSize: '0.55rem', color: 'rgba(245,240,232,0.25)', fontFamily: F.mono, textTransform: 'uppercase' }}>Scheduled</p>
-                      <p style={{ fontSize: '0.75rem', fontWeight: 600, color: C.white, fontFamily: F.dm }}>{fmtDate(request.scheduled_date)}</p>
+                      <p style={{ fontSize: '0.55rem', color: SECONDARY_TEXT, fontFamily: F.mono, textTransform: 'uppercase' }}>Scheduled</p>
+                      <p style={{ fontSize: '0.75rem', fontWeight: 600, color: TEXT, fontFamily: F.dm }}>{fmtDate(request.scheduled_date)}</p>
                     </div>
                   )}
                 </div>
@@ -446,13 +469,13 @@ export default function CaretakerMaintenanceDetail() {
                             <span style={{ fontSize: '0.72rem', fontWeight: 600, color: toCfg.color, fontFamily: F.dm }}>{toCfg.label}</span>
                             {fromCfg && (
                               <>
-                                <Icon name="arrowRight" size={10} color="rgba(245,240,232,0.2)" />
-                                <span style={{ fontSize: '0.6rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono }}>from {fromCfg.label}</span>
+                                <Icon name="arrowRight" size={10} color={SECONDARY_TEXT} />
+                                <span style={{ fontSize: '0.6rem', color: SECONDARY_TEXT, fontFamily: F.mono }}>from {fromCfg.label}</span>
                               </>
                             )}
-                            <span style={{ fontSize: '0.58rem', color: 'rgba(245,240,232,0.2)', fontFamily: F.mono, marginLeft: fromCfg ? 'auto' : '0' }}>{timeAgo(u.created_at)}</span>
+                            <span style={{ fontSize: '0.58rem', color: SECONDARY_TEXT, fontFamily: F.mono, marginLeft: fromCfg ? 'auto' : '0' }}>{timeAgo(u.created_at)}</span>
                           </div>
-                          {u.notes && <p style={{ fontSize: '0.7rem', color: 'rgba(245,240,232,0.4)', marginTop: '3px', lineHeight: 1.5 }}>{u.notes}</p>}
+                          {u.notes && <p style={{ fontSize: '0.7rem', color: SECONDARY_TEXT, marginTop: '3px', lineHeight: 1.5 }}>{u.notes}</p>}
                         </div>
                       </div>
                     );
@@ -468,15 +491,15 @@ export default function CaretakerMaintenanceDetail() {
                 <h3 style={S.sectionTitle}>Cost</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: request.estimated_cost && request.actual_cost ? '1fr 1fr' : '1fr', gap: '0.5rem' }}>
                   {request.estimated_cost ? (
-                    <div style={{ padding: '0.7rem', borderRadius: '3px', background: C.black, border: `1px solid ${C.border}` }}>
-                      <p style={{ fontSize: '0.55rem', fontWeight: 600, color: 'rgba(245,240,232,0.25)', fontFamily: F.mono, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '4px' }}>Estimated</p>
-                      <p style={{ fontSize: '1.1rem', fontWeight: 700, color: C.gold, fontFamily: F.bebas, letterSpacing: '0.03em' }}>{fmt(request.estimated_cost)}</p>
+                    <div style={{ padding: '0.7rem', borderRadius: '3px', background: C.background, border: `1px solid ${C.border}` }}>
+                      <p style={{ fontSize: '0.55rem', fontWeight: 600, color: SECONDARY_TEXT, fontFamily: F.mono, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '4px' }}>Estimated</p>
+                      <p style={{ fontSize: '1.1rem', fontWeight: 700, color: C.primary, fontFamily: F.bebas, letterSpacing: '0.03em' }}>{fmt(request.estimated_cost)}</p>
                     </div>
                   ) : null}
                   {request.actual_cost ? (
-                    <div style={{ padding: '0.7rem', borderRadius: '3px', background: 'rgba(26,122,74,0.04)', border: '1px solid rgba(76,186,122,0.12)' }}>
-                      <p style={{ fontSize: '0.55rem', fontWeight: 600, color: C.greenLight, fontFamily: F.mono, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '4px' }}>Actual</p>
-                      <p style={{ fontSize: '1.1rem', fontWeight: 700, color: C.greenLight, fontFamily: F.bebas, letterSpacing: '0.03em' }}>{fmt(request.actual_cost)}</p>
+                    <div style={{ padding: '0.7rem', borderRadius: '3px', background: 'rgba(43,122,75,0.04)', border: '1px solid rgba(43,122,75,0.12)' }}>
+                      <p style={{ fontSize: '0.55rem', fontWeight: 600, color: C.green, fontFamily: F.mono, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '4px' }}>Actual</p>
+                      <p style={{ fontSize: '1.1rem', fontWeight: 700, color: C.green, fontFamily: F.bebas, letterSpacing: '0.03em' }}>{fmt(request.actual_cost)}</p>
                     </div>
                   ) : null}
                 </div>
@@ -519,10 +542,10 @@ export default function CaretakerMaintenanceDetail() {
 
             {isClosed && (
               <div style={{ ...cardStyle, textAlign: 'center' }}>
-                <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(245,240,232,0.04)', border: '1px solid rgba(245,240,232,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 0.6rem' }}>
-                  <Icon name="check" size={16} color="rgba(245,240,232,0.3)" />
+                <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 0.6rem' }}>
+                  <Icon name="check" size={16} color={SECONDARY_TEXT} />
                 </div>
-                <p style={{ fontSize: '0.7rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono }}>This request has been {request.status.replace(/_/g, " ")}.</p>
+                <p style={{ fontSize: '0.7rem', color: SECONDARY_TEXT, fontFamily: F.mono }}>This request has been {request.status.replace(/_/g, " ")}.</p>
               </div>
             )}
 
@@ -536,9 +559,9 @@ export default function CaretakerMaintenanceDetail() {
                   ...(request.completed_at ? [["Completed", fmtDateTime(request.completed_at)]] : []),
                   ...(request.tenant_confirmed_at ? [["Confirmed", fmtDateTime(request.tenant_confirmed_at)]] : []),
                 ].map(([l, v]) => (
-                  <div key={l} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem 0', borderBottom: `1px solid ${C.border}20` }}>
-                    <span style={{ fontSize: '0.68rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono }}>{l}</span>
-                    <span style={{ fontSize: '0.7rem', fontWeight: 500, color: C.white, fontFamily: F.dm, textTransform: 'capitalize' }}>{v}</span>
+                  <div key={l} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem 0', borderBottom: `1px solid ${C.border}` }}>
+                    <span style={{ fontSize: '0.68rem', color: SECONDARY_TEXT, fontFamily: F.mono }}>{l}</span>
+                    <span style={{ fontSize: '0.7rem', fontWeight: 500, color: TEXT, fontFamily: F.dm, textTransform: 'capitalize' }}>{v}</span>
                   </div>
                 ))}
               </div>

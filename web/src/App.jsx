@@ -6,7 +6,10 @@ import { useState, useEffect, createContext, useContext } from "react";
 import Login from "./pages/auth/Login";
 import Dashboard from "./pages/landlord/Dashboard";
 import DashboardLayout from "./Layout";
-import Payments from "./pages/landlord/payments/Payments";
+import PaymentsLayout from "./pages/landlord/payments/PaymentsLayout";
+import InvoicesPage from "./pages/landlord/payments/Invoices";
+import DepositsPage from "./pages/landlord/payments/Deposits";
+import PaymentsListPage from "./pages/landlord/payments/PaymentsList";
 import PaymentReview from "./pages/landlord/payments/PaymentReview";
 import { ToastProvider } from "./contexts/ToastContext";
 import { PaymentsProvider } from "./contexts/PaymentsContext";
@@ -40,6 +43,17 @@ import CaretakerMessages from "./pages/caretaker/messages/Messages";
 import CaretakerSettings from "./pages/caretaker/settings/Settings";
 import NotificationsPage from "./pages/landlord/notifications/notifications";
 import CaretakerNotificationsPage from "./pages/caretaker/notifications/notifications";
+import PropertyDetails from "./pages/landlord/properties/PropertyDetails";
+import PropertyCreate from "./pages/landlord/properties/PropertyCreate";
+import AddTenantPage from "./pages/landlord/Tenants/AddTenantPage";
+import LeaseSummary from "./pages/landlord/leases/LeaseSummary";
+import UnitDetailsPage from "./pages/landlord/units/UnitDetailsPage";
+import AddUnitPage from "./pages/landlord/units/AddUnit";
+import InvoiceDetailPage from "./pages/landlord/payments/InvoiceDetails";
+import LeaseCreate from "./pages/landlord/leases/LeaseCreate";
+import DepositDetailPage from "./pages/landlord/payments/DepositDetails";
+import CreateInvoice from "./pages/landlord/payments/InvoiceCreate";
+import PaymentDetails from "./pages/landlord/payments/PaymentDetails";
 
 import "./index.css";
 
@@ -96,38 +110,56 @@ export default function App() {
               <Route path="/landlord" element={<DashboardLayout />}>
                 <Route index element={<Navigate to="/landlord/dashboard" replace />} />
                 <Route path="dashboard" element={<Dashboard />} />
-                
+
                 {/* Property */}
                 <Route path="properties" element={<PropertyDashboard />} />
+                <Route path="properties/:id" element={<PropertyDetails />} />
+                <Route path="properties/create" element={<PropertyCreate />} />
                 <Route path="units" element={<Units />} />
-                
+                <Route path="units/:id" element={<UnitDetailsPage />} />
+                <Route path="units/add" element={<AddUnitPage />} />
+
                 {/* Tenants */}
                 <Route path="tenants" element={<Tenants />} />
                 <Route path="tenants/:id" element={<TenantProfile />} />
+                <Route path="tenants/create" element={<AddTenantPage />} />
                 <Route path="leases" element={<Leases />} />
-                
+                <Route path="leases/:id" element={<LeaseSummary />} />
+                <Route path="leases/create" element={<LeaseCreate />} />
+
                 {/* People */}
                 <Route path="caretakers" element={<LandlordCaretakers />} />
-                
+
                 {/* Payments */}
-                <Route path="payments" element={<Payments />} />
+                <Route path="payments" element={<PaymentsLayout />}>
+                  <Route index element={<Navigate to="invoices" replace />} />
+                  <Route path="invoices" element={<InvoicesPage />} />
+                  <Route path="deposits" element={<DepositsPage />} />
+                  <Route path="history" element={<PaymentsListPage />} />
+                  <Route path="plans" element={<RepaymentPlans />} />
+                  <Route path="settings" element={<PaymentSettings />} />
+                </Route>
                 <Route path="payments/review/:id" element={<PaymentReview />} />
-                <Route path="payments/:id" element={<PaymentReceipt />} />
+                <Route path="payments/receipt/:id" element={<PaymentReceipt />} />
                 <Route path="payments/plans" element={<RepaymentPlans />} />
                 <Route path="payments/settings" element={<PaymentSettings />} />
-                
+                <Route path="payments/invoices/:id" element={<InvoiceDetailPage />} />
+                <Route path="payments/deposits/:id" element={<DepositDetailPage />} />
+                <Route path="payments/invoices/create" element={<CreateInvoice />} />
+                <Route path="payments/:id" element={<PaymentDetails />} />
+
                 {/* Issues */}
                 <Route path="maintenance" element={<LandlordMaintenance />} />
                 <Route path="maintenance/:id" element={<MaintenanceDetail />} />
                 <Route path="complaints" element={<LandlordComplaints />} />
                 <Route path="complaints/:id" element={<LandlordComplaintDetail />} />
                 <Route path="collections" element={<LandlordCollections />} />
-                
+
                 {/* Insights */}
                 <Route path="reports" element={<Reports />} />
                 <Route path="messages" element={<LandlordMessages />} />
                 <Route path="notifications" element={<NotificationsPage />} />
-                
+
                 {/* Settings */}
                 <Route path="settings" element={<Settings />} />
               </Route>
@@ -155,16 +187,5 @@ export default function App() {
         </ToastProvider>
       </PaymentsProvider>
     </AuthContext.Provider>
-  );
-}
-
-function PlaceholderPage({ title }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-      <div style={{ textAlign: 'center' }}>
-        <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '2rem', color: '#f5f0e8', marginBottom: '0.5rem' }}>{title}</h2>
-        <p style={{ fontSize: '0.85rem', color: 'rgba(245,240,232,0.4)' }}>This page is coming soon.</p>
-      </div>
-    </div>
   );
 }

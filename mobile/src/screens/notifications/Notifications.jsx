@@ -6,37 +6,23 @@ import {
 import { Ionicons, Feather } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import api from "../../utils/api";
-
-const C = {
-  black:        "#0a0a0a",
-  muted:        "#141414",
-  muted2:       "#1a1a1a",
-  border:       "#2a2a2a",
-  gold:         "#E8A012",
-  white:        "#F5F0E8",
-  blue:         "#3A8FD4",
-  greenLight:   "#1A7A4A",
-  redLight:     "#E05A4A",
-  orange:       "#F97316",
-  purple:       "#8B5CF6",
-};
-const F = { bebas: "bebas-neue", dm: "dm-sans", mono: "space-mono" };
+import { C, F } from "../../styles/theme";
 
 const TYPE_CONFIG = {
   payment_due:       { icon: "calendar-outline",       color: C.blue,       label: "Rent Due" },
-  payment_received:  { icon: "checkmark-circle-outline", color: C.greenLight, label: "Payment" },
-  payment_approved:  { icon: "checkmark-circle",       color: C.greenLight, label: "Approved" },
-  payment_rejected:  { icon: "close-circle-outline",   color: C.redLight,   label: "Rejected" },
-  maintenance_update:{ icon: "construct-outline",      color: C.gold,       label: "Maintenance" },
-  complaint_update:  { icon: "flag-outline",           color: C.purple,     label: "Complaint" },
-  lease_expiring:    { icon: "document-text-outline",  color: C.orange,     label: "Lease" },
-  lease_expired:     { icon: "document-text-outline",  color: C.redLight,   label: "Lease" },
-  message_received:  { icon: "chatbubble-outline",     color: C.blue,       label: "Message" },
-  document_uploaded: { icon: "cloud-upload-outline",   color: C.blue,       label: "Document" },
-  account_created:   { icon: "person-add-outline",     color: C.greenLight, label: "Account" },
-  account_status:    { icon: "shield-outline",         color: C.purple,     label: "Account" },
-  property_assigned: { icon: "home-outline",           color: C.gold,       label: "Property" },
-  system:            { icon: "information-circle-outline", color: "rgba(245,240,232,0.4)", label: "System" },
+  payment_received:  { icon: "checkmark-circle-outline", color: C.green,    label: "Payment" },
+  payment_approved:  { icon: "checkmark-circle",       color: C.green,    label: "Approved" },
+  payment_rejected:  { icon: "close-circle-outline",   color: C.red,      label: "Rejected" },
+  maintenance_update:{ icon: "construct-outline",      color: C.primary,  label: "Maintenance" },
+  complaint_update:  { icon: "flag-outline",           color: C.purple,   label: "Complaint" },
+  lease_expiring:    { icon: "document-text-outline",  color: C.blue,     label: "Lease" },
+  lease_expired:     { icon: "document-text-outline",  color: C.red,      label: "Lease" },
+  message_received:  { icon: "chatbubble-outline",     color: C.blue,     label: "Message" },
+  document_uploaded: { icon: "cloud-upload-outline",   color: C.blue,     label: "Document" },
+  account_created:   { icon: "person-add-outline",     color: C.green,    label: "Account" },
+  account_status:    { icon: "shield-outline",         color: C.purple,   label: "Account" },
+  property_assigned: { icon: "home-outline",           color: C.primary,  label: "Property" },
+  system:            { icon: "information-circle-outline", color: C.textMuted, label: "System" },
 };
 
 function timeAgo(dateStr) {
@@ -83,7 +69,7 @@ function NotificationCard({ item, onPress, onMarkRead }) {
           <Text style={S.cardMessage} numberOfLines={2}>{item.message_}</Text>
         )}
       </View>
-      <Feather name="chevron-right" size={14} color="rgba(245,240,232,0.15)" style={S.chevron} />
+      <Feather name="chevron-right" size={14} color={C.textMuted} style={S.chevron} />
     </TouchableOpacity>
   );
 }
@@ -179,7 +165,7 @@ export default function NotificationsScreen() {
 
   return (
     <SafeAreaView style={S.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={C.black} />
+      <StatusBar barStyle="dark-content" backgroundColor={C.surface} />
       <View style={S.header}>
         <View>
           <Text style={S.headerTitle}>Notifications</Text>
@@ -187,7 +173,7 @@ export default function NotificationsScreen() {
         </View>
         {unreadCount > 0 && (
           <TouchableOpacity onPress={markAllRead} style={S.markAllBtn} activeOpacity={0.7}>
-            <Feather name="check" size={14} color={C.gold} />
+            <Feather name="check" size={14} color={C.primary} />
             <Text style={S.markAllText}>Mark all read</Text>
           </TouchableOpacity>
         )}
@@ -204,16 +190,16 @@ export default function NotificationsScreen() {
       </View>
 
       {loading ? (
-        <View style={S.loader}><ActivityIndicator size="large" color={C.gold} /></View>
+        <View style={S.loader}><ActivityIndicator size="large" color={C.primary} /></View>
       ) : displayNotifs.length === 0 ? (
         <View style={S.emptyState}>
-          <View style={S.emptyIcon}><Ionicons name="notifications-off-outline" size={32} color="rgba(245,240,232,0.15)" /></View>
+          <View style={S.emptyIcon}><Ionicons name="notifications-off-outline" size={32} color={C.textMuted} /></View>
           <Text style={S.emptyTitle}>No notifications</Text>
           <Text style={S.emptySub}>{activeFilter !== "all" ? "Try a different filter" : "You're all caught up!"}</Text>
         </View>
       ) : (
         <ScrollView style={S.scroll} contentContainerStyle={S.scrollPad} showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.gold} />}>
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.primary} />}>
           {todayFiltered.length > 0 && (
             <>
               <SectionHeader title="TODAY" count={todayFiltered.length} color={C.blue} />
@@ -222,13 +208,13 @@ export default function NotificationsScreen() {
           )}
           {weekFiltered.length > 0 && (
             <>
-              <SectionHeader title="THIS WEEK" count={weekFiltered.length} color={C.gold} />
+              <SectionHeader title="THIS WEEK" count={weekFiltered.length} color={C.primary} />
               {weekFiltered.map(item => <NotificationCard key={item.id} item={item} onPress={handlePress} onMarkRead={handleMarkRead} />)}
             </>
           )}
           {olderFiltered.length > 0 && (
             <>
-              <SectionHeader title="OLDER" count={olderFiltered.length} color="rgba(245,240,232,0.3)" />
+              <SectionHeader title="OLDER" count={olderFiltered.length} color={C.textMuted} />
               {olderFiltered.map(item => <NotificationCard key={item.id} item={item} onPress={handlePress} onMarkRead={handleMarkRead} />)}
             </>
           )}
@@ -240,41 +226,41 @@ export default function NotificationsScreen() {
 }
 
 const S = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.black },
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingTop: 14, paddingBottom: 12, backgroundColor: C.muted2, borderBottomWidth: 1, borderBottomColor: C.border },
-  headerTitle: { fontSize: 22, fontWeight: "700", color: C.white, fontFamily: F.bebas, letterSpacing: 1 },
-  headerSub: { fontSize: 11, color: "rgba(245,240,232,0.3)", fontFamily: F.mono, marginTop: 2 },
-  markAllBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 3, backgroundColor: "rgba(232,160,18,0.08)", borderWidth: 1, borderColor: "rgba(232,160,18,0.15)" },
-  markAllText: { fontSize: 10, fontWeight: "600", color: C.gold, fontFamily: F.mono, letterSpacing: 0.5 },
-  filterRow: { backgroundColor: C.muted2, borderBottomWidth: 1, borderBottomColor: C.border, paddingVertical: 8 },
+  safe: { flex: 1, backgroundColor: C.background },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingTop: 14, paddingBottom: 12, backgroundColor: C.surface, borderBottomWidth: 1, borderBottomColor: C.border },
+  headerTitle: { fontSize: 22, fontWeight: "700", color: C.textPrimary, fontFamily: F.bebas, letterSpacing: 1 },
+  headerSub: { fontSize: 11, color: C.textMuted, fontFamily: F.mono, marginTop: 2 },
+  markAllBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 3, backgroundColor: "rgba(44,62,80,0.08)", borderWidth: 1, borderColor: "rgba(44,62,80,0.15)" },
+  markAllText: { fontSize: 10, fontWeight: "600", color: C.primary, fontFamily: F.mono, letterSpacing: 0.5 },
+  filterRow: { backgroundColor: C.surface, borderBottomWidth: 1, borderBottomColor: C.border, paddingVertical: 8 },
   filterScroll: { paddingHorizontal: 14, gap: 6 },
-  filterChip: { paddingHorizontal: 14, paddingVertical: 5, borderRadius: 3, backgroundColor: C.black, borderWidth: 1, borderColor: C.border },
-  filterChipActive: { backgroundColor: "rgba(232,160,18,0.08)", borderColor: C.gold },
-  filterChipText: { fontSize: 11, fontWeight: "600", color: "rgba(245,240,232,0.4)", fontFamily: F.mono, letterSpacing: 0.5 },
-  filterChipTextActive: { color: C.gold },
+  filterChip: { paddingHorizontal: 14, paddingVertical: 5, borderRadius: 3, backgroundColor: C.background, borderWidth: 1, borderColor: C.border },
+  filterChipActive: { backgroundColor: "rgba(44,62,80,0.08)", borderColor: C.primary },
+  filterChipText: { fontSize: 11, fontWeight: "600", color: C.textMuted, fontFamily: F.mono, letterSpacing: 0.5 },
+  filterChipTextActive: { color: C.primary },
   loader: { flex: 1, alignItems: "center", justifyContent: "center" },
   emptyState: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10, paddingHorizontal: 40 },
-  emptyIcon: { width: 64, height: 64, borderRadius: 10, backgroundColor: C.muted2, borderWidth: 1, borderColor: C.border, alignItems: "center", justifyContent: "center", marginBottom: 8 },
-  emptyTitle: { fontSize: 16, fontWeight: "700", color: "rgba(245,240,232,0.4)", fontFamily: F.bebas, letterSpacing: 1 },
-  emptySub: { fontSize: 12, color: "rgba(245,240,232,0.25)", fontFamily: F.mono, textAlign: "center" },
+  emptyIcon: { width: 64, height: 64, borderRadius: 10, backgroundColor: C.card, borderWidth: 1, borderColor: C.border, alignItems: "center", justifyContent: "center", marginBottom: 8 },
+  emptyTitle: { fontSize: 16, fontWeight: "700", color: C.textSecondary, fontFamily: F.bebas, letterSpacing: 1 },
+  emptySub: { fontSize: 12, color: C.textMuted, fontFamily: F.mono, textAlign: "center" },
   scroll: { flex: 1 },
   scrollPad: { padding: 14 },
   sectionHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8, marginTop: 10 },
-  sectionTitle: { fontSize: 10, fontWeight: "700", color: "rgba(245,240,232,0.2)", fontFamily: F.mono, letterSpacing: 2 },
+  sectionTitle: { fontSize: 10, fontWeight: "700", color: "#888888", fontFamily: F.mono, letterSpacing: 2 },
   sectionCount: { paddingHorizontal: 7, paddingVertical: 1, borderRadius: 3 },
   sectionCountText: { fontSize: 9, fontWeight: "700", fontFamily: F.mono },
-  card: { flexDirection: "row", alignItems: "flex-start", backgroundColor: C.muted2, borderRadius: 6, borderWidth: 1, borderColor: C.border, marginBottom: 6, overflow: "hidden", position: "relative" },
-  cardUnread: { backgroundColor: C.muted2, borderColor: "rgba(245,240,232,0.1)" },
+  card: { flexDirection: "row", alignItems: "flex-start", backgroundColor: C.card, borderRadius: 6, borderWidth: 1, borderColor: C.border, marginBottom: 6, overflow: "hidden", position: "relative" },
+  cardUnread: { backgroundColor: C.card, borderColor: C.border },
   cardAccent: { width: 3, position: "absolute", left: 0, top: 0, bottom: 0, borderTopLeftRadius: 6, borderBottomLeftRadius: 6 },
   cardIcon: { width: 38, height: 38, borderRadius: 6, alignItems: "center", justifyContent: "center", borderWidth: 1, margin: 10, marginRight: 0 },
   cardContent: { flex: 1, padding: 10, paddingLeft: 10 },
   cardHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 4 },
   typeBadge: { paddingHorizontal: 6, paddingVertical: 1, borderRadius: 3, borderWidth: 1 },
   typeBadgeText: { fontSize: 8, fontWeight: "700", textTransform: "uppercase", fontFamily: F.mono, letterSpacing: 1 },
-  cardTime: { fontSize: 9, color: "rgba(245,240,232,0.2)", fontFamily: F.mono },
-  cardTitle: { fontSize: 13, fontWeight: "600", color: "rgba(245,240,232,0.5)", fontFamily: F.dm, lineHeight: 18 },
-  cardTitleUnread: { color: C.white },
-  cardMessage: { fontSize: 11, color: "rgba(245,240,232,0.3)", fontFamily: F.dm, lineHeight: 16, marginTop: 3 },
+  cardTime: { fontSize: 9, color: C.textMuted, fontFamily: F.mono },
+  cardTitle: { fontSize: 13, fontWeight: "600", color: C.textSecondary, fontFamily: F.dm, lineHeight: 18 },
+  cardTitleUnread: { color: C.textPrimary },
+  cardMessage: { fontSize: 11, color: C.textMuted, fontFamily: F.dm, lineHeight: 16, marginTop: 3 },
   unreadDot: { width: 7, height: 7, borderRadius: 4, position: "absolute", top: 12, right: 30 },
   chevron: { position: "absolute", right: 10, top: "50%", marginTop: -7 },
 });

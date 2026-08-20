@@ -38,7 +38,36 @@ async function checkInvoiceNotCoveredByPlan(invoiceId, tenantId) {
   return null;
 }
 
-// POST /tenants/register - Landlord registers a new tenant
+function getFirstDueDate(leaseStartDate, frequency, dueDay) {
+  const start = new Date(leaseStartDate);
+
+  if (frequency === 'weekly') {
+    const due = new Date(start);
+    due.setDate(due.getDate() + 7);
+    return due;
+  }
+
+  const year = start.getFullYear();
+  const month = start.getMonth();
+  const day = Math.min(Number(dueDay) || 1, 31);
+
+  let due = new Date(year, month, day);
+  if (due < start) {
+    due = new Date(year, month + 1, day);
+    if (due.getMonth() !== (month + 1) % 12) {
+      due = new Date(year, month + 2, 0);
+    }
+  }
+
+  const lastDayOfTargetMonth = new Date(due.getFullYear(), due.getMonth() + 1, 0).getDate();
+  if (due.getDate() > lastDayOfTargetMonth) {
+    due.setDate(lastDayOfTargetMonth);
+  }
+
+  return due;
+}
+
+// POST /tenants/register - Landlord registers a new tenant 
 router.post("/register", requireAuth, requireLandlord, async (req, res) => {
   const {
     first_name, last_name, email, phone,
@@ -49,6 +78,14 @@ router.post("/register", requireAuth, requireLandlord, async (req, res) => {
 
   if (!first_name || !last_name || !email || !unit_id || !rent_amount || !lease_start_date || !lease_end_date) {
     return res.status(400).json({ error: "Name, email, unit, rent amount, and lease dates are required" });
+  }
+
+  const allowedFrequencies = ["weekly", "monthly", "quarterly", "annually"];
+  if (payment_frequency && !allowedFrequencies.includes(payment_frequency)) {
+    return res.status(400).json({ error: "Invalid payment_frequency" });
+  }
+  if (payment_frequency && payment_frequency !== "weekly" && (payment_due_day < 1 || payment_due_day > 31)) {
+    return res.status(400).json({ error: "Payment due day must be between 1 and 31" });
   }
 
   const client = await pool.connect();
@@ -102,17 +139,24 @@ router.post("/register", requireAuth, requireLandlord, async (req, res) => {
     );
 
     const leaseRes = await client.query(
-      `INSERT INTO lease (tenant_id, unit_id, landlord_id, lease_start_date, lease_end_date,
-         rent_amount, deposit_amount, payment_frequency, payment_due_day, status, created_by, created_at, updated_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'active',$10,NOW(),NOW()) RETURNING id`,
+      `INSERT INTO lease (
+        tenant_id, unit_id, landlord_id, lease_start_date, lease_end_date,
+        rent_amount, deposit_amount, deposit_paid,
+        payment_frequency, payment_due_day, status, created_by, created_at, updated_at
+      )
+      VALUES (
+        $1,$2,$3,$4,$5,$6,$7,false,$8,$9,'active',$10,NOW(),NOW()
+      )
+      RETURNING *`,
       [
         tenantId, unit_id, landlordId,
         lease_start_date, lease_end_date,
-        rent_amount, deposit_amount || rent_amount,
+        rent_amount, deposit_amount || 0,
         payment_frequency || "monthly", payment_due_day || 1,
         req.userId,
       ]
     );
+    const lease = leaseRes.rows[0];
 
     await client.query(
       "UPDATE unit SET status='occupied', current_tenant_id=$1, updated_at=NOW() WHERE id=$2",
@@ -125,16 +169,142 @@ router.post("/register", requireAuth, requireLandlord, async (req, res) => {
       [tenantId]
     );
 
+    const freq = payment_frequency || "monthly";
+    const dueDay = payment_due_day || 1;
+    const billingPeriodStart = lease_start_date;
+
+    let billingPeriodEnd;
+    switch (freq) {
+      case "weekly":
+        billingPeriodEnd = new Date(new Date(lease_start_date).setDate(new Date(lease_start_date).getDate() + 7))
+          .toISOString().slice(0, 10);
+        break;
+      case "monthly":
+        billingPeriodEnd = new Date(new Date(lease_start_date).setMonth(new Date(lease_start_date).getMonth() + 1))
+          .toISOString().slice(0, 10);
+        break;
+      case "quarterly":
+        billingPeriodEnd = new Date(new Date(lease_start_date).setMonth(new Date(lease_start_date).getMonth() + 3))
+          .toISOString().slice(0, 10);
+        break;
+      case "annually":
+        billingPeriodEnd = new Date(new Date(lease_start_date).setFullYear(new Date(lease_start_date).getFullYear() + 1))
+          .toISOString().slice(0, 10);
+        break;
+      default:
+        billingPeriodEnd = new Date(new Date(lease_start_date).setMonth(new Date(lease_start_date).getMonth() + 1))
+          .toISOString().slice(0, 10);
+    }
+
+    const rentInvoiceDueDate = getFirstDueDate(lease_start_date, freq, dueDay);
+    const rentInvoiceDueDateStr = rentInvoiceDueDate.toISOString().slice(0, 10);
+
+    const rentInvoiceNumber = `INV-${Date.now()}-R`;
+    await client.query(
+      `INSERT INTO invoice (
+        lease_id, tenant_id, unit_id, landlord_id,
+        invoice_number, amount_due,
+        rent_amount, utilities_amount, late_fees, other_charges, discounts,
+        billing_period_start, billing_period_end, due_date,
+        status, paid_amount, invoice_type, notes
+      ) VALUES (
+        $1, $2, $3, $4,
+        $5, $6,
+        $6, 0, 0, 0, 0,
+        $7, $8, $9,
+        'sent', 0, 'rent', $10
+      )`,
+      [
+        lease.id, tenantId, unit_id, landlordId,
+        rentInvoiceNumber, rent_amount,
+        billingPeriodStart, billingPeriodEnd,
+        rentInvoiceDueDateStr,
+        "First rent invoice",
+      ]
+    );
+
+    let deposit = null;
+    let depositInvoiceDueDate = null;
+    const depositAmt = deposit_amount || 0;
+    if (Number(depositAmt) > 0) {
+      const depositRes = await client.query(
+        `INSERT INTO deposit (
+          lease_id, tenant_id, deposit_amount,
+          amount_paid, status, country, created_at, updated_at
+        ) VALUES ($1, $2, $3, 0, 'unpaid', 'South Africa', NOW(), NOW())
+        RETURNING *`,
+        [lease.id, tenantId, depositAmt]
+      );
+      deposit = depositRes.rows[0];
+
+      depositInvoiceDueDate = new Date(lease_start_date);
+      depositInvoiceDueDate.setDate(depositInvoiceDueDate.getDate() + 7);
+      const depositInvoiceDueDateStr = depositInvoiceDueDate.toISOString().slice(0, 10);
+
+      const depositInvoiceNumber = `INV-${Date.now()}-D`;
+      await client.query(
+        `INSERT INTO invoice (
+          lease_id, tenant_id, unit_id, landlord_id,
+          invoice_number, amount_due,
+          rent_amount, utilities_amount, late_fees, other_charges, discounts,
+          billing_period_start, billing_period_end, due_date,
+          status, paid_amount, invoice_type, notes
+        ) VALUES (
+          $1, $2, $3, $4,
+          $5, $6,
+          0, 0, 0, $6, 0,
+          $7, $8, $9,
+          'sent', 0, 'deposit', $10
+        )`,
+        [
+          lease.id, tenantId, unit_id, landlordId,
+          depositInvoiceNumber, depositAmt,
+          lease_start_date, lease_start_date,
+          depositInvoiceDueDateStr,
+          "Deposit invoice",
+        ]
+      );
+    }
+
     await client.query("COMMIT");
 
     await sendWelcomeEmail(email, `${first_name} ${last_name}`, tempPassword, "tenant");
+
+    try {
+      await sendLeaseCreatedEmail({
+        email,
+        fullName: `${first_name} ${last_name}`,
+        leaseStartDate: lease_start_date,
+        leaseEndDate: lease_end_date,
+        rentAmount: rent_amount,
+        paymentFrequency: freq,
+        paymentDueDay: dueDay,
+        rentInvoiceDueDate: rentInvoiceDueDateStr,
+        depositAmount: deposit ? depositAmt : null,
+        depositInvoiceDueDate: depositInvoiceDueDate ? depositInvoiceDueDate.toISOString().slice(0, 10) : null,
+      });
+    } catch (emailErr) {
+      console.error("Failed to send lease details email:", emailErr);
+    }
+
+    await createNotification(
+      tenantId,
+      "lease_created",
+      "New Lease Created",
+      `Your lease has been created. First rent invoice of R${rent_amount} is due on ${rentInvoiceDueDate.toDateString()}.` +
+      (deposit ? ` Deposit of R${depositAmt} is due on ${depositInvoiceDueDate.toDateString()}.` : ""),
+      lease.id,
+      "lease"
+    );
+
     await auditLog(req.userId, "CREATE", "tenant", tenantId, null, { first_name, last_name, email, unit_id }, req);
 
     res.status(201).json({
       message:       "Tenant registered successfully",
       tenant_id:     tenantId,
       user_id:       userId,
-      lease_id:      leaseRes.rows[0].id,
+      lease_id:      lease.id,
+      deposit_id:    deposit ? deposit.id : null,
       temp_password: process.env.NODE_ENV === "development" ? tempPassword : undefined,
     });
   } catch (err) {
@@ -637,7 +807,7 @@ router.get("/me/dashboard", requireAuth, requireTenant, async (req, res) => {
         [tenantId]
       ),
       pool.query(
-        `SELECT t.reliability_score, t.reliability_score_value, t.standing, u.first_name, u.last_name,
+        `SELECT t.reliability_score, t.standing, u.first_name, u.last_name,
                 u.email, u.phone
          FROM tenant t
          JOIN users u ON u.id = t.user_id
@@ -714,7 +884,7 @@ router.get("/me/invoices/:id", requireAuth, requireTenant, async (req, res) => {
   }
 });
 
-// GET /tenants/me/invoices/:id/receipt - Get receipt(s) for an invoice
+// GET /tenants/me/invoices/:id/receipt - Get receipt for an invoice
 router.get("/me/invoices/:id/receipt", requireAuth, requireTenant, async (req, res) => {
   try {
     const tenantRes = await pool.query("SELECT id FROM tenant WHERE user_id=$1", [req.userId]);
@@ -802,29 +972,200 @@ router.get("/", requireAuth, requireLandlord, async (req, res) => {
   }
 });
 
-// GET /tenants/:id - Get a specific tenant's info
+// GET /tenants/:id - Get a specific tenant's full profile with related data
 router.get("/:id", requireAuth, requireLandlord, async (req, res) => {
   try {
-    const result = await pool.query(
-      `SELECT t.*, u.email, u.phone, u.status, u.last_login,
-              u.first_name, u.last_name, u.profile_image_url,
-              l.id AS lease_id, l.lease_start_date, l.lease_end_date,
-              l.rent_amount, l.deposit_amount, l.status AS lease_status,
-              un.unit_number, p.name AS property_name,
-              COALESCE(ph.partial_payments,0) AS partial_payments_count,
-              (SELECT COUNT(*) FROM invoice i 
-               WHERE i.tenant_id = t.id AND i.status = 'partial') AS partial_invoice_count
-       FROM tenant t
-       JOIN users u ON u.id = t.user_id
-       LEFT JOIN lease l ON l.tenant_id = t.id AND l.status = 'active'
-       LEFT JOIN unit un ON un.id = l.unit_id
-       LEFT JOIN property p ON p.id = un.property_id
-       LEFT JOIN tenant_payment_history ph ON ph.tenant_id = t.id
-       WHERE t.id = $1`,
-      [req.params.id]
+    const { id } = req.params;
+
+    const tenantResult = await pool.query(
+      `SELECT 
+        t.id,
+        t.user_id,
+        u.email,
+        u.phone,
+        u.status AS user_status,
+        u.last_login,
+        u.first_name,
+        u.last_name,
+        u.profile_image_url,
+        t.date_of_birth,
+        t.gender,
+        t.nationality,
+        t.marital_status,
+        t.id_document_type,
+        t.id_number,
+        t.passport_number,
+        t.employment_status,
+        t.employer_company,
+        t.job_title,
+        t.monthly_income,
+        t.income_verified,
+        t.number_of_occupants,
+        t.has_pets,
+        t.pet_details,
+        t.vehicle_count,
+        t.reliability_score,
+        t.reliability_score_value,
+        t.tenant_since,
+        t.special_note,
+        t.profile_completed,
+        t.standing,
+        t.standing_reason,
+        t.total_fines,
+        t.total_warnings,
+        t.active_complaints_count,
+        t.created_at,
+        t.updated_at,
+        un.unit_number,
+        un.floor_number,
+        p.name AS property_name,
+        p.id AS property_id
+      FROM lease l
+      JOIN tenant t ON t.id = l.tenant_id
+      JOIN users u ON u.id = t.user_id
+      LEFT JOIN unit un ON un.id = l.unit_id
+      LEFT JOIN property p ON p.id = un.property_id
+      WHERE t.id = $1`,
+      [id]
     );
-    if (!result.rows.length) return res.status(404).json({ error: "Tenant not found" });
-    res.json({ tenant: result.rows[0] });
+
+    if (!tenantResult.rows.length) {
+      return res.status(404).json({ error: "Tenant not found" });
+    }
+
+    const tenant = tenantResult.rows[0];
+
+    const leasesResult = await pool.query(
+      `SELECT 
+        l.id,
+        l.tenant_id,
+        l.lease_start_date,
+        l.lease_end_date,
+        l.rent_amount,
+        l.deposit_amount,
+        l.status,
+        l.payment_frequency,
+        l.payment_due_day,
+        l.late_fee_amount,
+        l.grace_period_days,
+        l.water_included,
+        l.electricity_included,
+        l.internet_included,
+        un.unit_number,
+        un.id AS unit_id,
+        p.name AS property_name,
+        p.id AS property_id
+      FROM lease l
+      LEFT JOIN unit un ON un.id = l.unit_id
+      LEFT JOIN property p ON p.id = un.property_id
+      WHERE l.tenant_id = $1
+      ORDER BY l.lease_start_date DESC`,
+      [id]
+    );
+
+    const complaintsResult = await pool.query(
+      `SELECT 
+        c.id,
+        c.subject,
+        c.description,
+        c.status,
+        c.created_at,
+        c.updated_at,
+        c.resolution_notes,
+        c.category,
+        c.severity,
+        c.filed_by_tenant_id,
+        c.against_tenant_id,
+        c.against_unit_id,
+        p.name AS property_name,
+        p.id AS property_id,
+        un.unit_number AS against_unit_number
+      FROM complaint c
+      LEFT JOIN property p ON p.id = c.property_id
+      LEFT JOIN unit un ON un.id = c.against_unit_id
+      WHERE c.filed_by_tenant_id = $1 OR c.against_tenant_id = $1
+      ORDER BY c.created_at DESC`,
+      [id]
+    );
+
+    const maintenanceResult = await pool.query(
+      `SELECT 
+        m.id,
+        m.request_number,
+        m.title,
+        m.description,
+        m.category,
+        m.priority,
+        m.status,
+        m.created_at,
+        m.updated_at,
+        m.scheduled_date,
+        m.completed_at,
+        m.actual_cost,
+        m.estimated_cost,
+        un.unit_number,
+        un.id AS unit_id,
+        p.name AS property_name,
+        p.id AS property_id
+      FROM maintenance_request m
+      LEFT JOIN unit un ON un.id = m.unit_id
+      LEFT JOIN property p ON p.id = un.property_id
+      WHERE m.tenant_id = $1
+      ORDER BY m.created_at DESC`,
+      [id]
+    );
+
+    const invoicesResult = await pool.query(
+      `SELECT 
+        i.id,
+        i.invoice_number,
+        i.due_date,
+        i.amount_due,
+        i.remaining_balance,
+        i.status
+      FROM invoice i
+      WHERE i.tenant_id = $1
+      ORDER BY i.due_date DESC`,
+      [id]
+    );
+
+    const paymentsResult = await pool.query(
+      `SELECT 
+        p.id,
+        p.payment_date,
+        p.payment_method,
+        p.bank_reference,
+        p.amount_paid,
+        p.status
+      FROM payment p
+      WHERE p.tenant_id = $1
+      ORDER BY p.payment_date DESC`,
+      [id]
+    );
+
+    const balanceResult = await pool.query(
+      `SELECT COALESCE(SUM(remaining_balance), 0) AS total_remaining
+      FROM invoice
+      WHERE tenant_id = $1
+        AND status NOT IN ('paid', 'void', 'cancelled')
+        AND remaining_balance > 0`,
+      [id]
+    );
+
+    const outstandingBalance = Number(balanceResult.rows[0].total_remaining);
+
+    const fullTenant = {
+      ...tenant,
+      full_name: `${tenant.first_name || ""} ${tenant.last_name || ""}`.trim(),
+      outstanding_balance: outstandingBalance,
+      leases: leasesResult.rows,
+      complaints: complaintsResult.rows,
+      maintenance_requests: maintenanceResult.rows,
+      invoices: invoicesResult.rows,
+      payments: paymentsResult.rows,
+    };
+
+    res.json({ tenant: fullTenant });
   } catch (err) {
     console.error("Get tenant:", err);
     res.status(500).json({ error: "Server error" });

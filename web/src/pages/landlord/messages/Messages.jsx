@@ -5,9 +5,29 @@ import axios from "axios";
 import useDocumentTitle from "../../../hooks/useDocumentTitle";
 import { useToast } from "../../../contexts/ToastContext";
 import { Icon } from "../../../components/Icon";
-import { c as C, f as F } from "../../../styles/theme";
 
 const API = "http://localhost:4000";
+
+const C = {
+  background: "#f4f5f7",
+  card: "#ffffff",
+  border: "#e9ecef",
+  primary: "#2c3e50",
+  blue: "#3498db",
+  green: "#2b7a4b",
+  red: "#9e3a3a",
+  purple: "#6f42c1",
+  gold: "#d99e0b",
+};
+
+const F = {
+  bebas: '"Bebas Neue", sans-serif',
+  dm: '"DM Sans", sans-serif',
+  mono: '"Space Mono", monospace',
+};
+
+const TEXT = "#000";
+const SECONDARY_TEXT = "#333";
 
 function initials(name = "") { return (name || "").split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase(); }
 function timeAgo(dateStr) {
@@ -29,7 +49,6 @@ const QUICK_REPLIES = [
   "Your receipt is attached",
 ];
 
-
 function ContextMenu({ x, y, children }) {
   return (
     <div style={{
@@ -37,12 +56,12 @@ function ContextMenu({ x, y, children }) {
       left: Math.min(x, window.innerWidth - 200),
       top: Math.min(y, window.innerHeight - 250),
       zIndex: 300,
-      background: C.muted2,
+      background: C.card,
       border: `1px solid ${C.border}`,
       borderRadius: '6px',
       padding: '4px',
       minWidth: 180,
-      boxShadow: '0 8px 30px rgba(0,0,0,0.5)',
+      boxShadow: '0 8px 30px rgba(0,0,0,0.15)',
       animation: 'contextFadeIn 0.1s ease',
     }}>
       {children}
@@ -57,8 +76,8 @@ function ContextMenuItem({ icon, label, danger, onClick }) {
       display: 'flex', alignItems: 'center', gap: '0.6rem',
       padding: '0.5rem 0.8rem', borderRadius: '3px',
       cursor: 'pointer', fontSize: '0.75rem',
-      color: hovered ? (danger ? C.redLight : C.white) : (danger ? C.redLight : 'rgba(245,240,232,0.6)'),
-      background: hovered ? (danger ? 'rgba(224,90,74,0.1)' : C.muted) : 'transparent',
+      color: hovered ? (danger ? C.red : TEXT) : (danger ? C.red : SECONDARY_TEXT),
+      background: hovered ? (danger ? 'rgba(158,58,58,0.1)' : 'rgba(0,0,0,0.05)') : 'transparent',
       transition: 'all 0.1s',
       fontFamily: F.dm,
     }}
@@ -91,7 +110,6 @@ export default function LandlordMessages() {
   const [messageContextMenu, setMessageContextMenu] = useState(null);
   const fileInputRef = useRef(null);
 
-  
   useEffect(() => {
     function handleKeyDown(e) {
       if (e.key === "Escape") {
@@ -108,7 +126,6 @@ export default function LandlordMessages() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [activeConvo, contextMenu, messageContextMenu]);
 
-  
   useEffect(() => {
     function handleClick() {
       setContextMenu(null);
@@ -131,20 +148,20 @@ export default function LandlordMessages() {
       ]);
 
       const mappedConvos = (convRes.data.conversations || []).map(c => ({
-      ...c,
-      initials: initials(c.with_name),
-      unread: c.unread_count || 0,
-      preview: c.last_message || "No messages yet",
-      time: timeAgo(c.last_message_at || c.created_at),
-      online: c.with_online || false,
-    }));
+        ...c,
+        initials: initials(c.with_name),
+        unread: c.unread_count || 0,
+        preview: c.last_message || "No messages yet",
+        time: timeAgo(c.last_message_at || c.created_at),
+        online: c.with_online || false,
+      }));
 
-    mappedConvos.sort((a, b) =>
-      new Date(b.last_message_at || b.created_at || 0) - new Date(a.last_message_at || a.created_at || 0)
-    );
+      mappedConvos.sort((a, b) =>
+        new Date(b.last_message_at || b.created_at || 0) - new Date(a.last_message_at || a.created_at || 0)
+      );
 
-    setConversations(mappedConvos);
-    setRecipients(recipRes.data.recipients || []);
+      setConversations(mappedConvos);
+      setRecipients(recipRes.data.recipients || []);
     } catch (err) {
       console.error("Fetch messages:", err);
     } finally {
@@ -276,7 +293,7 @@ export default function LandlordMessages() {
   }
 
   return (
-    <div style={{ fontFamily: F.dm, fontWeight: 300, background: C.black, color: C.white, height: 'calc(100vh - 4rem)', overflow: 'hidden', margin: '-2rem -2.5rem', borderRadius: '0' }}>
+    <div style={{ fontFamily: F.dm, fontWeight: 400, background: C.background, color: TEXT, height: 'calc(100vh - 4rem)', overflow: 'hidden', margin: '-2rem -2.5rem', borderRadius: '0' }}>
       <style>{`
         *, *::before, *::after { box-sizing: border-box; }
         @keyframes fadeMsg { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
@@ -294,32 +311,32 @@ export default function LandlordMessages() {
       `}</style>
 
       {loading ? (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'rgba(245,240,232,0.3)', gap: '0.8rem' }}>
-          <span style={{ width: 24, height: 24, border: '3px solid rgba(245,240,232,0.1)', borderTopColor: C.gold, borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: SECONDARY_TEXT, gap: '0.8rem' }}>
+          <span style={{ width: 24, height: 24, border: '3px solid rgba(0,0,0,0.1)', borderTopColor: C.primary, borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
           Loading messages...
         </div>
       ) : (
         <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
 
           {/* CONVERSATIONS PANEL */}
-          <div className="convos-panel" style={{ width: 340, minWidth: 280, borderRight: `1px solid ${C.border}`, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: C.muted2, flexShrink: 0 }}>
+          <div className="convos-panel" style={{ width: 340, minWidth: 280, borderRight: `1px solid ${C.border}`, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: C.card, flexShrink: 0 }}>
             <div style={{ padding: '1.2rem 1.2rem 0.8rem', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.8rem' }}>
-                <div style={{ fontFamily: F.bebas, fontSize: '1.3rem', letterSpacing: '0.04em', lineHeight: 1 }}>Messages</div>
+                <div style={{ fontFamily: F.bebas, fontSize: '1.3rem', letterSpacing: '0.04em', lineHeight: 1, color: TEXT }}>Messages</div>
                 <div style={{ display: 'flex', gap: '0.4rem' }}>
                   <button onClick={() => setShowAnnouncement(true)} title="New Announcement" style={{
-                    width: 30, height: 30, background: C.black, border: `1px solid ${C.border}`,
+                    width: 30, height: 30, background: C.background, border: `1px solid ${C.border}`,
                     borderRadius: '3px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    cursor: 'pointer', color: 'rgba(245,240,232,0.4)', transition: 'color 0.15s',
+                    cursor: 'pointer', color: TEXT, transition: 'color 0.15s',
                   }}
-                    onMouseEnter={e => e.currentTarget.style.color = C.white}
-                    onMouseLeave={e => e.currentTarget.style.color = 'rgba(245,240,232,0.4)'}>
+                    onMouseEnter={e => e.currentTarget.style.color = C.primary}
+                    onMouseLeave={e => e.currentTarget.style.color = TEXT}>
                     <Icon name="bell" size={14} />
                   </button>
                   <button onClick={() => setShowNewMessage(true)} title="New Message" style={{
-                    width: 30, height: 30, background: C.gold, border: 'none',
+                    width: 30, height: 30, background: C.primary, border: 'none',
                     borderRadius: '3px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    cursor: 'pointer', color: C.black,
+                    cursor: 'pointer', color: '#fff',
                   }}>
                     <Icon name="plus" size={14} />
                   </button>
@@ -327,22 +344,22 @@ export default function LandlordMessages() {
               </div>
 
               <div style={{ position: 'relative' }}>
-                <Icon name="search" size={13} style={{ position: 'absolute', left: '0.65rem', top: '50%', transform: 'translateY(-50%)', color: 'rgba(245,240,232,0.2)' }} />
+                <Icon name="search" size={13} style={{ position: 'absolute', left: '0.65rem', top: '50%', transform: 'translateY(-50%)', color: SECONDARY_TEXT }} />
                 <input
                   type="text"
                   placeholder="Search conversations…"
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  style={{ width: '100%', background: C.black, border: `1px solid ${C.border}`, color: C.white, fontFamily: F.dm, fontSize: '0.78rem', padding: '0.55rem 0.8rem 0.55rem 2rem', borderRadius: '3px', outline: 'none' }}
+                  style={{ width: '100%', background: C.background, border: `1px solid ${C.border}`, color: TEXT, fontFamily: F.dm, fontSize: '0.78rem', padding: '0.55rem 0.8rem 0.55rem 2rem', borderRadius: '3px', outline: 'none' }}
                 />
               </div>
             </div>
 
             <div className="convos-list" style={{ flex: 1, overflowY: 'auto' }}>
               {filteredConvos.length === 0 ? (
-                <div style={{ padding: '3rem 1rem', textAlign: 'center', color: 'rgba(245,240,232,0.2)' }}>
-                  <Icon name="messages" size={28} style={{ marginBottom: '0.5rem', opacity: 0.3 }} />
-                  <p style={{ fontSize: '0.75rem', fontFamily: F.mono }}>No conversations</p>
+                <div style={{ padding: '3rem 1rem', textAlign: 'center', color: SECONDARY_TEXT }}>
+                  <Icon name="messages" size={28} style={{ marginBottom: '0.5rem', opacity: 0.5 }} />
+                  <p style={{ fontSize: '0.75rem', fontFamily: F.mono, color: TEXT }}>No conversations</p>
                 </div>
               ) : (
                 filteredConvos.map(convo => (
@@ -355,30 +372,30 @@ export default function LandlordMessages() {
                     style={{
                       display: 'flex', alignItems: 'center', gap: '0.7rem', padding: '0.85rem 1rem',
                       cursor: 'pointer', borderBottom: `1px solid ${C.border}`,
-                      background: activeConvo?.id === convo.id ? 'rgba(232,160,18,0.06)' : 'transparent',
-                      borderLeft: activeConvo?.id === convo.id ? `2px solid ${C.gold}` : '2px solid transparent',
+                      background: activeConvo?.id === convo.id ? 'rgba(44,62,80,0.06)' : 'transparent',
+                      borderLeft: activeConvo?.id === convo.id ? `2px solid ${C.primary}` : '2px solid transparent',
                       transition: 'background 0.15s',
                     }}
-                    onMouseEnter={e => { if (activeConvo?.id !== convo.id) e.currentTarget.style.background = C.muted; }}
+                    onMouseEnter={e => { if (activeConvo?.id !== convo.id) e.currentTarget.style.background = 'rgba(0,0,0,0.03)'; }}
                     onMouseLeave={e => { if (activeConvo?.id !== convo.id) e.currentTarget.style.background = 'transparent'; }}>
-                    <div style={{ position: 'relative', width: 40, height: 40, borderRadius: '50%', background: 'rgba(232,160,18,0.1)', color: C.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: F.bebas, fontSize: '0.85rem', flexShrink: 0 }}>
+                    <div style={{ position: 'relative', width: 40, height: 40, borderRadius: '50%', background: 'rgba(44,62,80,0.1)', color: C.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: F.bebas, fontSize: '0.85rem', flexShrink: 0 }}>
                       {convo.initials}
-                      <div style={{ position: 'absolute', bottom: 1, right: 1, width: 9, height: 9, borderRadius: '50%', border: `2px solid ${C.muted2}`, background: convo.online ? C.greenLight : 'rgba(245,240,232,0.2)' }} />
+                      <div style={{ position: 'absolute', bottom: 1, right: 1, width: 9, height: 9, borderRadius: '50%', border: `2px solid ${C.card}`, background: convo.online ? C.green : C.border }} />
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.15rem' }}>
-                        <span style={{ fontSize: '0.82rem', fontWeight: convo.unread > 0 ? 600 : 400, color: C.white }}>{convo.with_name}</span>
-                        <span style={{ fontSize: '0.6rem', color: 'rgba(245,240,232,0.25)', fontFamily: F.mono, flexShrink: 0 }}>{convo.time}</span>
+                        <span style={{ fontSize: '0.82rem', fontWeight: convo.unread > 0 ? 600 : 400, color: TEXT }}>{convo.with_name}</span>
+                        <span style={{ fontSize: '0.6rem', color: SECONDARY_TEXT, fontFamily: F.mono, flexShrink: 0 }}>{convo.time}</span>
                       </div>
-                      <div style={{ fontSize: '0.72rem', color: convo.unread > 0 ? 'rgba(245,240,232,0.7)' : 'rgba(245,240,232,0.35)', fontWeight: convo.unread > 0 ? 500 : 300, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <div style={{ fontSize: '0.72rem', color: convo.unread > 0 ? TEXT : SECONDARY_TEXT, fontWeight: convo.unread > 0 ? 500 : 400, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {convo.preview}
                       </div>
-                      <div style={{ fontSize: '0.6rem', color: 'rgba(245,240,232,0.2)', fontFamily: F.mono, marginTop: '1px' }}>
+                      <div style={{ fontSize: '0.6rem', color: SECONDARY_TEXT, fontFamily: F.mono, marginTop: '1px' }}>
                         {convo.with_role} · {convo.property || convo.unit || "—"}
                       </div>
                     </div>
                     {convo.unread > 0 && (
-                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.gold, flexShrink: 0 }} />
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.primary, flexShrink: 0 }} />
                     )}
                   </div>
                 ))
@@ -387,21 +404,21 @@ export default function LandlordMessages() {
           </div>
 
           {/* CHAT PANEL */}
-          <div className={`chat-panel ${activeConvo ? 'active' : ''}`} style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: C.black }}>
+          <div className={`chat-panel ${activeConvo ? 'active' : ''}`} style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: C.background }}>
             {activeConvo ? (
               <>
-                <div style={{ padding: '0.85rem 1.5rem', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: '0.8rem', flexShrink: 0, background: C.muted2 }}>
-                  <button onClick={closeConvo} style={{ padding: '0.2rem', borderRadius: '3px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.3)' }}
-                    onMouseEnter={e => e.currentTarget.style.color = C.white}
-                    onMouseLeave={e => e.currentTarget.style.color = 'rgba(245,240,232,0.3)'}>
+                <div style={{ padding: '0.85rem 1.5rem', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: '0.8rem', flexShrink: 0, background: C.card }}>
+                  <button onClick={closeConvo} style={{ padding: '0.2rem', borderRadius: '3px', background: 'transparent', border: 'none', cursor: 'pointer', color: TEXT }}
+                    onMouseEnter={e => e.currentTarget.style.color = C.primary}
+                    onMouseLeave={e => e.currentTarget.style.color = TEXT}>
                     <Icon name="x" size={18} />
                   </button>
-                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(232,160,18,0.1)', color: C.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: F.bebas, fontSize: '0.8rem', flexShrink: 0 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(44,62,80,0.1)', color: C.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: F.bebas, fontSize: '0.8rem', flexShrink: 0 }}>
                     {activeConvo.initials}
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600, fontSize: '0.88rem', color: C.white }}>{activeConvo.with_name}</div>
-                    <div style={{ fontSize: '0.65rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.88rem', color: TEXT }}>{activeConvo.with_name}</div>
+                    <div style={{ fontSize: '0.65rem', color: SECONDARY_TEXT, fontFamily: F.mono }}>
                       {activeConvo.with_role}{activeConvo.property ? ` · ${activeConvo.property}` : ''}
                     </div>
                   </div>
@@ -409,9 +426,9 @@ export default function LandlordMessages() {
 
                 <div ref={messagesRef} className="messages-area" style={{ flex: 1, overflowY: 'auto', padding: '0.8rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   {(activeConvo.messages || []).length === 0 && (
-                    <div style={{ textAlign: 'center', padding: '3rem 0', color: 'rgba(245,240,232,0.15)' }}>
-                      <Icon name="messages" size={36} style={{ marginBottom: '0.5rem', opacity: 0.3 }} />
-                      <p style={{ fontSize: '0.78rem', fontFamily: F.mono }}>No messages yet</p>
+                    <div style={{ textAlign: 'center', padding: '3rem 0', color: SECONDARY_TEXT }}>
+                      <Icon name="messages" size={36} style={{ marginBottom: '0.5rem', opacity: 0.5 }} />
+                      <p style={{ fontSize: '0.78rem', fontFamily: F.mono, color: TEXT }}>No messages yet</p>
                     </div>
                   )}
 
@@ -433,8 +450,8 @@ export default function LandlordMessages() {
                           width: 24, height: 24, borderRadius: '50%', flexShrink: 0,
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                           fontFamily: F.bebas, fontSize: '0.6rem', marginBottom: '2px',
-                          background: isMine ? 'rgba(58,143,212,0.15)' : 'rgba(232,160,18,0.1)',
-                          color: isMine ? C.blue : C.gold,
+                          background: isMine ? 'rgba(52,152,219,0.15)' : 'rgba(44,62,80,0.1)',
+                          color: isMine ? C.blue : C.primary,
                         }}>
                           {isMine ? 'ME' : activeConvo.initials}
                         </div>
@@ -444,7 +461,8 @@ export default function LandlordMessages() {
                               padding: '0.6rem 0.9rem',
                               borderRadius: isMine ? '10px 4px 10px 10px' : '4px 10px 10px 10px',
                               fontSize: '0.84rem', lineHeight: 1.55, wordBreak: 'break-word',
-                              background: isMine ? 'rgba(58,143,212,0.15)' : C.muted2, color: C.white,
+                              background: isMine ? '#e8f0f5' : '#f1f3f5', color: TEXT,
+                              border: `1px solid ${C.border}`,
                             }}>
                               {msg.message || msg.body}
                             </div>
@@ -482,10 +500,10 @@ export default function LandlordMessages() {
                                         onError={(e) => {
                                           e.target.style.display = 'none';
                                           e.target.parentElement.innerHTML = `
-                                            <div style="display:flex;align-items:center;gap:0.4rem;padding:0.4rem 0.6rem;border-radius:4px;background:rgba(0,0,0,0.25);font-size:0.72rem;color:${isMine ? C.white : C.blue};cursor:pointer;">
+                                            <div style="display:flex;align-items:center;gap:0.4rem;padding:0.4rem 0.6rem;border-radius:4px;background:rgba(0,0,0,0.05);font-size:0.72rem;color:${TEXT};cursor:pointer;">
                                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${C.blue}" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
                                               <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${att.name || 'Image'}</span>
-                                              <span style="font-size:0.6rem;color:rgba(245,240,232,0.3);">${att.file_size ? (att.file_size / 1024).toFixed(0) + 'KB' : ''}</span>
+                                              <span style="font-size:0.6rem;color:${SECONDARY_TEXT};">${att.file_size ? (att.file_size / 1024).toFixed(0) + 'KB' : ''}</span>
                                               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                                             </div>
                                           `;
@@ -495,7 +513,6 @@ export default function LandlordMessages() {
                                   );
                                 }
                                 
-                                
                                 return (
                                   <a key={att.id || j}
                                     href={att.url?.startsWith('blob:') ? att.url : `${API}${att.url}`}
@@ -504,17 +521,18 @@ export default function LandlordMessages() {
                                     style={{
                                       display: 'flex', alignItems: 'center', gap: '0.4rem',
                                       padding: '0.4rem 0.6rem', borderRadius: '4px',
-                                      background: 'rgba(0,0,0,0.25)', textDecoration: 'none',
-                                      fontSize: '0.72rem', color: isMine ? C.white : C.blue,
+                                      background: 'rgba(0,0,0,0.05)', textDecoration: 'none',
+                                      fontSize: '0.72rem', color: TEXT,
                                       transition: 'background 0.15s',
+                                      border: `1px solid ${C.border}`,
                                     }}
-                                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.4)'}
-                                    onMouseLeave={e => e.currentTarget.style.background = 'rgba(0,0,0,0.25)'}>
-                                    <Icon name={isPDF ? "file-text" : "file"} size={14} color={isPDF ? C.redLight : "rgba(245,240,232,0.4)"} />
+                                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.1)'}
+                                    onMouseLeave={e => e.currentTarget.style.background = 'rgba(0,0,0,0.05)'}>
+                                    <Icon name={isPDF ? "file-text" : "file"} size={14} color={isPDF ? C.red : SECONDARY_TEXT} />
                                     <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                       {att.name}
                                     </span>
-                                    <span style={{ fontSize: '0.6rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono, flexShrink: 0 }}>
+                                    <span style={{ fontSize: '0.6rem', color: SECONDARY_TEXT, fontFamily: F.mono, flexShrink: 0 }}>
                                       {att.file_size ? `${(att.file_size / 1024).toFixed(0)}KB` : ''}
                                     </span>
                                     <Icon name="download" size={12} style={{ flexShrink: 0 }} />
@@ -525,12 +543,12 @@ export default function LandlordMessages() {
                           )}
 
                           <span style={{
-                            fontSize: '0.58rem', color: 'rgba(245,240,232,0.2)', fontFamily: F.mono,
+                            fontSize: '0.58rem', color: SECONDARY_TEXT, fontFamily: F.mono,
                             marginTop: '0.2rem', display: 'block',
                             textAlign: isMine ? 'right' : 'left',
                           }}>
                             {timeAgo(msg.created_at)}
-                            {isMine && msg.read && <span style={{ marginLeft: '0.3rem', color: C.greenLight }}>✓ Read</span>}
+                            {isMine && msg.read && <span style={{ marginLeft: '0.3rem', color: C.green }}>✓ Read</span>}
                           </span>
                         </div>
                       </div>
@@ -539,16 +557,16 @@ export default function LandlordMessages() {
                 </div>
 
                 {/* INPUT BAR WITH ATTACHMENTS */}
-                <div style={{ padding: '0.8rem 1.5rem', borderTop: `1px solid ${C.border}`, flexShrink: 0, background: C.muted2 }}>
+                <div style={{ padding: '0.8rem 1.5rem', borderTop: `1px solid ${C.border}`, flexShrink: 0, background: C.card }}>
                   <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '0.6rem', flexWrap: 'wrap' }}>
                     {QUICK_REPLIES.map((qr, i) => (
                       <button key={i} onClick={() => handleQuickReply(qr)} style={{
-                        background: C.black, border: `1px solid ${C.border}`, padding: '0.25rem 0.6rem',
-                        borderRadius: '12px', fontSize: '0.68rem', color: 'rgba(245,240,232,0.4)',
+                        background: C.background, border: `1px solid ${C.border}`, padding: '0.25rem 0.6rem',
+                        borderRadius: '12px', fontSize: '0.68rem', color: SECONDARY_TEXT,
                         cursor: 'pointer', fontFamily: F.dm, transition: 'border-color 0.2s, color 0.2s',
                       }}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor = C.gold; e.currentTarget.style.color = C.gold; }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = 'rgba(245,240,232,0.4)'; }}>
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = C.primary; e.currentTarget.style.color = C.primary; }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = SECONDARY_TEXT; }}>
                         {qr}
                       </button>
                     ))}
@@ -559,17 +577,17 @@ export default function LandlordMessages() {
                       {attachments.map((file, i) => (
                         <div key={i} style={{
                           display: 'flex', alignItems: 'center', gap: '0.4rem',
-                          background: C.black, border: `1px solid ${C.border}`,
+                          background: C.background, border: `1px solid ${C.border}`,
                           borderRadius: '4px', padding: '0.35rem 0.6rem',
                         }}>
                           {file.type?.startsWith('image/') ? (
                             <Icon name="image" size={12} color={C.blue} />
                           ) : (
-                            <Icon name="file" size={12} color="rgba(245,240,232,0.4)" />
+                            <Icon name="file" size={12} color={SECONDARY_TEXT} />
                           )}
-                          <span style={{ fontSize: '0.68rem', color: 'rgba(245,240,232,0.5)', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</span>
+                          <span style={{ fontSize: '0.68rem', color: TEXT, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</span>
                           <button onClick={() => setAttachments(prev => prev.filter((_, j) => j !== i))} style={{
-                            background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.3)', padding: '1px',
+                            background: 'none', border: 'none', cursor: 'pointer', color: SECONDARY_TEXT, padding: '1px',
                           }}>
                             <Icon name="x" size={10} />
                           </button>
@@ -581,12 +599,12 @@ export default function LandlordMessages() {
                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end' }}>
                     <div style={{ display: 'flex', gap: '0.3rem' }}>
                       <button onClick={() => fileInputRef.current?.click()} style={{
-                        width: 34, height: 34, background: C.black, border: `1px solid ${C.border}`,
+                        width: 34, height: 34, background: C.background, border: `1px solid ${C.border}`,
                         borderRadius: '3px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        cursor: 'pointer', color: 'rgba(245,240,232,0.3)', transition: 'color 0.15s',
+                        cursor: 'pointer', color: SECONDARY_TEXT, transition: 'color 0.15s',
                       }}
-                        onMouseEnter={e => e.currentTarget.style.color = C.white}
-                        onMouseLeave={e => e.currentTarget.style.color = 'rgba(245,240,232,0.3)'}>
+                        onMouseEnter={e => e.currentTarget.style.color = C.primary}
+                        onMouseLeave={e => e.currentTarget.style.color = SECONDARY_TEXT}>
                         <Icon name="paperclip" size={14} />
                       </button>
                       <input ref={fileInputRef} type="file" multiple accept="image/*,.pdf,.doc,.docx,.txt,.zip"
@@ -595,16 +613,16 @@ export default function LandlordMessages() {
                     </div>
                     <textarea ref={inputRef} rows={1} placeholder="Type a message…" value={msgInput}
                       onChange={e => setMsgInput(e.target.value)} onKeyDown={handleKeyDown}
-                      style={{ flex: 1, background: C.black, border: `1px solid ${C.border}`, color: C.white, fontFamily: F.dm, fontSize: '0.84rem', padding: '0.55rem 0.9rem', borderRadius: '3px', outline: 'none', resize: 'none', maxHeight: '100px', lineHeight: 1.5 }} />
+                      style={{ flex: 1, background: C.background, border: `1px solid ${C.border}`, color: TEXT, fontFamily: F.dm, fontSize: '0.84rem', padding: '0.55rem 0.9rem', borderRadius: '3px', outline: 'none', resize: 'none', maxHeight: '100px', lineHeight: 1.5 }} />
                     <button onClick={handleSend} disabled={(!msgInput.trim() && attachments.length === 0) || uploading} style={{
                       width: 36, height: 36, borderRadius: '3px', border: 'none', cursor: 'pointer',
                       flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      background: (msgInput.trim() || attachments.length > 0) ? C.gold : C.border,
-                      color: (msgInput.trim() || attachments.length > 0) ? C.black : 'rgba(245,240,232,0.3)',
+                      background: (msgInput.trim() || attachments.length > 0) ? C.primary : C.border,
+                      color: (msgInput.trim() || attachments.length > 0) ? '#fff' : SECONDARY_TEXT,
                       opacity: (msgInput.trim() || attachments.length > 0) ? 1 : 0.5,
                     }}>
                       {uploading ? (
-                        <span style={{ width: 14, height: 14, border: '2px solid rgba(0,0,0,0.2)', borderTopColor: C.black, borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+                        <span style={{ width: 14, height: 14, border: '2px solid rgba(0,0,0,0.1)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
                       ) : (
                         <Icon name="send" size={15} />
                       )}
@@ -613,11 +631,11 @@ export default function LandlordMessages() {
                 </div>
               </>
             ) : (
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'rgba(245,240,232,0.1)', gap: '0.8rem' }}>
-                <Icon name="messages" size={56} style={{ opacity: 0.25 }} />
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: SECONDARY_TEXT, gap: '0.8rem' }}>
+                <Icon name="messages" size={56} style={{ opacity: 0.4 }} />
                 <div style={{ textAlign: 'center' }}>
-                  <p style={{ fontSize: '0.9rem', fontFamily: F.mono, color: 'rgba(245,240,232,0.25)', marginBottom: '0.3rem' }}>Select a conversation</p>
-                  <p style={{ fontSize: '0.7rem', color: 'rgba(245,240,232,0.15)' }}>or start a new message</p>
+                  <p style={{ fontSize: '0.9rem', fontFamily: F.mono, color: TEXT, marginBottom: '0.3rem' }}>Select a conversation</p>
+                  <p style={{ fontSize: '0.7rem', color: SECONDARY_TEXT }}>or start a new message</p>
                 </div>
               </div>
             )}
@@ -677,7 +695,6 @@ export default function LandlordMessages() {
   );
 }
 
-
 function NewMessageModal({ recipients, onClose, onSend }) {
   const [selectedRecipient, setSelectedRecipient] = useState("");
   const [message, setMessage] = useState("");
@@ -692,28 +709,27 @@ function NewMessageModal({ recipients, onClose, onSend }) {
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}>
-      <div style={{ width: '100%', maxWidth: 440, background: C.muted2, border: `1px solid ${C.border}`, borderRadius: '6px', padding: '1.5rem' }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)' }}>
+      <div style={{ width: '100%', maxWidth: 440, background: C.card, border: `1px solid ${C.border}`, borderRadius: '6px', padding: '1.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-          <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: C.white, fontFamily: F.bebas, letterSpacing: '0.04em' }}>New Message</h3>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.3)' }}><Icon name="x" size={18} /></button>
+          <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: TEXT, fontFamily: F.bebas, letterSpacing: '0.04em' }}>New Message</h3>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: TEXT }}><Icon name="x" size={18} /></button>
         </div>
         <div style={{ marginBottom: '0.8rem' }}>
-          <select value={selectedRecipient} onChange={e => setSelectedRecipient(e.target.value)} style={{ width: '100%', background: C.black, border: `1px solid ${C.border}`, color: C.white, padding: '0.6rem', borderRadius: '3px', fontFamily: F.dm, fontSize: '0.82rem' }}>
+          <select value={selectedRecipient} onChange={e => setSelectedRecipient(e.target.value)} style={{ width: '100%', background: C.background, border: `1px solid ${C.border}`, color: TEXT, padding: '0.6rem', borderRadius: '3px', fontFamily: F.dm, fontSize: '0.82rem' }}>
             <option value="">Select recipient...</option>
             {recipients.map(r => <option key={r.user_id} value={r.user_id}>{r.name} ({r.role}){r.property ? ` · ${r.property}` : ''}</option>)}
           </select>
         </div>
-        <textarea rows={4} value={message} onChange={e => setMessage(e.target.value)} placeholder="Type your message..." style={{ width: '100%', background: C.black, border: `1px solid ${C.border}`, color: C.white, padding: '0.6rem', borderRadius: '3px', fontFamily: F.dm, fontSize: '0.82rem', resize: 'vertical', minHeight: 80 }} />
+        <textarea rows={4} value={message} onChange={e => setMessage(e.target.value)} placeholder="Type your message..." style={{ width: '100%', background: C.background, border: `1px solid ${C.border}`, color: TEXT, padding: '0.6rem', borderRadius: '3px', fontFamily: F.dm, fontSize: '0.82rem', resize: 'vertical', minHeight: 80 }} />
         <div style={{ display: 'flex', gap: '0.8rem', marginTop: '1rem' }}>
-          <button onClick={onClose} style={{ flex: 1, padding: '0.6rem', borderRadius: '3px', fontSize: '0.76rem', fontWeight: 500, fontFamily: F.dm, background: 'transparent', border: `1px solid ${C.border}`, color: 'rgba(245,240,232,0.5)', cursor: 'pointer' }}>Cancel</button>
-          <button onClick={handleSubmit} disabled={!selectedRecipient || !message.trim()} style={{ flex: 1, padding: '0.6rem', borderRadius: '3px', fontSize: '0.76rem', fontWeight: 600, fontFamily: F.dm, background: C.gold, color: C.black, border: 'none', cursor: 'pointer', opacity: (!selectedRecipient || !message.trim()) ? 0.5 : 1 }}>Send</button>
+          <button onClick={onClose} style={{ flex: 1, padding: '0.6rem', borderRadius: '3px', fontSize: '0.76rem', fontWeight: 500, fontFamily: F.dm, background: 'transparent', border: `1px solid ${C.border}`, color: TEXT, cursor: 'pointer' }}>Cancel</button>
+          <button onClick={handleSubmit} disabled={!selectedRecipient || !message.trim()} style={{ flex: 1, padding: '0.6rem', borderRadius: '3px', fontSize: '0.76rem', fontWeight: 600, fontFamily: F.dm, background: C.primary, color: '#fff', border: 'none', cursor: 'pointer', opacity: (!selectedRecipient || !message.trim()) ? 0.5 : 1 }}>Send</button>
         </div>
       </div>
     </div>
   );
 }
-
 
 function AnnouncementModal({ onClose, onSend }) {
   const [subject, setSubject] = useState("");
@@ -730,23 +746,23 @@ function AnnouncementModal({ onClose, onSend }) {
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}>
-      <div style={{ width: '100%', maxWidth: 460, background: C.muted2, border: `1px solid ${C.border}`, borderRadius: '6px', padding: '1.5rem' }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)' }}>
+      <div style={{ width: '100%', maxWidth: 460, background: C.card, border: `1px solid ${C.border}`, borderRadius: '6px', padding: '1.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-          <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: C.white, fontFamily: F.bebas, letterSpacing: '0.04em' }}>New Announcement</h3>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.3)' }}><Icon name="x" size={18} /></button>
+          <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: TEXT, fontFamily: F.bebas, letterSpacing: '0.04em' }}>New Announcement</h3>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: TEXT }}><Icon name="x" size={18} /></button>
         </div>
         <div style={{ marginBottom: '0.8rem' }}>
-          <select value={recipientType} onChange={e => setRecipientType(e.target.value)} style={{ width: '100%', background: C.black, border: `1px solid ${C.border}`, color: C.white, padding: '0.6rem', borderRadius: '3px', fontFamily: F.dm, fontSize: '0.82rem' }}>
+          <select value={recipientType} onChange={e => setRecipientType(e.target.value)} style={{ width: '100%', background: C.background, border: `1px solid ${C.border}`, color: TEXT, padding: '0.6rem', borderRadius: '3px', fontFamily: F.dm, fontSize: '0.82rem' }}>
             <option value="all_tenants">All Tenants</option>
             <option value="caretakers">All Caretakers</option>
           </select>
         </div>
-        <input type="text" value={subject} onChange={e => setSubject(e.target.value)} placeholder="Subject (optional)" style={{ width: '100%', background: C.black, border: `1px solid ${C.border}`, color: C.white, padding: '0.6rem', borderRadius: '3px', fontFamily: F.dm, fontSize: '0.82rem', marginBottom: '0.8rem' }} />
-        <textarea rows={4} value={message} onChange={e => setMessage(e.target.value)} placeholder="Type your announcement..." style={{ width: '100%', background: C.black, border: `1px solid ${C.border}`, color: C.white, padding: '0.6rem', borderRadius: '3px', fontFamily: F.dm, fontSize: '0.82rem', resize: 'vertical', minHeight: 80 }} />
+        <input type="text" value={subject} onChange={e => setSubject(e.target.value)} placeholder="Subject (optional)" style={{ width: '100%', background: C.background, border: `1px solid ${C.border}`, color: TEXT, padding: '0.6rem', borderRadius: '3px', fontFamily: F.dm, fontSize: '0.82rem', marginBottom: '0.8rem' }} />
+        <textarea rows={4} value={message} onChange={e => setMessage(e.target.value)} placeholder="Type your announcement..." style={{ width: '100%', background: C.background, border: `1px solid ${C.border}`, color: TEXT, padding: '0.6rem', borderRadius: '3px', fontFamily: F.dm, fontSize: '0.82rem', resize: 'vertical', minHeight: 80 }} />
         <div style={{ display: 'flex', gap: '0.8rem', marginTop: '1rem' }}>
-          <button onClick={onClose} style={{ flex: 1, padding: '0.6rem', borderRadius: '3px', fontSize: '0.76rem', fontWeight: 500, fontFamily: F.dm, background: 'transparent', border: `1px solid ${C.border}`, color: 'rgba(245,240,232,0.5)', cursor: 'pointer' }}>Cancel</button>
-          <button onClick={handleSubmit} disabled={!message.trim()} style={{ flex: 1, padding: '0.6rem', borderRadius: '3px', fontSize: '0.76rem', fontWeight: 600, fontFamily: F.dm, background: C.gold, color: C.black, border: 'none', cursor: 'pointer', opacity: !message.trim() ? 0.5 : 1 }}>Send Announcement</button>
+          <button onClick={onClose} style={{ flex: 1, padding: '0.6rem', borderRadius: '3px', fontSize: '0.76rem', fontWeight: 500, fontFamily: F.dm, background: 'transparent', border: `1px solid ${C.border}`, color: TEXT, cursor: 'pointer' }}>Cancel</button>
+          <button onClick={handleSubmit} disabled={!message.trim()} style={{ flex: 1, padding: '0.6rem', borderRadius: '3px', fontSize: '0.76rem', fontWeight: 600, fontFamily: F.dm, background: C.primary, color: '#fff', border: 'none', cursor: 'pointer', opacity: !message.trim() ? 0.5 : 1 }}>Send Announcement</button>
         </div>
       </div>
     </div>

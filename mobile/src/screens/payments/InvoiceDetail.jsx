@@ -9,20 +9,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { Ionicons, Feather, MaterialIcons } from "@expo/vector-icons";
 import api from "../../utils/api";
-
-const C = {
-  black:      "#0a0a0a",
-  muted:      "#141414",
-  muted2:     "#1a1a1a",
-  border:     "#2a2a2a",
-  gold:       "#E8A012",
-  white:      "#F5F0E8",
-  blue:       "#3A8FD4",
-  greenLight: "#1A7A4A",
-  redLight:   "#E05A4A",
-  purple:     "#8B5CF6",
-};
-const F = { bebas: "bebas-neue", dm: "dm-sans", mono: "space-mono" };
+import { C, F } from "../../styles/theme";
 
 function fmt(n)     { return `R ${Number(n || 0).toLocaleString("en-ZA")}`; }
 function formatDate(d) {
@@ -57,24 +44,24 @@ function formatTime(d) {
 function statusConfig(status) {
   switch (status) {
     case "paid":     
-      return { color: C.greenLight, bg: "rgba(26,122,74,0.08)", label: "Fully Paid", icon: "checkmark-circle" };
+      return { color: C.green, bg: "rgba(43,122,75,0.08)", label: "Fully Paid", icon: "checkmark-circle" };
     case "partial":  
-      return { color: C.gold, bg: "rgba(232,160,18,0.06)", label: "Partially Paid", icon: "time" };
+      return { color: C.blue, bg: "rgba(52,152,219,0.08)", label: "Partially Paid", icon: "time" };
     case "overdue":  
-      return { color: C.redLight, bg: "rgba(224,90,74,0.08)", label: "Overdue", icon: "alert-circle" };
+      return { color: C.red, bg: "rgba(158,58,58,0.08)", label: "Overdue", icon: "alert-circle" };
     case "sent":
     case "unpaid":   
-      return { color: C.gold, bg: "rgba(232,160,18,0.06)", label: "Payment Due", icon: "time" };
+      return { color: C.blue, bg: "rgba(52,152,219,0.06)", label: "Payment Due", icon: "time" };
     case "pending_approval":
     case "pending":  
-      return { color: C.blue, bg: "rgba(58,143,212,0.06)", label: "Pending Approval", icon: "hourglass" };
+      return { color: C.blue, bg: "rgba(52,152,219,0.06)", label: "Pending Approval", icon: "hourglass" };
     case "collections":
-      return { color: C.purple, bg: "rgba(139,92,246,0.08)", label: "In Collections", icon: "warning" };
+      return { color: C.purple, bg: "rgba(111,66,193,0.08)", label: "In Collections", icon: "warning" };
     case "void":
     case "cancelled":     
-      return { color: "rgba(245,240,232,0.3)", bg: C.muted2, label: "Cancelled", icon: "close-circle" };
+      return { color: C.textMuted, bg: C.surface, label: "Cancelled", icon: "close-circle" };
     default:         
-      return { color: C.gold, bg: C.muted2, label: status || "Unknown", icon: "document" };
+      return { color: C.textMuted, bg: C.surface, label: status || "Unknown", icon: "document" };
   }
 }
 
@@ -82,7 +69,7 @@ function LineItem({ label, amount, sub, accent, bold, dimmed, topBorder }) {
   return (
     <View style={[S.lineItem, topBorder && { borderTopWidth: 1, borderTopColor: C.border, marginTop: 4, paddingTop: 12 }]}>
       <View style={{ flex: 1 }}>
-        <Text style={[S.lineLabel, dimmed && { color: "rgba(245,240,232,0.25)" }, bold && { color: C.white, fontWeight: "600" }]}>
+        <Text style={[S.lineLabel, dimmed && { color: C.textMuted }, bold && { color: C.textPrimary, fontWeight: "600" }]}>
           {label}
         </Text>
         {sub && <Text style={S.lineSub}>{sub}</Text>}
@@ -98,7 +85,7 @@ function PaymentRow({ payment, index }) {
   return (
     <View style={[S.paymentRow, index > 0 && { borderTopWidth: 1, borderTopColor: C.border }]}>
       <View style={S.paymentLeft}>
-        <View style={[S.paymentDot, { backgroundColor: payment.status === 'approved' ? C.greenLight : C.gold }]} />
+        <View style={[S.paymentDot, { backgroundColor: payment.status === 'approved' ? C.green : C.blue }]} />
         <View>
           <Text style={S.paymentDate}>
             {formatDate(payment.paid_date || payment.created_at)}
@@ -159,9 +146,9 @@ export default function InvoiceDetail() {
   if (loading) {
     return (
       <SafeAreaView style={S.safe}>
-        <StatusBar barStyle="light-content" backgroundColor={C.black} />
+        <StatusBar barStyle="dark-content" backgroundColor={C.surface} />
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-          <ActivityIndicator size="large" color={C.gold} />
+          <ActivityIndicator size="large" color={C.primary} />
         </View>
       </SafeAreaView>
     );
@@ -170,16 +157,16 @@ export default function InvoiceDetail() {
   if (!invoice) {
     return (
       <SafeAreaView style={S.safe}>
-        <StatusBar barStyle="light-content" backgroundColor={C.black} />
+        <StatusBar barStyle="dark-content" backgroundColor={C.surface} />
         <View style={S.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Feather name="arrow-left" size={20} color={C.white} />
+            <Feather name="arrow-left" size={20} color={C.textPrimary} />
           </TouchableOpacity>
           <Text style={S.headerTitle}>Invoice</Text>
           <View style={{ width: 24 }} />
         </View>
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-          <Text style={{ color: "rgba(245,240,232,0.3)", fontFamily: F.mono, fontSize: 12 }}>Invoice not found.</Text>
+          <Text style={{ color: C.textMuted, fontFamily: F.mono, fontSize: 12 }}>Invoice not found.</Text>
         </View>
       </SafeAreaView>
     );
@@ -248,19 +235,18 @@ export default function InvoiceDetail() {
     } catch {}
   }
 
-
   return (
     <SafeAreaView style={S.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={C.black} />
+      <StatusBar barStyle="dark-content" backgroundColor={C.surface} />
 
       {/* HEADER */}
       <View style={S.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Feather name="arrow-left" size={20} color={C.white} />
+          <Feather name="arrow-left" size={20} color={C.textPrimary} />
         </TouchableOpacity>
         <Text style={S.headerTitle}>Invoice</Text>
         <TouchableOpacity onPress={handleShare} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Feather name="share" size={18} color="rgba(245,240,232,0.4)" />
+          <Feather name="share" size={18} color={C.textMuted} />
         </TouchableOpacity>
       </View>
 
@@ -268,7 +254,7 @@ export default function InvoiceDetail() {
         style={S.scroll}
         contentContainerStyle={S.pad}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.gold} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.primary} />}
       >
         {/* INVOICE HERO */}
         <View style={S.hero}>
@@ -287,7 +273,7 @@ export default function InvoiceDetail() {
           {/* Total amount */}
           <View style={S.amountBlock}>
             <Text style={S.amountLabel}>TOTAL DUE</Text>
-            <Text style={[S.amountVal, (isPaid || isPartial) && { color: isPaid ? C.greenLight : "rgba(255, 255, 255, 255)" }]}>
+            <Text style={[S.amountVal, (isPaid || isPartial) && { color: isPaid ? C.green : C.textPrimary }]}>
               {isPaid ? fmt(paid) : fmt(total)}
             </Text>
             {isPartial && (
@@ -296,9 +282,9 @@ export default function InvoiceDetail() {
           </View>
 
           {/* Due date */}
-          <View style={[S.dueBadge, { borderColor: isActionable ? C.gold + "30" : C.border }]}>
-            <Ionicons name="calendar-outline" size={13} color={isActionable ? C.gold : "rgba(245,240,232,0.3)"} />
-            <Text style={[S.dueText, { color: isActionable ? C.gold : "rgba(245,240,232,0.4)" }]}>
+          <View style={[S.dueBadge, { borderColor: isActionable ? C.blue + "30" : C.border }]}>
+            <Ionicons name="calendar-outline" size={13} color={isActionable ? C.blue : C.textMuted} />
+            <Text style={[S.dueText, { color: isActionable ? C.blue : C.textMuted }]}>
               {isPaid ? `Paid on ${formatDate(invoice.paid_date)}` : `Due ${formatDate(invoice.due_date)}`}
             </Text>
           </View>
@@ -307,14 +293,14 @@ export default function InvoiceDetail() {
         {/* LATE FEE WARNING */}
         {lateFees > 0 && !isPaid && (
           <View style={S.warningBox}>
-            <MaterialIcons name="error" size={15} color={C.redLight} />
+            <MaterialIcons name="error" size={15} color={C.red} />
             <Text style={S.warningText}>A late fee of {fmt(lateFees)} has been applied to this invoice.</Text>
           </View>
         )}
 
         {/* COLLECTIONS NOTICE */}
         {inCollections && (
-          <View style={[S.warningBox, { borderColor: C.purple + "30", backgroundColor: "rgba(139,92,246,0.06)" }]}>
+          <View style={[S.warningBox, { borderColor: C.purple + "30", backgroundColor: "rgba(111,66,193,0.06)" }]}>
             <MaterialIcons name="warning" size={15} color={C.purple} />
             <Text style={[S.warningText, { color: C.purple }]}>
               This account has been sent to collections. Please contact your landlord or property manager.
@@ -355,13 +341,13 @@ export default function InvoiceDetail() {
         <View style={S.card}>
           <LineItem label="Monthly Rent"       amount={rent}      sub={formatPeriod(invoice.billing_period_start)} />
           {utilities > 0 && <LineItem label="Utilities"    amount={utilities} />}
-          {lateFees  > 0 && <LineItem label="Late Fee"     amount={lateFees}  accent={C.redLight} />}
+          {lateFees  > 0 && <LineItem label="Late Fee"     amount={lateFees}  accent={C.red} />}
           {other     > 0 && <LineItem label="Other Charges" amount={other}   />}
-          {discounts > 0 && <LineItem label="Discount"     amount={-discounts} accent={C.greenLight} />}
+          {discounts > 0 && <LineItem label="Discount"     amount={-discounts} accent={C.green} />}
           <LineItem label="Total Due" amount={total} bold topBorder />
-          {paid > 0 && <LineItem label="Amount Paid"    amount={paid}      accent={C.greenLight} />}
+          {paid > 0 && <LineItem label="Amount Paid"    amount={paid}      accent={C.green} />}
           {paid > 0 && remaining > 0 && (
-            <LineItem label="Balance Remaining" amount={remaining} accent={C.redLight} bold />
+            <LineItem label="Balance Remaining" amount={remaining} accent={C.red} bold />
           )}
         </View>
 
@@ -404,7 +390,7 @@ export default function InvoiceDetail() {
           <>
             <View style={S.secHead}><Text style={S.secLabel}>NOTES</Text></View>
             <View style={[S.card, { padding: 14 }]}>
-              <Text style={{ fontSize: 12, color: "rgba(245,240,232,0.5)", fontFamily: F.dm, lineHeight: 19 }}>{invoice.notes}</Text>
+              <Text style={{ fontSize: 12, color: C.textSecondary, fontFamily: F.dm, lineHeight: 19 }}>{invoice.notes}</Text>
             </View>
           </>
         )}
@@ -417,14 +403,14 @@ export default function InvoiceDetail() {
                 {isPartial ? `COMPLETE PAYMENT (${fmt(remaining)} remaining)` : 'PAY THIS INVOICE'}
               </Text>
             </View>
-            <TouchableOpacity style={S.btnGold} onPress={handlePay} activeOpacity={0.85}>
-              <Ionicons name="card-outline" size={16} color={C.black} />
-              <Text style={S.btnGoldText}>
+            <TouchableOpacity style={S.btnPrimary} onPress={handlePay} activeOpacity={0.85}>
+              <Ionicons name="card-outline" size={16} color="#ffffff" />
+              <Text style={S.btnPrimaryText}>
                 {isPartial ? `Pay Remaining ${fmt(remaining)}` : `Pay ${fmt(total)} In-App`}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity style={S.btnGhost} onPress={handleUpload} activeOpacity={0.8}>
-              <Feather name="upload" size={15} color="rgba(245,240,232,0.5)" />
+              <Feather name="upload" size={15} color={C.textSecondary} />
               <Text style={S.btnGhostText}>
                 {isPartial ? 'Upload Additional Proof of Payment' : 'Upload Proof of Payment'}
               </Text>
@@ -438,24 +424,24 @@ export default function InvoiceDetail() {
               <Text style={S.secLabel}>ACCOUNT IN COLLECTIONS</Text>
             </View>
             <TouchableOpacity 
-              style={[S.btnGold, { backgroundColor: C.purple }]} 
+              style={[S.btnPrimary, { backgroundColor: C.purple }]} 
               onPress={() => navigation.getParent()?.navigate("CollectionsStatus")}
               activeOpacity={0.85}
             >
-              <Ionicons name="warning" size={16} color={C.white} />
-              <Text style={[S.btnGoldText, { color: C.white }]}>View Collections Status</Text>
+              <Ionicons name="warning" size={16} color="#ffffff" />
+              <Text style={[S.btnPrimaryText, { color: "#ffffff" }]}>View Collections Status</Text>
             </TouchableOpacity>
           </>
         )}
 
         {isPaid && (
           <TouchableOpacity
-            style={[S.btnGold, { backgroundColor: C.greenLight }]}
+            style={[S.btnPrimary, { backgroundColor: C.green }]}
             onPress={handleViewReceipt}
             activeOpacity={0.85}
           >
-            <Ionicons name="receipt-outline" size={16} color={C.white} />
-            <Text style={[S.btnGoldText, { color: C.white }]}>View Receipt</Text>
+            <Ionicons name="receipt-outline" size={16} color="#ffffff" />
+            <Text style={[S.btnPrimaryText, { color: "#ffffff" }]}>View Receipt</Text>
           </TouchableOpacity>
         )}
 
@@ -466,68 +452,57 @@ export default function InvoiceDetail() {
 }
 
 const S = StyleSheet.create({
-  safe:   { flex: 1, backgroundColor: C.black },
+  safe:   { flex: 1, backgroundColor: C.background },
   scroll: { flex: 1 },
   pad:    { padding: 16 },
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 12, backgroundColor: C.muted2, borderBottomWidth: 1, borderBottomColor: C.border },
-  headerTitle: { fontSize: 16, fontWeight: "700", color: C.white, fontFamily: F.bebas, letterSpacing: 1 },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 12, backgroundColor: C.surface, borderBottomWidth: 1, borderBottomColor: C.border },
+  headerTitle: { fontSize: 16, fontWeight: "700", color: C.textPrimary, fontFamily: F.bebas, letterSpacing: 1 },
 
-  hero: { backgroundColor: C.muted2, borderRadius: 6, borderWidth: 1, borderColor: C.border, padding: 18, marginBottom: 16, gap: 14 },
+  hero: { backgroundColor: C.card, borderRadius: 6, borderWidth: 1, borderColor: C.border, padding: 18, marginBottom: 16, gap: 14 },
   heroTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
-  invoiceNum: { fontSize: 11, fontFamily: F.mono, color: C.gold, letterSpacing: 1.5, fontWeight: "700" },
-  invoicePeriod: { fontSize: 15, fontWeight: "600", color: C.white, fontFamily: F.dm, marginTop: 3 },
+  invoiceNum: { fontSize: 11, fontFamily: F.mono, color: C.primary, letterSpacing: 1.5, fontWeight: "700" },
+  invoicePeriod: { fontSize: 15, fontWeight: "600", color: C.textPrimary, fontFamily: F.dm, marginTop: 3 },
   statusBadge: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 4, borderWidth: 1 },
   statusText: { fontSize: 10, fontWeight: "700", fontFamily: F.mono, letterSpacing: 0.8, textTransform: "uppercase" },
   amountBlock: { alignItems: "center", paddingVertical: 8 },
-  amountLabel: { fontSize: 9, fontFamily: F.mono, color: "rgba(245,240,232,0.25)", letterSpacing: 2, textTransform: "uppercase", marginBottom: 4 },
-  amountVal: { fontSize: 42, fontFamily: F.bebas, color: "rgb(255, 255, 255)", letterSpacing: 1, lineHeight: 46 },
-  remainingText: { fontSize: 13, color: C.redLight, fontFamily: F.bebas, letterSpacing: 0.5, marginTop: 4 },
+  amountLabel: { fontSize: 9, fontFamily: F.mono, color: C.textMuted, letterSpacing: 2, textTransform: "uppercase", marginBottom: 4 },
+  amountVal: { fontSize: 42, fontFamily: F.bebas, color: C.textPrimary, letterSpacing: 1, lineHeight: 46 },
+  remainingText: { fontSize: 13, color: C.red, fontFamily: F.bebas, letterSpacing: 0.5, marginTop: 4 },
   dueBadge: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "center", borderWidth: 1, borderRadius: 3, paddingHorizontal: 12, paddingVertical: 5 },
   dueText: { fontSize: 11, fontFamily: F.mono, fontWeight: "600" },
 
-  // Partial Payment Progress
-  partialProgress: { backgroundColor: C.muted2, borderRadius: 6, borderWidth: 1, borderColor: C.border, padding: 16, marginBottom: 16 },
-  progressHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
-  progressLabel: { fontSize: 11, color: "rgba(245,240,232,0.4)", fontFamily: F.mono, letterSpacing: 1, textTransform: "uppercase" },
-  progressText: { fontSize: 14, fontWeight: "700", color: C.gold, fontFamily: F.bebas, letterSpacing: 0.5 },
-  progressBar: { height: 6, backgroundColor: C.border, borderRadius: 3, overflow: "hidden", marginBottom: 10 },
-  progressFill: { height: "100%", backgroundColor: C.gold, borderRadius: 3 },
-  progressDetails: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  progressDetail: { fontSize: 12, color: "rgba(245,240,232,0.5)", fontFamily: F.dm },
-
-  warningBox: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "rgba(224,90,74,0.06)", borderRadius: 4, borderWidth: 1, borderColor: "rgba(224,90,74,0.18)", padding: 12, marginBottom: 16 },
-  warningText: { flex: 1, fontSize: 12, color: C.redLight, fontFamily: F.dm, lineHeight: 18 },
-  infoBox: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "rgba(58,143,212,0.06)", borderRadius: 4, borderWidth: 1, borderColor: "rgba(58,143,212,0.15)", padding: 12, marginBottom: 16 },
-  infoText: { flex: 1, fontSize: 12, color: "rgba(245,240,232,0.55)", fontFamily: F.dm, lineHeight: 18 },
+  warningBox: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "rgba(158,58,58,0.06)", borderRadius: 4, borderWidth: 1, borderColor: "rgba(158,58,58,0.18)", padding: 12, marginBottom: 16 },
+  warningText: { flex: 1, fontSize: 12, color: C.red, fontFamily: F.dm, lineHeight: 18 },
+  infoBox: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "rgba(52,152,219,0.06)", borderRadius: 4, borderWidth: 1, borderColor: "rgba(52,152,219,0.15)", padding: 12, marginBottom: 16 },
+  infoText: { flex: 1, fontSize: 12, color: C.textSecondary, fontFamily: F.dm, lineHeight: 18 },
 
   secHead: { marginBottom: 8, marginTop: 4 },
-  secLabel: { fontSize: 10, fontWeight: "700", color: "rgba(245,240,232,0.2)", fontFamily: F.mono, letterSpacing: 2, textTransform: "uppercase" },
+  secLabel: { fontSize: 10, fontWeight: "700", color: "#888888", fontFamily: F.mono, letterSpacing: 2, textTransform: "uppercase" },
 
-  card: { backgroundColor: C.muted2, borderRadius: 6, borderWidth: 1, borderColor: C.border, overflow: "hidden", marginBottom: 16 },
+  card: { backgroundColor: C.card, borderRadius: 6, borderWidth: 1, borderColor: C.border, overflow: "hidden", marginBottom: 16 },
   lineItem: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", paddingHorizontal: 14, paddingVertical: 11 },
-  lineLabel: { fontSize: 13, color: "rgba(245,240,232,0.55)", fontFamily: F.dm },
-  lineSub: { fontSize: 10, color: "rgba(245,240,232,0.25)", fontFamily: F.mono, marginTop: 2 },
-  lineAmt: { fontSize: 13, fontWeight: "600", color: C.white, fontFamily: F.dm },
+  lineLabel: { fontSize: 13, color: C.textSecondary, fontFamily: F.dm },
+  lineSub: { fontSize: 10, color: C.textMuted, fontFamily: F.mono, marginTop: 2 },
+  lineAmt: { fontSize: 13, fontWeight: "600", color: C.textPrimary, fontFamily: F.dm },
 
   detailRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 14, paddingVertical: 12 },
-  detailLabel: { fontSize: 12, color: "rgba(245,240,232,0.4)", fontFamily: F.mono },
-  detailVal: { fontSize: 12, fontWeight: "600", color: C.white, fontFamily: F.dm, textAlign: "right", flex: 1, marginLeft: 12 },
+  detailLabel: { fontSize: 12, color: C.textMuted, fontFamily: F.mono },
+  detailVal: { fontSize: 12, fontWeight: "600", color: C.textPrimary, fontFamily: F.dm, textAlign: "right", flex: 1, marginLeft: 12 },
 
-  // Payment History
   paymentRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 14, paddingVertical: 12 },
   paymentLeft: { flexDirection: "row", alignItems: "center", gap: 10, flex: 1 },
   paymentDot: { width: 6, height: 6, borderRadius: 3, flexShrink: 0 },
-  paymentDate: { fontSize: 12, fontWeight: "600", color: C.white, fontFamily: F.dm },
-  paymentMethod: { fontSize: 10, color: "rgba(245,240,232,0.3)", fontFamily: F.mono, marginTop: 2 },
-  paymentAmount: { fontSize: 13, fontWeight: "700", color: C.white, fontFamily: F.bebas, letterSpacing: 0.5 },
-  paymentStatusPending: { fontSize: 8, fontWeight: "700", color: C.gold, fontFamily: F.mono, letterSpacing: 0.5, textTransform: "uppercase", marginTop: 2 },
-  paymentStatusApproved: { fontSize: 8, fontWeight: "700", color: C.greenLight, fontFamily: F.mono, letterSpacing: 0.5, textTransform: "uppercase", marginTop: 2 },
-  paymentTotal: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 14, paddingVertical: 12, backgroundColor: "rgba(245,240,232,0.02)" },
-  paymentTotalLabel: { fontSize: 12, fontWeight: "600", color: C.white, fontFamily: F.dm },
-  paymentTotalAmount: { fontSize: 14, fontWeight: "700", color: C.gold, fontFamily: F.bebas, letterSpacing: 0.5 },
+  paymentDate: { fontSize: 12, fontWeight: "600", color: C.textPrimary, fontFamily: F.dm },
+  paymentMethod: { fontSize: 10, color: C.textMuted, fontFamily: F.mono, marginTop: 2 },
+  paymentAmount: { fontSize: 13, fontWeight: "700", color: C.textPrimary, fontFamily: F.bebas, letterSpacing: 0.5 },
+  paymentStatusPending: { fontSize: 8, fontWeight: "700", color: C.blue, fontFamily: F.mono, letterSpacing: 0.5, textTransform: "uppercase", marginTop: 2 },
+  paymentStatusApproved: { fontSize: 8, fontWeight: "700", color: C.green, fontFamily: F.mono, letterSpacing: 0.5, textTransform: "uppercase", marginTop: 2 },
+  paymentTotal: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 14, paddingVertical: 12, backgroundColor: "#f9fafb" },
+  paymentTotalLabel: { fontSize: 12, fontWeight: "600", color: C.textPrimary, fontFamily: F.dm },
+  paymentTotalAmount: { fontSize: 14, fontWeight: "700", color: C.primary, fontFamily: F.bebas, letterSpacing: 0.5 },
 
-  btnGold: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: C.gold, borderRadius: 4, paddingVertical: 14, marginBottom: 10 },
-  btnGoldText: { fontSize: 13, fontWeight: "700", color: C.black, fontFamily: F.dm, letterSpacing: 0.5, textTransform: "uppercase" },
+  btnPrimary: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: C.primary, borderRadius: 4, paddingVertical: 14, marginBottom: 10 },
+  btnPrimaryText: { fontSize: 13, fontWeight: "700", color: "#ffffff", fontFamily: F.dm, letterSpacing: 0.5, textTransform: "uppercase" },
   btnGhost: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: "transparent", borderRadius: 4, borderWidth: 1, borderColor: C.border, paddingVertical: 13, marginBottom: 16 },
-  btnGhostText: { fontSize: 12, color: "rgba(245,240,232,0.5)", fontFamily: F.dm, letterSpacing: 0.3 },
+  btnGhostText: { fontSize: 12, color: C.textSecondary, fontFamily: F.dm, letterSpacing: 0.3 },
 });

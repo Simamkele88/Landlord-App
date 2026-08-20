@@ -6,22 +6,9 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import api from "../../utils/api";
+import { C, F } from "../../styles/theme";
 
 const API_URL = api.getBaseUrl();
-
-
-const C = {
-  black:        "#0a0a0a",
-  muted:        "#141414",
-  muted2:       "#1a1a1a",
-  border:       "#2a2a2a",
-  gold:         "#E8A012",
-  white:        "#F5F0E8",
-  blue:         "#3A8FD4",
-  greenLight:   "#1A7A4A",
-  redLight:     "#E05A4A",
-};
-const F = { bebas: "bebas-neue", dm: "dm-sans", mono: "space-mono" };
 
 export default function ChangePassword({ navigation, onPasswordChanged }) {
   const [currentPassword, setCurrentPassword] = useState("");
@@ -57,14 +44,20 @@ export default function ChangePassword({ navigation, onPasswordChanged }) {
   }
 
   const $input = {
-    backgroundColor: C.black, borderWidth: 1, borderColor: C.border,
-    borderRadius: 3, paddingHorizontal: 12, paddingVertical: 13,
-    fontSize: 15, color: C.white, fontFamily: F.dm,
+    backgroundColor: C.background,
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 3,
+    paddingHorizontal: 12,
+    paddingVertical: 13,
+    fontSize: 15,
+    color: C.textPrimary,
+    fontFamily: F.dm,
   };
 
   return (
     <SafeAreaView style={S.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={C.black} />
+      <StatusBar barStyle="dark-content" backgroundColor={C.surface} />
       <View style={S.container}>
         <Text style={S.title}>Change Password</Text>
         <Text style={S.subtitle}>Enter your current password and choose a new one</Text>
@@ -83,7 +76,7 @@ export default function ChangePassword({ navigation, onPasswordChanged }) {
             onChangeText={setCurrentPassword}
             secureTextEntry
             placeholder="Enter current password"
-            placeholderTextColor="rgba(245,240,232,0.15)"
+            placeholderTextColor={C.textMuted}
           />
         </View>
 
@@ -95,7 +88,7 @@ export default function ChangePassword({ navigation, onPasswordChanged }) {
             onChangeText={setNewPassword}
             secureTextEntry
             placeholder="At least 8 characters"
-            placeholderTextColor="rgba(245,240,232,0.15)"
+            placeholderTextColor={C.textMuted}
           />
         </View>
 
@@ -107,7 +100,7 @@ export default function ChangePassword({ navigation, onPasswordChanged }) {
             onChangeText={setConfirmPassword}
             secureTextEntry
             placeholder="Re-enter new password"
-            placeholderTextColor="rgba(245,240,232,0.15)"
+            placeholderTextColor={C.textMuted}
           />
         </View>
 
@@ -118,7 +111,7 @@ export default function ChangePassword({ navigation, onPasswordChanged }) {
           activeOpacity={0.85}
         >
           {loading ? (
-            <ActivityIndicator color={C.black} size="small" />
+            <ActivityIndicator color="#ffffff" size="small" />
           ) : (
             <Text style={S.btnText}>CHANGE PASSWORD</Text>
           )}
@@ -129,26 +122,26 @@ export default function ChangePassword({ navigation, onPasswordChanged }) {
 }
 
 const S = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.black },
+  safe: { flex: 1, backgroundColor: C.background },
   container: { flex: 1, padding: 24, justifyContent: "center" },
-  title: { fontSize: 22, fontWeight: "700", color: C.white, fontFamily: F.bebas, letterSpacing: 1, marginBottom: 6 },
-  subtitle: { fontSize: 12, color: "rgba(245,240,232,0.4)", fontFamily: F.mono, marginBottom: 24 },
+  title: { fontSize: 22, fontWeight: "700", color: C.textPrimary, fontFamily: F.bebas, letterSpacing: 1, marginBottom: 6 },
+  subtitle: { fontSize: 12, color: C.textMuted, fontFamily: F.mono, marginBottom: 24 },
 
   errorBanner: {
-    backgroundColor: "rgba(224,90,74,0.06)", borderRadius: 3, borderWidth: 1,
-    borderColor: "rgba(224,90,74,0.15)", padding: 10, marginBottom: 16,
+    backgroundColor: "rgba(158,58,58,0.06)", borderRadius: 3, borderWidth: 1,
+    borderColor: "rgba(158,58,58,0.15)", padding: 10, marginBottom: 16,
   },
-  errorText: { color: C.redLight, fontSize: 12, fontFamily: F.dm },
+  errorText: { color: C.red, fontSize: 12, fontFamily: F.dm },
 
   inputGroup: { marginBottom: 16 },
   label: {
-    fontSize: 10, fontWeight: "700", color: "rgba(245,240,232,0.25)",
+    fontSize: 10, fontWeight: "700", color: "#888888",
     fontFamily: F.mono, letterSpacing: 1.5, marginBottom: 6,
   },
 
   btn: {
-    backgroundColor: C.gold, borderRadius: 3, paddingVertical: 15,
+    backgroundColor: C.primary, borderRadius: 3, paddingVertical: 15,
     alignItems: "center", justifyContent: "center", marginTop: 8,
   },
-  btnText: { color: C.black, fontSize: 14, fontWeight: "700", fontFamily: F.dm, letterSpacing: 1, textTransform: "uppercase" },
+  btnText: { color: "#ffffff", fontSize: 14, fontWeight: "700", fontFamily: F.dm, letterSpacing: 1, textTransform: "uppercase" },
 });

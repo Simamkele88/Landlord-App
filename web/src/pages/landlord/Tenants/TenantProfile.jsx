@@ -1,312 +1,182 @@
 /* eslint-disable no-unused-vars */
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, Link } from "react-router-dom";
 import axios from "axios";
 import useDocumentTitle from "../../../hooks/useDocumentTitle";
 import { useToast } from "../../../contexts/ToastContext";
-import { Icon } from "../../../components/Icon";
-import { c as C, f as F } from "../../../styles/theme";
+import {
+  FiChevronRight, FiEdit, FiFileText, FiTool, FiMessageSquare,
+  FiUser, FiX, FiSearch,
+} from "react-icons/fi";
+import { IoMdCash } from "react-icons/io";
+import { c as COLORS } from "../../../styles/theme";
+import UseDepositModal from "../../../components/UseDepositModal";
 
 const API = "http://localhost:4000";
+const FONT = '"Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif';
 
+const TABS = [
+  { id: "tenant", label: "Tenant", icon: FiUser },
+  { id: "leases", label: "Leases", icon: FiFileText },
+  { id: "financials", label: "Financials", icon: IoMdCash },
+  { id: "maintenance", label: "Maintenance", icon: FiTool },
+  { id: "complaints", label: "Complaints", icon: FiMessageSquare },
+];
 
-function format(n) { return n ? `R ${Number(n).toLocaleString("en-ZA")}` : "—"; }
-function formatDate(d) { return d ? new Date(d).toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" }) : "—"; }
-function initials(name = "") { return (name || "").split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase(); }
-function daysUntil(dateStr) { if (!dateStr) return null; return Math.ceil((new Date(dateStr) - Date.now()) / 86400000); }
-function leaseExpired(endDate) { return endDate && new Date(endDate) < new Date(); }
-function leaseExpiresSoon(endDate) { const d = daysUntil(endDate); return d !== null && d >= 0 && d <= 60; }
-
-const cardStyle = {
-  background: C.muted2, border: `1px solid ${C.border}`, borderRadius: '6px', padding: '1.5rem',
-};
-
-const statCardStyle = {
-  background: C.muted2, border: `1px solid ${C.border}`, borderRadius: '6px',
-  padding: '1.2rem', display: 'flex', flexDirection: 'column', gap: '0.4rem',
-};
-
-const pillStyle = (color, bg, border) => ({
-  display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
-  fontSize: '0.58rem', fontWeight: 700, padding: '0.12rem 0.5rem',
-  borderRadius: '3px', fontFamily: F.mono, letterSpacing: '0.04em',
-  textTransform: 'uppercase', color, background: bg, border,
-});
-
-const btnPrimary = {
-  background: C.gold, color: C.black, border: 'none',
-  padding: '0.6rem 1.4rem', fontSize: '0.76rem', fontWeight: 700,
-  fontFamily: F.dm, letterSpacing: '0.04em', borderRadius: '3px',
-  cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
-};
-
-const btnGhost = {
-  background: 'transparent', color: 'rgba(245,240,232,0.5)',
-  border: `1px solid ${C.border}`, padding: '0.6rem 1.2rem',
-  fontSize: '0.76rem', fontWeight: 500, fontFamily: F.dm,
-  letterSpacing: '0.04em', borderRadius: '3px', cursor: 'pointer',
-};
-
-const SCORE_CONFIG = {
-  "reliable":      { color: C.greenLight, bg: 'rgba(26,122,74,0.1)',   border: '1px solid rgba(76,186,122,0.2)',  dot: C.greenLight, label: "Reliable"      },
-  "moderate risk": { color: C.gold,       bg: 'rgba(232,160,18,0.08)',  border: '1px solid rgba(232,160,18,0.2)',  dot: C.gold,       label: "Moderate Risk" },
-  "high risk":     { color: C.redLight,   bg: 'rgba(224,90,74,0.1)',    border: '1px solid rgba(224,90,74,0.2)',   dot: C.redLight,   label: "High Risk"     },
-};
-
-const STANDING_CONFIG = {
-  "good_standing":   { color: C.greenLight, label: "Good Standing"   },
-  "warning_issued":  { color: C.gold,       label: "Warning Issued"  },
-  "fine_issued":     { color: C.gold,       label: "Fine Issued"     },
-  "final_warning":   { color: C.redLight,   label: "Final Warning"   },
-  "eviction_notice": { color: C.redLight,   label: "Eviction Notice" },
-  "evicted":         { color: C.redLight,   label: "Evicted"         },
-};
-
-function ScoreBadge({ score }) {
-  const cfg = SCORE_CONFIG[score?.toLowerCase().replace(/_/g, " ")] ?? SCORE_CONFIG["moderate risk"];
-  return (
-    <span style={pillStyle(cfg.color, cfg.bg, cfg.border)}>
-      <span style={{ width: 6, height: 6, borderRadius: '50%', background: cfg.dot }} />
-      {cfg.label}
-    </span>
-  );
+function formatAmount(amount) {
+  return amount === null || amount === undefined || amount === ""
+    ? "—"
+    : `R ${Number(amount).toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-function StandingBadge({ standing }) {
-  const cfg = STANDING_CONFIG[standing] ?? STANDING_CONFIG["good_standing"];
-  return (
-    <span style={pillStyle(cfg.color, `${cfg.color}15`, `1px solid ${cfg.color}30`)}>
-      <span style={{ width: 6, height: 6, borderRadius: '50%', background: cfg.color }} />
-      {cfg.label}
-    </span>
-  );
+function fmtDate(d) {
+  return d ? new Date(d).toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 }
 
-
-function SectionHeader({ title, icon, action, onAction }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', paddingBottom: '0.6rem', borderBottom: `1px solid ${C.border}` }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-        <Icon name={icon} size={14} color={C.gold} />
-        <span style={{ fontSize: '0.72rem', fontWeight: 600, color: C.white, fontFamily: F.bebas, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-          {title}
-        </span>
-      </div>
-      {action && (
-        <button onClick={onAction} style={{ fontSize: '0.68rem', fontWeight: 500, color: C.gold, background: 'none', border: 'none', cursor: 'pointer', fontFamily: F.mono }}>
-          {action}
-        </button>
-      )}
-    </div>
-  );
+function monthsUntil(dateStr) {
+  if (!dateStr) return null;
+  const diff = new Date(dateStr) - new Date();
+  return Math.max(0, Math.round(diff / (1000 * 60 * 60 * 24 * 30)));
 }
 
-function InfoRow({ label, value, icon, mono = false, color }) {
+function InfoRow({ label, children, compact }) {
+  const labelWidth = compact ? "110px" : "150px";
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 0' }}>
-      <span style={{ fontSize: '0.72rem', color: 'rgba(245,240,232,0.4)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-        {icon && <Icon name={icon} size={11} />}
-        {label}
-      </span>
-      <span style={{
-        fontSize: '0.72rem', fontWeight: 500,
-        color: color || C.white,
-        fontFamily: mono ? F.mono : F.dm,
+    <div style={{
+      display: 'flex', overflow: 'hidden', border: '1px solid #e2e3e4',
+      marginBottom: '0.4rem', fontSize: '14px', fontWeight: 400,
+      flex: compact ? 1 : undefined,
+    }}>
+      <div style={{
+        width: labelWidth,
+        flexShrink: 0,
+        padding: '0.4rem 0.6rem',
+        color: '#000',
+        fontWeight: 500,
+        background: '#fdfdfd',
+        borderRight: '1px solid #e9ecef',
+        display: 'flex',
+        alignItems: 'center',
       }}>
-        {value}
-      </span>
+        {label}
+      </div>
+      <div style={{
+        padding: '0.4rem 0.6rem',
+        color: '#000',
+        background: '#f5f5f5',
+        flex: 1,
+        display: 'flex',
+        alignItems: 'center',
+        fontWeight: 400,
+      }}>
+        {children}
+      </div>
     </div>
   );
 }
 
-function PaymentHistoryTable({ payments }) {
-  if (!payments || payments.length === 0) {
-    return <p style={{ fontSize: '0.72rem', color: 'rgba(245,240,232,0.25)', fontStyle: 'italic', textAlign: 'center', padding: '1rem' }}>No payment history yet.</p>;
-  }
-
+function SummaryCard({ icon: Icon, title, children }) {
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', fontSize: '0.7rem', borderCollapse: 'collapse' }}>
-        <thead>
-          <tr>
-            {["Period", "Amount", "Due", "Paid", "Method", "Status"].map(h => (
-              <th key={h} style={{ fontSize: '0.58rem', fontWeight: 600, color: 'rgba(245,240,232,0.3)', fontFamily: F.mono, letterSpacing: '0.05em', textTransform: 'uppercase', padding: '0.4rem 0.6rem', textAlign: 'left', borderBottom: `1px solid ${C.border}` }}>
-                {h}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {payments.slice(0, 12).map((p, i) => (
-            <tr key={p.id || i} style={{ borderBottom: `1px solid ${C.border}` }}>
-              <td style={{ padding: '0.45rem 0.6rem', color: C.white, fontWeight: 500 }}>{p.period || "—"}</td>
-              <td style={{ padding: '0.45rem 0.6rem', color: C.white }}>{format(p.amount)}</td>
-              <td style={{ padding: '0.45rem 0.6rem', color: 'rgba(245,240,232,0.4)' }}>{formatDate(p.due)}</td>
-              <td style={{ padding: '0.45rem 0.6rem', color: 'rgba(245,240,232,0.4)' }}>{p.paid ? formatDate(p.paid) : "—"}</td>
-              <td style={{ padding: '0.45rem 0.6rem', color: 'rgba(245,240,232,0.3)' }}>{p.method || "—"}</td>
-              <td style={{ padding: '0.45rem 0.6rem' }}>
-                <span style={pillStyle(
-                  p.status === "Paid" ? C.greenLight : p.status === "Late" ? C.redLight : C.gold,
-                  p.status === "Paid" ? 'rgba(26,122,74,0.08)' : p.status === "Late" ? 'rgba(224,90,74,0.08)' : 'rgba(232,160,18,0.06)',
-                  `1px solid ${p.status === "Paid" ? 'rgba(76,186,122,0.15)' : p.status === "Late" ? 'rgba(224,90,74,0.15)' : 'rgba(232,160,18,0.12)'}`,
-                )}>
-                  {p.status}
-                </span>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div style={{ flex: 1, minWidth: 240, border: '1px solid #ccc', borderRadius: '3px', overflow: 'hidden', boxShadow: '1px 1px 2px rgba(0,0,0,0.1)' }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
+        padding: '0.6rem 1rem', color: '#000', fontSize: '16px', fontWeight: 500,
+        borderBottom: '2px solid #3498db',
+      }}>
+        <Icon size={15} /> {title}
+      </div>
+      <div style={{ padding: '0.8rem', textAlign: 'center', fontSize: '14px', color: '#000' }}>{children}</div>
     </div>
   );
 }
 
+const thStyle = {
+  padding: '0.6rem 0.8rem', fontSize: '12px', fontWeight: 600, color: '#000',
+  textTransform: 'uppercase', letterSpacing: '0.06em', background: '#e9eced52',
+  border: '1px solid #9a9d9e52', textAlign: 'left', whiteSpace: 'nowrap',
+};
 
-function ComplaintHistoryTable({ complaints }) {
-  if (!complaints || complaints.length === 0) {
-    return <p style={{ fontSize: '0.72rem', color: 'rgba(245,240,232,0.25)', fontStyle: 'italic', textAlign: 'center', padding: '1rem' }}>No complaints on record.</p>;
-  }
+const tdStyle = {
+  padding: '0.6rem 0.8rem', fontSize: '12px', color: '#151515',
+  border: '1px solid #9a9d9e52', verticalAlign: 'middle', fontWeight: 400, background: '#e9eced52',
+};
 
-  const STATUS_CONFIG = {
-    "resolved":  { color: C.greenLight, label: "Resolved"  },
-    "dismissed": { color: 'rgba(245,240,232,0.4)', label: "Dismissed" },
-    "approved":  { color: C.blue, label: "Upheld"    },
-    "escalated": { color: C.purple, label: "Escalated" },
+// Status badge configurations for different entity types
+const STATUS_STYLES = {
+  invoice: {
+    paid: { color: '#1a4a30', bg: '#eef5e8', border: '1px solid #c5d9b8', dot: '#2b7a4b' },
+    sent: { color: '#5b4a0b', bg: '#faf6ed', border: '1px solid #e5dbb8', dot: '#8b6e1a' },
+    overdue: { color: '#7a2b2b', bg: '#fbeaea', border: '1px solid #e5bdbd', dot: '#9e3a3a' },
+    partial: { color: '#1e4a6b', bg: '#e8f0f5', border: '1px solid #b0cfe0', dot: '#2c6b9b' },
+    cancelled: { color: '#5a5a5a', bg: '#f2f2f2', border: '1px solid #d0d0d0', dot: '#6b6b6b' },
+    void: { color: '#6a6a6a', bg: '#f5f5f5', border: '1px solid #e0e0e0', dot: '#7a7a7a' },
+    draft: { color: '#5a5a5a', bg: '#f2f2f2', border: '1px solid #d0d0d0', dot: '#6b6b6b' },
+    default: { color: '#5a5a5a', bg: '#f2f2f2', border: '1px solid #d0d0d0', dot: '#6b6b6b' },
+  },
+  payment: {
+    paid: { color: '#1a4a30', bg: '#eef5e8', border: '1px solid #c5d9b8', dot: '#2b7a4b' },
+    pending: { color: '#5b4a0b', bg: '#faf6ed', border: '1px solid #e5dbb8', dot: '#8b6e1a' },
+    pending_approval: { color: '#5b4a0b', bg: '#faf6ed', border: '1px solid #e5dbb8', dot: '#8b6e1a' },
+    rejected: { color: '#7a2b2b', bg: '#fbeaea', border: '1px solid #e5bdbd', dot: '#9e3a3a' },
+    late: { color: '#7a2b2b', bg: '#fbeaea', border: '1px solid #e5bdbd', dot: '#9e3a3a' },
+    collections: { color: '#7a2b2b', bg: '#fbeaea', border: '1px solid #e5bdbd', dot: '#9e3a3a' },
+    default: { color: '#5a5a5a', bg: '#f2f2f2', border: '1px solid #d0d0d0', dot: '#6b6b6b' },
+  },
+  maintenance: {
+    open: { color: '#1e4a6b', bg: '#e8f0f5', border: '1px solid #b0cfe0', dot: '#2c6b9b' },
+    in_progress: { color: '#5b4a0b', bg: '#faf6ed', border: '1px solid #e5dbb8', dot: '#8b6e1a' },
+    completed: { color: '#1a4a30', bg: '#eef5e8', border: '1px solid #c5d9b8', dot: '#2b7a4b' },
+    cancelled: { color: '#5a5a5a', bg: '#f2f2f2', border: '1px solid #d0d0d0', dot: '#6b6b6b' },
+    default: { color: '#5a5a5a', bg: '#f2f2f2', border: '1px solid #d0d0d0', dot: '#6b6b6b' },
+  },
+  complaint: {
+    open: { color: '#1e4a6b', bg: '#e8f0f5', border: '1px solid #b0cfe0', dot: '#2c6b9b' },
+    in_progress: { color: '#5b4a0b', bg: '#faf6ed', border: '1px solid #e5dbb8', dot: '#8b6e1a' },
+    resolved: { color: '#1a4a30', bg: '#eef5e8', border: '1px solid #c5d9b8', dot: '#2b7a4b' },
+    closed: { color: '#5a5a5a', bg: '#f2f2f2', border: '1px solid #d0d0d0', dot: '#6b6b6b' },
+    default: { color: '#5a5a5a', bg: '#f2f2f2', border: '1px solid #d0d0d0', dot: '#6b6b6b' },
+  },
+  lease: {
+    active: { color: '#2b7a4b', bg: '#eef5e8', border: '1px solid #c5d9b8', dot: '#2b7a4b' },
+    expired: { color: '#9e3a3a', bg: '#fbeaea', border: '1px solid #e5bdbd', dot: '#9e3a3a' },
+    terminated: { color: '#6a6a6a', bg: '#f2f2f2', border: '1px solid #d0d0d0', dot: '#7a7a7a' },
+    cancelled: { color: '#6a6a6a', bg: '#f5f5f5', border: '1px solid #e0e0e0', dot: '#7a7a7a' },
+    default: { color: '#5a5a5a', bg: '#f2f2f2', border: '1px solid #d0d0d0', dot: '#6b6b6b' },
+  },
+};
+
+function StatusBadge({ status, type }) {
+  const cfg = STATUS_STYLES[type]?.[status] || STATUS_STYLES[type]?.default || {
+    color: '#5a5a5a', bg: '#f2f2f2', border: '1px solid #d0d0d0', dot: '#6b6b6b',
   };
-
+  const label = (status || '—').replace(/_/g, ' ');
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', fontSize: '0.7rem', borderCollapse: 'collapse' }}>
-        <thead>
-          <tr>
-            {["Subject", "Scope", "Outcome", "Date"].map(h => (
-              <th key={h} style={{ fontSize: '0.58rem', fontWeight: 600, color: 'rgba(245,240,232,0.3)', fontFamily: F.mono, letterSpacing: '0.05em', textTransform: 'uppercase', padding: '0.4rem 0.6rem', textAlign: 'left', borderBottom: `1px solid ${C.border}` }}>
-                {h}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {complaints.slice(0, 10).map((c, i) => {
-            const sc = STATUS_CONFIG[c.status] ?? { color: 'rgba(245,240,232,0.3)', label: c.status };
-            return (
-              <tr key={c.id || i} style={{ borderBottom: `1px solid ${C.border}` }}>
-                <td style={{ padding: '0.45rem 0.6rem', color: C.white, fontWeight: 500, maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {c.subject}
-                </td>
-                <td style={{ padding: '0.45rem 0.6rem', color: 'rgba(245,240,232,0.4)' }}>{c.scope || "—"}</td>
-                <td style={{ padding: '0.45rem 0.6rem' }}>
-                  <span style={pillStyle(sc.color, `${sc.color}15`, `1px solid ${sc.color}25`)}>
-                    {sc.label}
-                  </span>
-                </td>
-                <td style={{ padding: '0.45rem 0.6rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono, fontSize: '0.65rem' }}>
-                  {formatDate(c.created_at)}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '12px',
+      fontWeight: 500, padding: '0.15rem 0.6rem', color: cfg.color, background: cfg.bg,
+      border: cfg.border, borderRadius: '12px',
+    }}>
+      <span style={{ width: 6, height: 6, borderRadius: '50%', background: cfg.dot, flexShrink: 0 }} />
+      {label}
+    </span>
   );
 }
 
-
-function MaintenanceHistoryTable({ requests }) {
-  if (!requests || requests.length === 0) {
-    return <p style={{ fontSize: '0.72rem', color: 'rgba(245,240,232,0.25)', fontStyle: 'italic', textAlign: 'center', padding: '1rem' }}>No maintenance requests.</p>;
-  }
-
+function EmptyState({ icon: Icon, text, actionLabel, onAction, colSpan = 6 }) {
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', fontSize: '0.7rem', borderCollapse: 'collapse' }}>
-        <thead>
-          <tr>
-            {["Request", "Category", "Status", "Date"].map(h => (
-              <th key={h} style={{ fontSize: '0.58rem', fontWeight: 600, color: 'rgba(245,240,232,0.3)', fontFamily: F.mono, letterSpacing: '0.05em', textTransform: 'uppercase', padding: '0.4rem 0.6rem', textAlign: 'left', borderBottom: `1px solid ${C.border}` }}>
-                {h}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {requests.slice(0, 10).map((r, i) => (
-            <tr key={r.id || i} style={{ borderBottom: `1px solid ${C.border}` }}>
-              <td style={{ padding: '0.45rem 0.6rem', color: C.white, fontWeight: 500, maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {r.title}
-              </td>
-              <td style={{ padding: '0.45rem 0.6rem', color: 'rgba(245,240,232,0.4)' }}>{r.category || "—"}</td>
-              <td style={{ padding: '0.45rem 0.6rem' }}>
-                <span style={pillStyle(
-                  r.status === "completed" || r.status === "closed" ? C.greenLight : r.status === "in_progress" ? C.gold : C.blue,
-                  r.status === "completed" || r.status === "closed" ? 'rgba(26,122,74,0.08)' : 'rgba(58,143,212,0.06)',
-                  `1px solid ${r.status === "completed" || r.status === "closed" ? 'rgba(76,186,122,0.15)' : 'rgba(58,143,212,0.12)'}`,
-                )}>
-                  {r.status?.replace(/_/g, " ")}
-                </span>
-              </td>
-              <td style={{ padding: '0.45rem 0.6rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono, fontSize: '0.65rem' }}>
-                {formatDate(r.created_at)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <tr>
+      <td colSpan={colSpan} style={{ padding: "3rem 1.5rem", textAlign: "center", color: "#9aa4af" }}>
+        <Icon size={28} style={{ marginBottom: "0.6rem", opacity: 0.4 }} />
+        <p style={{ fontSize: "14px", marginBottom: "0.6rem" }}>{text}</p>
+        {actionLabel && (
+          <a href="#add" onClick={(e) => { e.preventDefault(); onAction?.(); }} className="rb-link">
+            {actionLabel}
+          </a>
+        )}
+      </td>
+    </tr>
   );
 }
-
-
-function ScoreHistoryTimeline({ scoreHistory }) {
-  if (!scoreHistory || scoreHistory.length === 0) {
-    return <p style={{ fontSize: '0.65rem', color: 'rgba(245,240,232,0.2)', fontStyle: 'italic', textAlign: 'center', padding: '0.5rem' }}>No score changes recorded.</p>;
-  }
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-      {scoreHistory.slice(0, 8).map((entry, i) => {
-        const newCfg = SCORE_CONFIG[(entry.new_score || "").replace(/_/g, " ")] ?? SCORE_CONFIG["moderate risk"];
-        const oldCfg = entry.old_score ? SCORE_CONFIG[entry.old_score.replace(/_/g, " ")] : null;
-        return (
-          <div key={entry.id || i} style={{ display: 'flex', gap: '0.6rem', alignItems: 'flex-start' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: newCfg.dot }} />
-              {i < scoreHistory.slice(0, 8).length - 1 && (
-                <div style={{ width: 1, flex: 1, background: 'rgba(42,42,42,0.8)', marginTop: '3px', minHeight: 16 }} />
-              )}
-            </div>
-            <div style={{ flex: 1, minWidth: 0, paddingBottom: '0.4rem' }}>
-              <p style={{ fontSize: '0.65rem', color: 'rgba(245,240,232,0.5)', lineHeight: 1.3 }}>
-                {entry.reason || "Score recalculated"}
-              </p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.2rem' }}>
-                {oldCfg && (
-                  <span style={{ fontSize: '0.55rem', color: oldCfg.color, fontFamily: F.mono, textDecoration: 'line-through', opacity: 0.6 }}>
-                    {oldCfg.label}
-                  </span>
-                )}
-                {oldCfg && <span style={{ fontSize: '0.55rem', color: 'rgba(245,240,232,0.2)' }}>→</span>}
-                <span style={{ fontSize: '0.55rem', fontWeight: 600, color: newCfg.color, fontFamily: F.mono }}>
-                  {newCfg.label}
-                </span>
-                {entry.new_score_value != null && (
-                  <span style={{ fontSize: '0.55rem', color: 'rgba(245,240,232,0.25)', fontFamily: F.mono }}>
-                    ({entry.new_score_value})
-                  </span>
-                )}
-                <span style={{ fontSize: '0.5rem', color: 'rgba(245,240,232,0.15)', fontFamily: F.mono, marginLeft: 'auto' }}>
-                  {formatDate(entry.created_at)}
-                </span>
-              </div>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 
 export default function TenantProfile() {
   useDocumentTitle("Tenant Profile");
@@ -315,19 +185,46 @@ export default function TenantProfile() {
   const toast = useToast();
 
   const [tenant, setTenant] = useState(null);
+  const [leases, setLeases] = useState([]);
+  const [complaints, setComplaints] = useState([]);
+  const [maintenanceRequests, setMaintenanceRequests] = useState([]);
+  const [invoices, setInvoices] = useState([]);
+  const [payments, setPayments] = useState([]);
+  const [deposits, setDeposits] = useState([]); // <-- added
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState("tenant");
+  const [leaseSearch, setLeaseSearch] = useState("");
+
+  const [useDeposit, setUseDeposit] = useState(null);
+  const [depositLoading, setDepositLoading] = useState(false);
 
   const fetchTenant = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
       const token = localStorage.getItem("token");
-      const { data } = await axios.get(`${API}/tenants/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setTenant(data.tenant);
+
+      const [tenantRes, depositsRes] = await Promise.all([
+        axios.get(`${API}/tenants/${id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        axios.get(`${API}/landlord/payments/deposits`, {
+          headers: { Authorization: `Bearer ${token}` },
+          params: { limit: 200 },
+        }),
+      ]);
+
+      const t = tenantRes.data.tenant;
+      setTenant(t);
+      setLeases(t.leases || []);
+      setComplaints(t.complaints || []);
+      setMaintenanceRequests(t.maintenance_requests || []);
+      setInvoices(t.invoices || []);
+      setPayments(t.payments || []);
+
+      const allDeposits = depositsRes.data.deposits || [];
+      setDeposits(allDeposits.filter(d => d.tenant_id === t.id));
     } catch (err) {
       setError(err.response?.data?.error || "Failed to load tenant");
     } finally {
@@ -337,352 +234,569 @@ export default function TenantProfile() {
 
   useEffect(() => { fetchTenant(); }, [fetchTenant]);
 
-  
-  if (loading) {
-    return (
-      <div style={{ minHeight: '100vh', background: C.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ textAlign: 'center' }}>
-          <span style={{ display: 'block', width: 32, height: 32, border: '3px solid rgba(245,240,232,0.1)', borderTopColor: C.gold, borderRadius: '50%', animation: 'spin 0.6s linear infinite', margin: '0 auto 0.8rem' }} />
-          <p style={{ fontSize: '0.82rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono }}>Loading tenant...</p>
-        </div>
-      </div>
-    );
-  }
+  const openInvoice = invoices.find(inv =>
+    ["sent", "overdue", "partial"].includes(inv.status) &&
+    Number(inv.remaining_balance) > 0
+  );
+  const availableDeposit = deposits.find(d => {
+    const avail = Number(d.amount_held ?? d.amount ?? 0) -
+      Number(d.amount_refunded ?? 0) -
+      Number(d.used_amount ?? 0);
+    return avail > 0;
+  });
+  const canUseDeposit = Boolean(openInvoice && availableDeposit);
 
-  
-  if (error || !tenant) {
-    return (
-      <div style={{ minHeight: '100vh', background: C.bg, padding: '2rem 1rem' }}>
-        <div style={{ maxWidth: 600, margin: '0 auto', textAlign: 'center' }}>
-          <div style={cardStyle}>
-            <Icon name="user" size={40} color="rgba(245,240,232,0.2)" style={{ marginBottom: '1rem' }} />
-            <h2 style={{ fontSize: '1rem', fontWeight: 600, color: C.white, marginBottom: '0.5rem' }}>Tenant not found</h2>
-            <p style={{ fontSize: '0.78rem', color: 'rgba(245,240,232,0.4)', marginBottom: '1.2rem' }}>{error || "This tenant could not be loaded."}</p>
-            <button onClick={() => navigate("/landlord/tenants")} style={btnPrimary}>
-              <Icon name="chevronLeft" size={14} /> Back to Tenants
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  
-  const reliabilityScore = (tenant.reliability_score || "moderate_risk").replace(/_/g, " ");
-  const reliabilityScoreValue = tenant.reliability_score_value || null;
-  const standing = tenant.standing || "good_standing";
-  const daysLeft = daysUntil(tenant.lease_end_date);
-  const isExpired = leaseExpired(tenant.lease_end_date);
-  const isExpiring = leaseExpiresSoon(tenant.lease_end_date);
-  const balance = Number(tenant.outstanding_balance) || 0;
-  const payments = tenant.payments || [];
-  const complaints = tenant.complaints || [];
-  const maintenanceRequests = tenant.maintenance_requests || [];
-  const scoreHistory = tenant.score_history || [];
-  const onTime = Number(tenant.on_time_payments) || 0;
-  const late = Number(tenant.late_payments) || 0;
-  const missed = Number(tenant.missed_payments) || 0;
-  const totalPayments = onTime + late + missed;
-  const paymentScore = totalPayments > 0 ? Math.round((onTime / totalPayments) * 100) : 0;
-
-  
-  const tabs = [
-    { id: "overview", label: "Overview", icon: "user" },
-    { id: "payments", label: "Payments", icon: "credit-card", count: payments.length },
-    { id: "complaints", label: "Complaints", icon: "message-square", count: complaints.length },
-    { id: "maintenance", label: "Maintenance", icon: "wrench", count: maintenanceRequests.length },
-  ];
-
-  const S = {
-    container: { maxWidth: 1280, padding: '1.5rem 1rem 3rem', margin: '-1rem -1.8rem' },
-    backBtn: {
-      display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem',
-      color: 'rgba(245,240,232,0.3)', fontFamily: F.mono, background: 'none',
-      border: 'none', cursor: 'pointer', marginBottom: '1.2rem', transition: 'color 0.15s',
-    },
-    profileHeader: {
-      display: 'flex', alignItems: 'flex-start', gap: '1.5rem', marginBottom: '1.5rem',
-      flexWrap: 'wrap',
-    },
-    avatar: {
-      width: 80, height: 80, borderRadius: '50%',
-      background: 'rgba(232,160,18,0.12)', color: C.gold,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontFamily: F.bebas, fontSize: '1.8rem', flexShrink: 0,
-      border: '2px solid rgba(232,160,18,0.25)',
-    },
-    tabBtn: (active) => ({
-      padding: '0.6rem 1rem', fontSize: '0.75rem', fontWeight: 500,
-      fontFamily: F.dm, border: 'none', cursor: 'pointer',
-      background: active ? 'rgba(232,160,18,0.08)' : 'transparent',
-      color: active ? C.gold : 'rgba(245,240,232,0.3)',
-      borderBottom: `2px solid ${active ? C.gold : 'transparent'}`,
-      transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: '0.4rem',
-      whiteSpace: 'nowrap',
-    }),
-    alertBanner: (type) => ({
-      display: 'flex', alignItems: 'center', gap: '0.5rem',
-      padding: '0.6rem 1rem', borderRadius: '4px',
-      background: type === 'expired' ? 'rgba(224,90,74,0.06)' : 'rgba(232,160,18,0.06)',
-      border: `1px solid ${type === 'expired' ? 'rgba(224,90,74,0.2)' : 'rgba(232,160,18,0.15)'}`,
-      color: type === 'expired' ? C.redLight : C.gold,
-      fontSize: '0.72rem', fontWeight: 500,
-    }),
+  const openUseDepositModal = async () => {
+    if (!availableDeposit) {
+      toast.error("No available deposit balance.");
+      return;
+    }
+    if (!openInvoice) {
+      toast.error("No open invoice to apply deposit to.");
+      return;
+    }
+    setDepositLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      const { data } = await axios.get(`${API}/landlord/payments/deposits/${availableDeposit.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setUseDeposit({
+        ...(data.deposit || data),
+        invoice_id: openInvoice.id,
+      });
+    } catch (err) {
+      toast.error(err.response?.data?.error || "Failed to load deposit details.");
+    } finally {
+      setDepositLoading(false);
+    }
   };
 
+  if (loading) {
+    return (
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem',
+        padding: '4rem 2rem', color: '#95a5a6', fontWeight: 300,
+        background: '#fdfdfd', border: '1px solid #e9ecef',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.04)', fontFamily: FONT,
+      }}>
+        <span style={{
+          width: 22, height: 22, border: '2px solid rgba(44,62,80,0.1)',
+          borderTopColor: '#2c3e50', borderRadius: '50%',
+          animation: 'spin 0.6s linear infinite', display: 'inline-block',
+        }} />
+        <span style={{ fontSize: '14px' }}>Loading tenant...</span>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
+  if (error || !tenant) {
+    return (
+      <div style={{
+        padding: '3rem 2rem', textAlign: 'center', fontWeight: 300,
+        background: '#fdfdfd', border: '1px solid #e9ecef',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.04)', fontFamily: FONT,
+      }}>
+        <p style={{ fontSize: '14px', color: '#c0392b', marginBottom: '0.8rem' }}>{error || "Tenant not found"}</p>
+        <button onClick={fetchTenant} style={{
+          background: 'transparent', color: '#2471a3', border: 'none',
+          cursor: 'pointer', fontSize: '14px', textDecoration: 'underline',
+        }}>
+          Try again
+        </button>
+      </div>
+    );
+  }
+
+  const fullName = tenant.full_name || `${tenant.first_name || ""} ${tenant.last_name || ""}`.trim();
+  const activeLease = leases.find(l => l.status === "active") || leases[0] || null;
+  const balance = Number(tenant.outstanding_balance) || invoices.reduce((sum, inv) => sum + (Number(inv.remaining_balance) || 0), 0);
+  const depositHeld = activeLease?.deposit_amount ?? tenant.deposit_amount;
+  const leaseMonthsLeft = activeLease ? monthsUntil(activeLease.lease_end_date) : null;
+
+  const filteredLeases = leases.filter(lease =>
+    !leaseSearch ||
+    (lease.property_name || "").toLowerCase().includes(leaseSearch.toLowerCase()) ||
+    (lease.unit_number || "").toLowerCase().includes(leaseSearch.toLowerCase())
+  );
+
   return (
-    <div style={S.container}>
+    <div style={{ fontSize: '14px', fontWeight: 400, fontFamily: FONT, color: '#000' }}>
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
-        @media (max-width: 768px) { .profile-header { flex-direction: column; align-items: center; text-align: center; } }
-        @media (max-width: 900px) { .profile-grid { grid-template-columns: 1fr !important; } }
+        .rb-link { color: #2471a3; text-decoration: none; font-size: 14px; }
+        .rb-link:hover { text-decoration: underline; }
+        .rb-row:hover { background: #fafbfc; }
+        .rb-icon-btn {
+          display: inline-flex; align-items: center; justify-content: center;
+          width: 28px; height: 28px; cursor: pointer;
+          border: 1px solid #dee2e6; background: #fdfdfd; color: #000;
+          transition: all 0.15s;
+        }
+        .rb-icon-btn:hover { background: #f4f5f6; color: #000; }
+        .rb-icon-btn.danger:hover { background: #fdf0f0; color: #e74c3c; border-color: #f5c6cb; }
       `}</style>
 
-      <button onClick={() => navigate("/landlord/tenants")} style={S.backBtn}
-        onMouseEnter={e => e.currentTarget.style.color = C.white}
-        onMouseLeave={e => e.currentTarget.style.color = 'rgba(245,240,232,0.3)'}>
-        <Icon name="chevronLeft" size={14} /> Back to Tenants
-      </button>
+      {/* Breadcrumb */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.75rem',
+        fontSize: '14px', fontWeight: 400, color: '#333', padding: '0.55rem 0.8rem',
+        background: '#fdfdfd', boxShadow: '0 1px 3px rgba(0,0,0,0.03)', border: '1px solid #e9ecef',
+      }}>
+        <FiChevronRight size={13} style={{ color: '#555' }} />
+        <Link to="/landlord/dashboard" className="rb-link">Dashboard</Link>
+        <span style={{ color: '#555' }}>/</span>
+        <Link to="/landlord/tenants" className="rb-link">Tenants</Link>
+        <span style={{ color: '#555' }}>/</span>
+        <span style={{ color: '#000' }}>{fullName || "Tenant"}</span>
+      </div>
 
-      <div className="profile-header" style={S.profileHeader}>
-        <div style={S.avatar}>{initials(tenant.full_name || `${tenant.first_name} ${tenant.last_name}`)}</div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', flexWrap: 'wrap', marginBottom: '0.3rem' }}>
-            <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: C.white, fontFamily: F.bebas, letterSpacing: '0.04em' }}>
-              {tenant.full_name || `${tenant.first_name} ${tenant.last_name}`}
-            </h1>
-            <ScoreBadge score={reliabilityScore} />
-            <StandingBadge standing={standing} />
-          </div>
-          <p style={{ fontSize: '0.75rem', color: 'rgba(245,240,232,0.35)', fontFamily: F.mono }}>
-            {tenant.unit_number ? `Unit ${tenant.unit_number}` : "N/A"} · {tenant.property_name || "Unknown Property"}
-          </p>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '1rem', flexWrap: 'wrap' }}>
-            <button onClick={() => navigate("/landlord/tenants", { state: { editTenant: tenant } })} style={{ ...btnGhost, fontSize: '0.7rem', padding: '0.4rem 0.9rem' }}>
-              <Icon name="edit" size={12} /> Edit
-            </button>
-            <button onClick={() => navigate("/landlord/payments")} style={{ ...btnGhost, fontSize: '0.7rem', padding: '0.4rem 0.9rem' }}>
-              <Icon name="credit-card" size={12} /> Payments
-            </button>
-            {balance > 0 && (
-              <button onClick={() => navigate("/landlord/payments/plans")} style={{ ...btnGhost, fontSize: '0.7rem', padding: '0.4rem 0.9rem', color: C.blue, borderColor: 'rgba(58,143,212,0.3)' }}>
-                <Icon name="rand" size={12} /> Repayment Plan
+      {/* Main card */}
+      <div style={{
+        background: '#fefcfccf', border: '1px solid #e9ecef',
+        boxShadow: '1px 1px 1px 1px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02)', overflow: 'hidden',
+      }}>
+        {/* Tabs */}
+        <div style={{ display: 'flex', alignItems: 'flex-end', background: '#eee', boxShadow: '1px 1px 1px 1px rgba(0,0,0,0.1)' }}>
+          {TABS.map(tab => {
+            const active = activeTab === tab.id;
+            const TabIcon = tab.icon;
+            const count = tab.id === 'leases' ? leases.length
+              : tab.id === 'maintenance' ? maintenanceRequests.length
+              : tab.id === 'complaints' ? complaints.length
+              : tab.id === 'financials' ? (invoices.length + payments.length) : 0;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 0.8rem',
+                  fontSize: '14px', fontWeight: active ? 500 : 400,
+                  color: active ? '#000' : '#333',
+                  background: active ? '#fdfdfd' : 'transparent',
+                  border: active ? '1px solid #e9ecef' : '1px solid transparent',
+                  borderBottom: active ? '1px solid #fdfdfd' : 'none',
+                  borderTop: active ? '2px solid #3498db' : '2px solid transparent',
+                  cursor: 'pointer', marginBottom: active ? '-1px' : '0',
+                  position: 'relative', zIndex: active ? 2 : 1,
+                  transition: 'background 0.15s, border-color 0.15s',
+                }}
+                onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'rgba(0,0,0,0.05)'; }}
+                onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent'; }}
+              >
+                <TabIcon size={14} />
+                {tab.label}
+                {count > 0 && (
+                  <span style={{
+                    background: active ? '#eaf2f8' : 'rgba(0,0,0,0.1)',
+                    color: active ? '#2471a3' : '#333',
+                    padding: '0.1rem 0.4rem', fontSize: '11px', fontWeight: 500,
+                  }}>
+                    {count}
+                  </span>
+                )}
               </button>
-            )}
-            {(isExpiring || isExpired) && (
-              <button style={{ ...btnPrimary, fontSize: '0.7rem', padding: '0.4rem 0.9rem' }}>
-                <Icon name="refresh" size={12} /> Renew Lease
-              </button>
-            )}
-          </div>
+            );
+          })}
         </div>
 
-        <div style={{ flexShrink: 0 }}>
-          {isExpired ? (
-            <span style={pillStyle(C.redLight, 'rgba(224,90,74,0.08)', '1px solid rgba(224,90,74,0.2)')}>
-              <Icon name="warning" size={10} /> Lease Expired
-            </span>
-          ) : isExpiring ? (
-            <span style={pillStyle(C.gold, 'rgba(232,160,18,0.06)', '1px solid rgba(232,160,18,0.15)')}>
-              <Icon name="clock" size={10} /> Expiring in {daysLeft}d
-            </span>
-          ) : (
-            <span style={pillStyle(C.greenLight, 'rgba(26,122,74,0.06)', '1px solid rgba(76,186,122,0.12)')}>
-              <Icon name="check" size={10} /> Active
-            </span>
-          )}
-        </div>
-      </div>
+        <div style={{ border: '1px solid #e9ecefbe', minHeight: '300px', margin: '0.8rem 0.6rem 1.6rem', boxShadow: '1px 1px 1px 1px rgba(0,0,0,0.2)', borderRadius: '2px' }}>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1.5rem' }}>
-        {isExpired && (
-          <div style={S.alertBanner('expired')}>
-            <Icon name="warning" size={14} />
-            Lease expired on {formatDate(tenant.lease_end_date)} — renewal required
-          </div>
-        )}
-        {isExpiring && !isExpired && (
-          <div style={S.alertBanner('expiring')}>
-            <Icon name="clock" size={14} />
-            Lease expires on {formatDate(tenant.lease_end_date)} — {daysLeft} days remaining
-          </div>
-        )}
-        {balance > 0 && (
-          <div style={S.alertBanner('expired')}>
-            <Icon name="credit-card" size={14} />
-            Outstanding balance: {format(balance)}
-          </div>
-        )}
-        {missed > 0 && (
-          <div style={S.alertBanner('expired')}>
-            <Icon name="warning" size={14} />
-            {missed} missed payment{missed !== 1 ? "s" : ""} on record
-          </div>
-        )}
-      </div>
+          {/* TENANT TAB */}
+          {activeTab === "tenant" && (
+            <div style={{ padding: '1.2rem' }}>
+              <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                <div style={{ flex: '1 1 400px', minWidth: 280 }}>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <InfoRow label="State" compact>
+                      {tenant.lease_status === "active" || activeLease?.status === "active" ? "Active" : "Inactive"}
+                    </InfoRow>
+                    <InfoRow label="Full Name" compact>
+                      {fullName || "—"}
+                    </InfoRow>
+                  </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.6rem', marginBottom: '1.5rem' }}>
-        {[
-          { label: "Monthly Rent", value: format(tenant.rent_amount), icon: "rand", color: C.white },
-          { label: "Balance", value: balance > 0 ? format(balance) : "Clear", icon: "credit-card", color: balance > 0 ? C.redLight : C.greenLight },
-          { label: "Payment Score", value: `${paymentScore}%`, icon: "check", color: paymentScore >= 80 ? C.greenLight : paymentScore >= 50 ? C.gold : C.redLight },
-          { label: "Lease Period", value: `${formatDate(tenant.lease_start_date)} → ${formatDate(tenant.lease_end_date)}`, icon: "calendar", color: 'rgba(245,240,232,0.5)', fullWidth: true },
-        ].map((stat, i) => (
-          <div key={i} style={{ ...statCardStyle, gridColumn: stat.fullWidth ? 'span 2' : 'span 1' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <Icon name={stat.icon} size={12} color="rgba(245,240,232,0.3)" />
-              <span style={{ fontSize: '0.6rem', fontWeight: 600, color: 'rgba(245,240,232,0.35)', fontFamily: F.mono, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-                {stat.label}
-              </span>
-            </div>
-            <span style={{ fontSize: stat.fullWidth ? '0.72rem' : '1.1rem', fontWeight: 700, color: stat.color, fontFamily: stat.fullWidth ? F.mono : F.bebas, letterSpacing: '0.03em' }}>
-              {stat.value}
-            </span>
-          </div>
-        ))}
-      </div>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <InfoRow label="Mobile" compact>
+                      {tenant.phone || "—"}
+                    </InfoRow>
+                    <InfoRow label="Email" compact>
+                      {tenant.email ? <a href={`mailto:${tenant.email}`} className="rb-link">{tenant.email}</a> : "—"}
+                    </InfoRow>
+                  </div>
 
-      <div style={{ display: 'flex', gap: '0', borderBottom: `1px solid ${C.border}`, marginBottom: '1.2rem', overflowX: 'auto' }}>
-        {tabs.map(tab => (
-          <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={S.tabBtn(activeTab === tab.id)}>
-            <Icon name={tab.icon} size={13} />
-            {tab.label}
-            {tab.count > 0 && (
-              <span style={{ fontSize: '0.6rem', background: 'rgba(245,240,232,0.08)', padding: '0.1rem 0.35rem', borderRadius: '8px', fontFamily: F.mono }}>
-                {tab.count}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
+                  <InfoRow label="Unit">
+                    {tenant.unit_number ? `Unit ${tenant.unit_number}` : "—"}
+                  </InfoRow>
+                  <InfoRow label="Property">
+                    {tenant.property_name || "—"}
+                  </InfoRow>
 
-      <div className="profile-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: '1.2rem', alignItems: 'start' }}>
-        
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
-          
-          {activeTab === "overview" && (
-            <>
-              <div style={cardStyle}>
-                <SectionHeader title="Personal Information" icon="user" />
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 2rem' }}>
-                  <InfoRow label="Full Name" value={tenant.full_name || `${tenant.first_name} ${tenant.last_name}`} />
-                  <InfoRow label="Email" value={tenant.email || "—"} icon="mail" />
-                  <InfoRow label="Phone" value={tenant.phone || "—"} icon="phone" />
-                  <InfoRow label="ID Number" value={tenant.id_number || "—"} mono />
-                  <InfoRow label="Date of Birth" value={tenant.date_of_birth ? formatDate(tenant.date_of_birth) : "—"} />
-                  <InfoRow label="Employment" value={tenant.employment_status?.replace(/_/g, " ") || "—"} />
-                  <InfoRow label="Monthly Income" value={tenant.monthly_income ? format(tenant.monthly_income) : "—"} />
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+                    <button
+                      onClick={() => navigate("/landlord/tenants", { state: { editTenant: tenant } })}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '0.4rem', background: '#fdfdfd',
+                        color: '#000', border: '1px solid #ccc', padding: '0.3rem 0.6rem',
+                        fontSize: '14px', fontWeight: 400, cursor: 'pointer', borderRadius: '2px',
+                      }}
+                    >
+                      <FiEdit size={14} /> Edit Tenant
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              <div style={cardStyle}>
-                <SectionHeader title="Lease Information" icon="file-text" />
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 2rem' }}>
-                  <InfoRow label="Unit" value={tenant.unit_number ? `Unit ${tenant.unit_number}` : "N/A"} />
-                  <InfoRow label="Property" value={tenant.property_name || "—"} />
-                  <InfoRow label="Monthly Rent" value={format(tenant.rent_amount)} />
-                  <InfoRow label="Frequency" value={tenant.payment_frequency || "Monthly"} />
-                  <InfoRow label="Deposit" value={tenant.deposit_amount ? format(tenant.deposit_amount) : "—"} />
-                  <InfoRow label="Payment Due Day" value={tenant.payment_due_day ? `Day ${tenant.payment_due_day}` : "—"} />
-                  <InfoRow label="Lease Start" value={formatDate(tenant.lease_start_date)} />
-                  <InfoRow label="Lease End" value={formatDate(tenant.lease_end_date)} color={isExpired ? C.redLight : isExpiring ? C.gold : C.white} />
-                  <InfoRow label="Status" value={tenant.lease_status === "active" ? "Active" : "Inactive"} color={tenant.lease_status === "active" ? C.greenLight : C.redLight} />
+              <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", marginTop: "1rem" }}>
+                <SummaryCard icon={FiFileText} title="Lease">
+                  {activeLease ? (
+                    <>
+                      <div style={{ fontSize: '16px', fontWeight: 600, marginBottom: '0.2rem' }}>
+                        {leaseMonthsLeft != null ? `Expiry in ${leaseMonthsLeft} month${leaseMonthsLeft === 1 ? "" : "s"}` : "—"}
+                      </div>
+                      <div style={{ fontSize: '13px', color: '#333', marginBottom: '0.3rem' }}>
+                        {fmtDate(activeLease.lease_start_date)} - {fmtDate(activeLease.lease_end_date)}
+                      </div>
+                      <a href="#lease" onClick={(e) => { e.preventDefault(); setActiveTab("leases"); }} className="rb-link">
+                        View Lease
+                      </a>
+                    </>
+                  ) : (
+                    <div style={{ color: '#666' }}>No lease on record</div>
+                  )}
+                </SummaryCard>
+
+                <SummaryCard icon={IoMdCash} title="Financials">
+                  <div style={{ fontSize: '16px', fontWeight: 600, marginBottom: '0.2rem', color: balance > 0 ? '#c0392b' : '#000' }}>
+                    Due: {formatAmount(balance)}
+                  </div>
+                  <div style={{ fontSize: '13px', color: '#333' }}>
+                    Deposit Held: {formatAmount(depositHeld)}
+                  </div>
+                </SummaryCard>
+              </div>
+            </div>
+          )}
+
+          {/* LEASES TAB */}
+          {activeTab === "leases" && (
+            <div style={{ padding: "0.8rem 0", background: "#fdfdfd", marginBottom: "1rem" }}>
+              <h4 style={{ fontSize: "16px", color: "#000", fontFamily: FONT, paddingLeft: "0.7rem", background: '#f0f4f8cb', margin: '0 0 0.5rem' }}>List of leases</h4>
+              <div style={{ height: "3px", backgroundColor: "#3498db", marginBottom: "1rem" }} />
+
+              <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "0.75rem", marginRight: '1.7rem' }}>
+                <div style={{ position: "relative" }}>
+                  <FiSearch size={14} style={{ position: "absolute", left: "0.7rem", top: "50%", transform: "translateY(-50%)", color: '#5fa0e0' }} />
+                  <input
+                    value={leaseSearch}
+                    onChange={(e) => setLeaseSearch(e.target.value)}
+                    placeholder="Search by property or unit"
+                    style={{
+                      padding: "0.4rem 0.75rem 0.4rem 2.1rem", fontSize: "14px", border: `1px solid #d0d1d3`,
+                      borderRadius: "3px", width: "240px", fontFamily: FONT, color: "#000",
+                    }}
+                  />
                 </div>
               </div>
-            </>
-          )}
 
-          {activeTab === "payments" && (
-            <div style={cardStyle}>
-              <SectionHeader title="Payment History" icon="credit-card" action="View All" onAction={() => navigate("/landlord/payments")} />
-              <PaymentHistoryTable payments={payments} />
+              <div style={{ borderRadius: "0px", overflow: "hidden", margin: "0 1.7rem 0 1.7rem" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr>
+                      <th style={thStyle}></th>
+                      <th style={thStyle}>Property/Unit</th>
+                      <th style={thStyle}>Lease details</th>
+                      <th style={thStyle}>Financials</th>
+                      <th style={thStyle}>State</th>
+                      <th style={{ ...thStyle, textAlign: "center" }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredLeases.length > 0 ? (
+                      filteredLeases.map((lease, i) => (
+                        <tr key={lease.id} className="rb-row">
+                          <td style={tdStyle}>
+                            <Link to={`/landlord/leases/${lease.id}`} className="rb-link" style={{ fontWeight: 600 }}>
+                              LEA{String(i + 1).padStart(6, "0")}
+                            </Link>
+                          </td>
+                          <td style={tdStyle}>
+                            <div>{lease.property_name || "—"}</div>
+                            <div>{lease.unit_number ? `Unit ${lease.unit_number}` : "—"}</div>
+                          </td>
+                          <td style={tdStyle}>
+                            <div>Term: {fmtDate(lease.lease_start_date)} to {fmtDate(lease.lease_end_date)}</div>
+                            <div>Rental: {formatAmount(lease.rent_amount)}, Fixed Term Lease</div>
+                          </td>
+                          <td style={tdStyle}>
+                            <div>Deposit: {formatAmount(lease.deposit_amount)} held</div>
+                          </td>
+                          <td style={tdStyle}>
+                            <StatusBadge status={lease.status} type="lease" />
+                          </td>
+                          <td style={{ ...tdStyle, textAlign: "center" }}>
+                            <div style={{ display: "flex", gap: "0.35rem", justifyContent: "center" }}>
+                              <button
+                                className="rb-icon-btn"
+                                title="Edit"
+                                onClick={() => navigate(`/landlord/leases/${lease.id}`)}
+                              >
+                                <FiEdit size={13} />
+                              </button>
+                              <button
+                                className="rb-icon-btn danger"
+                                title="Terminate"
+                                onClick={() => toast.success("Terminate lease not implemented yet.")}
+                              >
+                                <FiX size={13} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <EmptyState icon={FiFileText} text="No leases on record for this tenant." colSpan={6} />
+                    )}
+                  </tbody>
+                </table>
+                {filteredLeases.length > 0 && (
+                  <div style={{ fontSize: "13px", textAlign: "right", fontWeight: 400 }}>
+                    {filteredLeases.length} item{filteredLeases.length === 1 ? "" : "s"} found.
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
-          {activeTab === "complaints" && (
-            <div style={cardStyle}>
-              <SectionHeader title="Complaint History" icon="message-square" action="View All" onAction={() => navigate("/landlord/complaints")} />
-              <ComplaintHistoryTable complaints={complaints} />
+          {/* FINANCIALS TAB */}
+          {activeTab === "financials" && (
+            <div style={{ padding: "0.8rem 0", background: "#fdfdfd", marginBottom: "1rem" }}>
+              <h4 style={{ fontSize: "16px", color: "#000", fontFamily: FONT, paddingLeft: "0.7rem", background: '#f0f4f8cb', margin: '0 0 0.5rem' }}>Tenant Financials</h4>
+              <div style={{ height: "3px", backgroundColor: "#3498db", marginBottom: "1rem" }} />
+
+              {/* Summary cards */}
+              <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", margin: "0 1.7rem 1rem 1.7rem" }}>
+                <SummaryCard icon={IoMdCash} title="Outstanding Balance">
+                  <div style={{ fontSize: '16px', fontWeight: 600, color: balance > 0 ? '#c0392b' : '#000' }}>
+                    {formatAmount(balance)}
+                  </div>
+                </SummaryCard>
+                <SummaryCard icon={FiFileText} title="Deposit Held">
+                  <div style={{ fontSize: '16px', fontWeight: 600 }}>
+                    {formatAmount(depositHeld)}
+                  </div>
+                </SummaryCard>
+              </div>
+
+              {/* Action buttons */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', margin: '0 1.7rem 1rem', flexWrap: 'wrap' }}>
+                <button
+                  onClick={openUseDepositModal}
+                  disabled={!canUseDeposit || depositLoading}
+                  title={!canUseDeposit ? "No available deposit or open invoice" : ""}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    background: '#fdfdfd',
+                    color: '#000',
+                    border: '1px solid #ccc',
+                    padding: '0.3rem 0.7rem',
+                    fontSize: '14px',
+                    fontWeight: 400,
+                    cursor: canUseDeposit ? 'pointer' : 'not-allowed',
+                    borderRadius: '2px',
+                    opacity: canUseDeposit ? 1 : 0.5,
+                  }}
+                >
+                  {depositLoading ? (
+                    <span style={{ width: 14, height: 14, border: '2px solid rgba(0,0,0,0.2)', borderTopColor: '#000', borderRadius: '50%', animation: 'spin 0.6s linear infinite', display: 'inline-block' }} />
+                  ) : (
+                    "Use Deposit"
+                  )}
+                </button>
+              </div>
+
+              {/* Invoices Table */}
+              <h4 style={{ fontSize: "15px", fontWeight: 600, margin: "0 1.7rem 0.5rem", color: "#000" }}>Invoices</h4>
+              <div style={{ borderRadius: "0px", overflow: "hidden", margin: "0 1.7rem 1.5rem" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr>
+                      <th style={thStyle}>Invoice #</th>
+                      <th style={thStyle}>Due Date</th>
+                      <th style={{ ...thStyle, textAlign: 'right' }}>Amount</th>
+                      <th style={{ ...thStyle, textAlign: 'right' }}>Remaining</th>
+                      <th style={thStyle}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {invoices.length > 0 ? (
+                      invoices.map(inv => (
+                        <tr key={inv.id} className="rb-row">
+                          <td style={tdStyle}>
+                            <Link to={`/landlord/payments/invoices/${inv.id}`} className="rb-link">
+                              {inv.invoice_number || "—"}
+                            </Link>
+                          </td>
+                          <td style={tdStyle}>{fmtDate(inv.due_date)}</td>
+                          <td style={{ ...tdStyle, textAlign: 'right' }}>{formatAmount(inv.amount_due)}</td>
+                          <td style={{ ...tdStyle, textAlign: 'right' }}>{formatAmount(inv.remaining_balance)}</td>
+                          <td style={tdStyle}><StatusBadge status={inv.status} type="invoice" /></td>
+                        </tr>
+                      ))
+                    ) : (
+                      <EmptyState icon={FiFileText} text="No invoices on record." colSpan={5} />
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Payments Table */}
+              <h4 style={{ fontSize: "15px", fontWeight: 600, margin: "0 1.7rem 0.5rem", color: "#000" }}>Payments</h4>
+              <div style={{ borderRadius: "0px", overflow: "hidden", margin: "0 1.7rem 1.5rem" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr>
+                      <th style={thStyle}>Date</th>
+                      <th style={thStyle}>Method</th>
+                      <th style={thStyle}>Reference</th>
+                      <th style={{ ...thStyle, textAlign: 'right' }}>Amount</th>
+                      <th style={thStyle}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {payments.length > 0 ? (
+                      payments.map(p => (
+                        <tr key={p.id} className="rb-row">
+                          <td style={tdStyle}>{fmtDate(p.payment_date)}</td>
+                          <td style={tdStyle}>{p.payment_method || "—"}</td>
+                          <td style={tdStyle}>{p.bank_reference || "—"}</td>
+                          <td style={{ ...tdStyle, textAlign: 'right' }}>{formatAmount(p.amount_paid)}</td>
+                          <td style={tdStyle}><StatusBadge status={p.status} type="payment" /></td>
+                        </tr>
+                      ))
+                    ) : (
+                      <EmptyState icon={IoMdCash} text="No payments on record." colSpan={5} />
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
+          {/* MAINTENANCE TAB */}
           {activeTab === "maintenance" && (
-            <div style={cardStyle}>
-              <SectionHeader title="Maintenance History" icon="wrench" action="View All" onAction={() => navigate("/landlord/maintenance")} />
-              <MaintenanceHistoryTable requests={maintenanceRequests} />
-            </div>
-          )}
-        </div>
+            <div style={{ padding: "0.8rem 0", background: "#fdfdfd", marginBottom: "1rem" }}>
+              <h4 style={{ fontSize: "16px", color: "#000", fontFamily: FONT, paddingLeft: "0.7rem", background: '#f0f4f8cb', margin: '0 0 0.5rem' }}>Maintenance history</h4>
+              <div style={{ height: "3px", backgroundColor: "#3498db", marginBottom: "1rem" }} />
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
-          <div style={cardStyle}>
-            <SectionHeader title="Reliability Score" icon="star" />
-            <div style={{ textAlign: 'center', marginBottom: '0.8rem' }}>
-              <ScoreBadge score={reliabilityScore} />
-              {reliabilityScoreValue != null && (
-                <p style={{ fontSize: '0.6rem', color: 'rgba(245,240,232,0.25)', fontFamily: F.mono, marginTop: '0.3rem' }}>
-                  Raw score: {reliabilityScoreValue}/100
-                </p>
-              )}
-            </div>
-
-            <div style={{ marginBottom: '0.8rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.2rem' }}>
-                <span style={{ fontSize: '0.65rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono }}>On-time</span>
-                <span style={{ fontSize: '0.65rem', fontWeight: 600, color: C.greenLight }}>{onTime}</span>
+              <div style={{ borderRadius: "0px", overflow: "hidden", margin: "0 1.7rem 1rem 1.7rem" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr>
+                      <th style={thStyle}></th>
+                      <th style={thStyle}>Request</th>
+                      <th style={thStyle}>Category</th>
+                      <th style={thStyle}>Property/Unit</th>
+                      <th style={thStyle}>Status</th>
+                      <th style={thStyle}>Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {maintenanceRequests.length > 0 ? (
+                      maintenanceRequests.map((r, i) => (
+                        <tr key={r.id || i} className="rb-row">
+                          <td style={tdStyle}>
+                            <Link to={`/landlord/maintenance/${r.id}`} className="rb-link" style={{ fontWeight: 600 }}>
+                              MNT{String(i + 1).padStart(6, "0")}
+                            </Link>
+                          </td>
+                          <td style={tdStyle}>{r.title || "—"}</td>
+                          <td style={{ ...tdStyle, textTransform: 'capitalize' }}>{r.category || "—"}</td>
+                          <td style={tdStyle}>
+                            <div>{r.property_name || "—"}</div>
+                            <div>{r.unit_number ? `Unit ${r.unit_number}` : "—"}</div>
+                          </td>
+                          <td style={tdStyle}><StatusBadge status={r.status} type="maintenance" /></td>
+                          <td style={tdStyle}>{fmtDate(r.created_at)}</td>
+                        </tr>
+                      ))
+                    ) : (
+                      <EmptyState icon={FiTool} text="No maintenance requests on record." colSpan={6} />
+                    )}
+                  </tbody>
+                </table>
               </div>
-              <div style={{ width: '100%', height: 4, borderRadius: '2px', background: 'rgba(245,240,232,0.06)', overflow: 'hidden', marginBottom: '0.4rem' }}>
-                <div style={{ height: 4, background: C.greenLight, width: `${totalPayments > 0 ? (onTime / totalPayments) * 100 : 0}%` }} />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.2rem' }}>
-                <span style={{ fontSize: '0.65rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono }}>Late</span>
-                <span style={{ fontSize: '0.65rem', fontWeight: 600, color: C.gold }}>{late}</span>
-              </div>
-              <div style={{ width: '100%', height: 4, borderRadius: '2px', background: 'rgba(245,240,232,0.06)', overflow: 'hidden', marginBottom: '0.4rem' }}>
-                <div style={{ height: 4, background: C.gold, width: `${totalPayments > 0 ? (late / totalPayments) * 100 : 0}%` }} />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.2rem' }}>
-                <span style={{ fontSize: '0.65rem', color: 'rgba(245,240,232,0.3)', fontFamily: F.mono }}>Missed</span>
-                <span style={{ fontSize: '0.65rem', fontWeight: 600, color: C.redLight }}>{missed}</span>
-              </div>
-              <div style={{ width: '100%', height: 4, borderRadius: '2px', background: 'rgba(245,240,232,0.06)', overflow: 'hidden' }}>
-                <div style={{ height: 4, background: C.redLight, width: `${totalPayments > 0 ? (missed / totalPayments) * 100 : 0}%` }} />
-              </div>
-            </div>
-
-            <InfoRow label="Total Periods" value={String(totalPayments)} />
-            <InfoRow label="Complaints" value={String(complaints.length)} color={complaints.length > 2 ? C.redLight : complaints.length > 0 ? C.gold : C.greenLight} />
-            <InfoRow label="Maintenance Requests" value={String(maintenanceRequests.length)} />
-            <InfoRow label="Conduct Standing" value={standing.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())} color={STANDING_CONFIG[standing]?.color || C.white} />
-          </div>
-
-          {scoreHistory.length > 0 && (
-            <div style={cardStyle}>
-              <SectionHeader title="Score History" icon="trending-up" />
-              <ScoreHistoryTimeline scoreHistory={scoreHistory} />
             </div>
           )}
 
-          <div style={cardStyle}>
-            <SectionHeader title="Quick Contact" icon="phone" />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-              {tenant.email && (
-                <a href={`mailto:${tenant.email}`} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.72rem', color: C.blue, textDecoration: 'none', padding: '0.5rem 0.7rem', borderRadius: '3px', background: C.black, border: `1px solid ${C.border}` }}>
-                  <Icon name="mail" size={13} /> {tenant.email}
-                </a>
-              )}
-              {tenant.phone && (
-                <a href={`tel:${tenant.phone}`} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.72rem', color: C.blue, textDecoration: 'none', padding: '0.5rem 0.7rem', borderRadius: '3px', background: C.black, border: `1px solid ${C.border}` }}>
-                  <Icon name="phone" size={13} /> {tenant.phone}
-                </a>
-              )}
+          {/* COMPLAINTS TAB */}
+          {activeTab === "complaints" && (
+            <div style={{ padding: "0.8rem 0", background: "#fdfdfd", marginBottom: "1rem" }}>
+              <h4 style={{ fontSize: "16px", color: "#000", fontFamily: FONT, paddingLeft: "0.7rem", background: '#f0f4f8cb', margin: '0 0 0.5rem' }}>Complaint history</h4>
+              <div style={{ height: "3px", backgroundColor: "#3498db", marginBottom: "1rem" }} />
+
+              <div style={{ borderRadius: "0px", overflow: "hidden", margin: "0 1.7rem 1rem 1.7rem" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr>
+                      <th style={thStyle}></th>
+                      <th style={thStyle}>Subject</th>
+                      <th style={thStyle}>Property/Unit</th>
+                      <th style={thStyle}>Outcome</th>
+                      <th style={thStyle}>Status</th>
+                      <th style={thStyle}>Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {complaints.length > 0 ? (
+                      complaints.map((c, i) => (
+                        <tr key={c.id || i} className="rb-row">
+                          <td style={tdStyle}>
+                            <Link to={`/landlord/complaints/${c.id}`} className="rb-link" style={{ fontWeight: 600 }}>
+                              CMP{String(i + 1).padStart(6, "0")}
+                            </Link>
+                          </td>
+                          <td style={tdStyle}>{c.subject || "—"}</td>
+                          <td style={tdStyle}>
+                            <div>{c.property_name || "—"}</div>
+                            <div>{c.against_unit_number ? `Unit ${c.against_unit_number}` : "—"}</div>
+                          </td>
+                          <td style={{ ...tdStyle, textTransform: 'capitalize' }}>
+                            {c.verdict_type ? c.verdict_type.replace(/_/g, " ") : "—"}
+                          </td>
+                          <td style={tdStyle}><StatusBadge status={c.status} type="complaint" /></td>
+                          <td style={tdStyle}>{fmtDate(c.created_at)}</td>
+                        </tr>
+                      ))
+                    ) : (
+                      <EmptyState icon={FiMessageSquare} text="No complaints on record." colSpan={6} />
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
+          )}
+
         </div>
       </div>
+
+      {/* Use Deposit Modal */}
+      {useDeposit && (
+        <UseDepositModal
+          deposit={useDeposit}
+          invoiceId={openInvoice?.id}
+          invoiceNumber={openInvoice?.invoice_number}
+          invoiceRemainingBalance={openInvoice?.remaining_balance}
+          onClose={() => setUseDeposit(null)}
+          onSuccess={() => {
+            setUseDeposit(null);
+            fetchTenant(); 
+          }}
+        />
+      )}
     </div>
   );
 }

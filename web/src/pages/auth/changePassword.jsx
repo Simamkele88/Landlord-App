@@ -4,9 +4,25 @@ import axios from "axios";
 import { useAuth } from "../../App";
 import useDocumentTitle from "../../hooks/useDocumentTitle";
 import { FiLock, FiEye, FiEyeOff, FiAlertCircle, FiCheck, FiArrowRight } from "react-icons/fi";
-import { c, f } from "../../styles/theme";
 
 const API = "http://localhost:4000";
+
+const COLORS = {
+  text: "#1f2328",
+  textMuted: "#5f6b7a",
+  border: "#dfe3e8",
+  borderLight: "#eef1f4",
+  headBg: "#f7f8fa",
+  green: "#2b7a4b",
+  white: "#fdfdfd",
+  red: "#9e3a3a",
+  gold: "#8b6e1a",
+  blue: "#2c6b9b",
+  accent: "#3498db",
+  dark: "#2c3e50",
+};
+
+const FONT = '"Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif';
 
 export default function CaretakerChangePassword() {
   const { user } = useAuth();
@@ -82,17 +98,18 @@ export default function CaretakerChangePassword() {
       alignItems: "center",
       justifyContent: "center",
       padding: "1.5rem",
-      background: c.black,
-      fontFamily: f.dm,
+      background: COLORS.white,
+      fontFamily: FONT,
+      color: COLORS.text,
     },
     card: {
       width: "100%",
       maxWidth: 420,
-      background: c.muted2,
-      border: `1px solid ${c.border}`,
-      borderRadius: "6px",
+      background: COLORS.white,
+      border: `1px solid ${COLORS.border}`,
+      borderRadius: "3px",
       padding: "2rem",
-      animation: "fadeUp 0.4s ease forwards",
+      boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
     },
     header: {
       textAlign: "center",
@@ -102,59 +119,58 @@ export default function CaretakerChangePassword() {
       width: 56,
       height: 56,
       borderRadius: "50%",
-      background: isFirstLogin ? "rgba(232,160,18,0.1)" : "rgba(58,143,212,0.1)",
-      border: isFirstLogin ? "1px solid rgba(232,160,18,0.2)" : "1px solid rgba(58,143,212,0.2)",
+      background: isFirstLogin ? `${COLORS.accent}10` : `${COLORS.blue}10`,
+      border: isFirstLogin ? `1px solid ${COLORS.accent}30` : `1px solid ${COLORS.blue}30`,
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
       margin: "0 auto 1rem",
     },
     title: {
-      fontFamily: f.bebas,
-      fontSize: "1.6rem",
-      letterSpacing: "0.04em",
-      color: c.white,
+      fontSize: "1.5rem",
+      fontWeight: 500,
+      letterSpacing: "0.02em",
+      color: COLORS.text,
       marginBottom: "0.3rem",
     },
     subtitle: {
-      fontSize: "0.8rem",
-      color: c.textBody,
+      fontSize: "0.85rem",
+      color: COLORS.textMuted,
       lineHeight: 1.5,
     },
     errorBox: {
-      background: "rgba(224,90,74,0.08)",
-      border: "1px solid rgba(224,90,74,0.2)",
+      background: `${COLORS.red}10`,
+      border: `1px solid ${COLORS.red}30`,
       borderRadius: "3px",
       padding: "0.7rem 0.9rem",
       marginBottom: "1.2rem",
       display: "flex",
       alignItems: "center",
       gap: "0.5rem",
-      fontSize: "0.78rem",
-      color: c.redLight,
+      fontSize: "0.8rem",
+      color: COLORS.red,
     },
     successBox: {
-      background: "rgba(26,122,74,0.08)",
-      border: "1px solid rgba(76,186,122,0.2)",
+      background: `${COLORS.green}10`,
+      border: `1px solid ${COLORS.green}30`,
       borderRadius: "3px",
       padding: "0.7rem 0.9rem",
       marginBottom: "1.2rem",
       display: "flex",
       alignItems: "center",
       gap: "0.5rem",
-      fontSize: "0.78rem",
-      color: c.greenLight,
+      fontSize: "0.8rem",
+      color: COLORS.green,
     },
     field: { marginBottom: "1rem" },
     label: {
       display: "block",
-      fontSize: "0.72rem",
+      fontSize: "0.75rem",
       fontWeight: 600,
-      letterSpacing: "0.06em",
+      letterSpacing: "0.04em",
       textTransform: "uppercase",
       marginBottom: "0.35rem",
-      color: c.textLabel,
-      fontFamily: f.mono,
+      color: COLORS.textMuted,
     },
     inputWrapper: { position: "relative" },
     inputIcon: {
@@ -162,14 +178,14 @@ export default function CaretakerChangePassword() {
       left: "0.8rem",
       top: "50%",
       transform: "translateY(-50%)",
-      color: c.textDim,
+      color: COLORS.textMuted,
     },
     input: {
       width: "100%",
-      background: c.black,
-      border: `1px solid ${c.border}`,
-      color: c.white,
-      fontFamily: f.dm,
+      background: COLORS.white,
+      border: `1px solid ${COLORS.border}`,
+      color: COLORS.text,
+      fontFamily: FONT,
       fontSize: "0.85rem",
       padding: "0.7rem 0.9rem",
       paddingLeft: "2.4rem",
@@ -184,16 +200,16 @@ export default function CaretakerChangePassword() {
       transform: "translateY(-50%)",
       background: "none",
       border: "none",
-      color: c.textDim,
+      color: COLORS.textMuted,
       cursor: "pointer",
     },
     btn: {
       width: "100%",
-      background: loading ? c.textBody : c.gold,
-      color: c.black,
+      background: loading ? COLORS.textMuted : COLORS.dark,
+      color: COLORS.white,
       padding: "0.8rem",
-      fontFamily: f.dm,
-      fontWeight: 700,
+      fontFamily: FONT,
+      fontWeight: 500,
       fontSize: "0.85rem",
       letterSpacing: "0.06em",
       textTransform: "uppercase",
@@ -209,8 +225,8 @@ export default function CaretakerChangePassword() {
     spinner: {
       width: 16,
       height: 16,
-      border: "2px solid rgba(0,0,0,0.2)",
-      borderTopColor: c.black,
+      border: "2px solid rgba(255,255,255,0.3)",
+      borderTopColor: COLORS.white,
       borderRadius: "50%",
       animation: "spin 0.6s linear infinite",
     },
@@ -218,13 +234,12 @@ export default function CaretakerChangePassword() {
       marginTop: "1rem",
       padding: "0.7rem 0.9rem",
       borderRadius: "3px",
-      background: c.black,
-      border: `1px solid ${c.border}`,
+      background: COLORS.headBg,
+      border: `1px solid ${COLORS.borderLight}`,
     },
     hintText: {
-      fontSize: "0.65rem",
-      color: c.textDim,
-      fontFamily: f.mono,
+      fontSize: "0.7rem",
+      color: COLORS.textMuted,
       lineHeight: 1.6,
     },
   };
@@ -234,7 +249,7 @@ export default function CaretakerChangePassword() {
       <div style={S.container}>
         <div style={{ ...S.card, textAlign: "center" }}>
           <div style={S.iconCircle}>
-            <FiCheck size={28} color={c.greenLight} />
+            <FiCheck size={28} color={COLORS.green} />
           </div>
           <h2 style={S.title}>Password Changed</h2>
           <p style={S.subtitle}>
@@ -251,14 +266,13 @@ export default function CaretakerChangePassword() {
     <div style={S.container}>
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
-        input:focus { border-color: ${c.borderFocus} !important; }
+        input:focus { border-color: ${COLORS.accent} !important; box-shadow: 0 0 0 2px ${COLORS.accent}20; }
       `}</style>
 
       <div style={S.card}>
         <div style={S.header}>
           <div style={S.iconCircle}>
-            <FiLock size={24} color={isFirstLogin ? c.gold : c.blue} />
+            <FiLock size={24} color={isFirstLogin ? COLORS.accent : COLORS.blue} />
           </div>
           <h2 style={S.title}>
             {isFirstLogin ? "Set Your Password" : "Change Password"}
@@ -295,7 +309,6 @@ export default function CaretakerChangePassword() {
                   name="currentPassword"
                   value={form.currentPassword}
                   onChange={handleChange}
-                  placeholder="Enter current password"
                   style={S.input}
                 />
                 <button type="button" onClick={() => setShowCurrent(!showCurrent)} style={S.pwToggle}>
@@ -314,7 +327,6 @@ export default function CaretakerChangePassword() {
                 name="newPassword"
                 value={form.newPassword}
                 onChange={handleChange}
-                placeholder="At least 6 characters"
                 style={S.input}
               />
               <button type="button" onClick={() => setShowNew(!showNew)} style={S.pwToggle}>
@@ -332,7 +344,6 @@ export default function CaretakerChangePassword() {
                 name="confirmPassword"
                 value={form.confirmPassword}
                 onChange={handleChange}
-                placeholder="Re-enter new password"
                 style={S.input}
               />
               <button type="button" onClick={() => setShowConfirm(!showConfirm)} style={S.pwToggle}>

@@ -8,36 +8,17 @@ import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import api from "../../utils/api";
-
-const C = {
-  black:        "#0a0a0a",
-  muted:        "#141414",
-  muted2:       "#1a1a1a",
-  border:       "#2a2a2a",
-  gold:         "#E8A012",
-  white:        "#F5F0E8",
-  blue:         "#3A8FD4",
-  greenLight:   "#1A7A4A",
-  redLight:     "#E05A4A",
-  orange:       "#F97316",
-  purple:       "#8B5CF6",
-};
-
-const F = {
-  bebas: "bebas-neue",
-  dm:    "dm-sans",
-  mono:  "space-mono",
-};
+import { C, F } from "../../styles/theme";
 
 const STATUS_CONFIG = {
-  open:                   { label: "Open",               color: C.redLight,  bg: "rgba(224,90,74,0.08)" },
-  under_review:           { label: "Under Review",       color: C.gold,      bg: "rgba(232,160,18,0.06)" },
-  awaiting_clarification: { label: "Needs Clarification",color: C.orange,    bg: "rgba(249,115,22,0.08)" },
-  approved:               { label: "Approved",           color: C.blue,      bg: "rgba(58,143,212,0.08)" },
-  resolved:               { label: "Resolved",           color: C.greenLight,bg: "rgba(26,122,74,0.08)" },
-  rejected:               { label: "Rejected",           color: "rgba(245,240,232,0.4)", bg: "rgba(245,240,232,0.04)" },
-  escalated:              { label: "Escalated",          color: C.purple,    bg: "rgba(139,92,246,0.08)" },
-  dismissed:              { label: "Dismissed",          color: "rgba(245,240,232,0.4)", bg: "rgba(245,240,232,0.04)" },
+  open: { label: "Open", color: C.red, bg: "rgba(158,58,58,0.08)" },
+  under_review: { label: "Under Review", color: C.primary, bg: "rgba(44,62,80,0.06)" },
+  awaiting_clarification: { label: "Needs Clarification", color: C.blue, bg: "rgba(52,152,219,0.08)" },
+  approved: { label: "Approved", color: C.blue, bg: "rgba(52,152,219,0.08)" },
+  resolved: { label: "Resolved", color: C.green, bg: "rgba(43,122,75,0.08)" },
+  rejected: { label: "Rejected", color: C.textMuted, bg: "rgba(0,0,0,0.04)" },
+  escalated: { label: "Escalated", color: C.purple, bg: "rgba(111,66,193,0.08)" },
+  dismissed: { label: "Dismissed", color: C.textMuted, bg: "rgba(0,0,0,0.04)" },
 };
 
 const FILTERS = [
@@ -99,7 +80,7 @@ export default function TenantComplaints() {
 
   return (
     <SafeAreaView style={S.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={C.black} />
+      <StatusBar barStyle="dark-content" backgroundColor={C.surface} />
 
       {/* HEADER */}
       <View style={S.header}>
@@ -108,7 +89,7 @@ export default function TenantComplaints() {
           <Text style={S.headerSub}>{complaints.length} total · {needsAction} need your action</Text>
         </View>
         <TouchableOpacity style={S.newBtn} onPress={() => navigation.navigate("ComplaintNew")} activeOpacity={0.8}>
-          <Ionicons name="add" size={16} color={C.black} />
+          <Ionicons name="add" size={16} color="#ffffff" />
           <Text style={S.newBtnText}>Log Complaint</Text>
         </TouchableOpacity>
       </View>
@@ -126,7 +107,7 @@ export default function TenantComplaints() {
               <Text style={[S.filterTabText, filter === f.value && S.filterTabTextActive]}>
                 {f.label}
                 {f.value === "awaiting_clarification" && needsAction > 0 && (
-                  <Text style={{ color: C.orange, fontWeight: "800" }}> ({needsAction})</Text>
+                  <Text style={{ color: C.blue, fontWeight: "800" }}> ({needsAction})</Text>
                 )}
               </Text>
             </TouchableOpacity>
@@ -137,11 +118,11 @@ export default function TenantComplaints() {
       {/* CONTENT */}
       {loading ? (
         <View style={S.loaderContainer}>
-          <ActivityIndicator size="large" color={C.gold} />
+          <ActivityIndicator size="large" color={C.primary} />
         </View>
       ) : error ? (
         <View style={S.emptyState}>
-          <Feather name="wifi-off" size={30} color="rgba(245,240,232,0.2)" />
+          <Feather name="wifi-off" size={30} color={C.textMuted} />
           <Text style={S.emptyTitle}>{error}</Text>
           <TouchableOpacity onPress={() => fetchComplaints()} style={S.retryBtn}>
             <Text style={S.retryBtnText}>Retry</Text>
@@ -151,7 +132,7 @@ export default function TenantComplaints() {
         <ScrollView style={S.scroll} contentContainerStyle={S.scrollPad}>
           {filtered.length === 0 ? (
             <View style={S.emptyState}>
-              <Ionicons name="document-text-outline" size={36} color="rgba(245,240,232,0.15)" />
+              <Ionicons name="document-text-outline" size={36} color={C.textMuted} />
               <Text style={S.emptyTitle}>No complaints</Text>
               <Text style={S.emptySub}>
                 {filter === "all" ? "Tap 'Log Complaint' to submit a complaint" : `No ${filter.replace(/_/g, " ")} complaints`}
@@ -168,7 +149,7 @@ export default function TenantComplaints() {
                 {/* TOP ROW */}
                 <View style={S.cardTop}>
                   <View style={S.cardIcon}>
-                    <Ionicons name="document-text" size={16} color={C.gold} />
+                    <Ionicons name="document-text" size={16} color={C.primary} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={S.cardTitle} numberOfLines={1}>{c.subject}</Text>
@@ -176,7 +157,7 @@ export default function TenantComplaints() {
                   </View>
                   <StatusPill status={c.status} />
                   {c.status === "awaiting_clarification" && (
-                    <View style={[S.actionDot, { backgroundColor: C.orange }]} />
+                    <View style={[S.actionDot, { backgroundColor: C.blue }]} />
                   )}
                 </View>
 
@@ -193,15 +174,15 @@ export default function TenantComplaints() {
 
                 {/* VERDICT */}
                 {c.status === "resolved" && c.resolution_notes && (
-                  <View style={[S.verdictStrip, { backgroundColor: "rgba(26,122,74,0.06)", borderColor: "rgba(76,186,122,0.15)" }]}>
-                    <Ionicons name="checkmark-circle" size={12} color={C.greenLight} style={{ marginRight: 4 }} />
-                    <Text style={[S.verdictText, { color: C.greenLight }]} numberOfLines={1}>{c.resolution_notes}</Text>
+                  <View style={[S.verdictStrip, { backgroundColor: "rgba(43,122,75,0.06)", borderColor: "rgba(43,122,75,0.15)" }]}>
+                    <Ionicons name="checkmark-circle" size={12} color={C.green} style={{ marginRight: 4 }} />
+                    <Text style={[S.verdictText, { color: C.green }]} numberOfLines={1}>{c.resolution_notes}</Text>
                   </View>
                 )}
                 {c.status === "dismissed" && c.resolution_notes && (
-                  <View style={[S.verdictStrip, { backgroundColor: "rgba(224,90,74,0.06)", borderColor: "rgba(224,90,74,0.15)" }]}>
-                    <Ionicons name="close-circle" size={12} color={C.redLight} style={{ marginRight: 4 }} />
-                    <Text style={[S.verdictText, { color: C.redLight }]} numberOfLines={1}>{c.resolution_notes}</Text>
+                  <View style={[S.verdictStrip, { backgroundColor: "rgba(158,58,58,0.06)", borderColor: "rgba(158,58,58,0.15)" }]}>
+                    <Ionicons name="close-circle" size={12} color={C.red} style={{ marginRight: 4 }} />
+                    <Text style={[S.verdictText, { color: C.red }]} numberOfLines={1}>{c.resolution_notes}</Text>
                   </View>
                 )}
               </TouchableOpacity>
@@ -215,51 +196,51 @@ export default function TenantComplaints() {
 }
 
 const S = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.black },
+  safe: { flex: 1, backgroundColor: C.background },
 
   header: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12,
-    backgroundColor: C.muted2, borderBottomWidth: 1, borderBottomColor: C.border,
+    backgroundColor: C.surface, borderBottomWidth: 1, borderBottomColor: C.border,
   },
-  headerTitle: { fontSize: 20, fontWeight: "700", color: C.white, fontFamily: F.bebas, letterSpacing: 1 },
-  headerSub: { fontSize: 11, color: "rgba(245,240,232,0.3)", fontFamily: F.mono, marginTop: 2 },
+  headerTitle: { fontSize: 20, fontWeight: "700", color: C.textPrimary, fontFamily: F.bebas, letterSpacing: 1 },
+  headerSub: { fontSize: 11, color: C.textMuted, fontFamily: F.mono, marginTop: 2 },
   newBtn: {
     flexDirection: "row", alignItems: "center", gap: 5,
-    backgroundColor: C.gold, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 3,
+    backgroundColor: C.primary, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 3,
   },
-  newBtnText: { fontSize: 11, fontWeight: "700", color: C.black, fontFamily: F.dm, letterSpacing: 0.5, textTransform: "uppercase" },
+  newBtnText: { fontSize: 11, fontWeight: "700", color: "#ffffff", fontFamily: F.dm, letterSpacing: 0.5, textTransform: "uppercase" },
 
-  filterRow: { borderBottomWidth: 1, borderBottomColor: C.border, backgroundColor: C.muted2 },
+  filterRow: { borderBottomWidth: 1, borderBottomColor: C.border, backgroundColor: C.surface },
   filterScroll: { paddingHorizontal: 14, paddingVertical: 10, gap: 6 },
   filterTab: {
     paddingHorizontal: 12, paddingVertical: 5, borderRadius: 3,
-    backgroundColor: C.black, borderWidth: 1, borderColor: C.border,
+    backgroundColor: C.background, borderWidth: 1, borderColor: C.border,
   },
-  filterTabActive: { backgroundColor: "rgba(232,160,18,0.08)", borderColor: C.gold },
-  filterTabText: { fontSize: 11, fontWeight: "600", color: "rgba(245,240,232,0.4)", fontFamily: F.mono, letterSpacing: 0.5 },
-  filterTabTextActive: { color: C.gold },
+  filterTabActive: { backgroundColor: "rgba(44,62,80,0.08)", borderColor: C.primary },
+  filterTabText: { fontSize: 11, fontWeight: "600", color: C.textMuted, fontFamily: F.mono, letterSpacing: 0.5 },
+  filterTabTextActive: { color: C.primary },
 
-  loaderContainer: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: C.black },
+  loaderContainer: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: C.background },
   scroll: { flex: 1 },
   scrollPad: { padding: 14, gap: 10 },
 
   card: {
-    backgroundColor: C.muted2, borderRadius: 6, borderWidth: 1,
+    backgroundColor: C.card, borderRadius: 6, borderWidth: 1,
     borderColor: C.border, padding: 12, gap: 6,
   },
   cardTop: { flexDirection: "row", alignItems: "center", gap: 8 },
   cardIcon: {
     width: 32, height: 32, borderRadius: 6,
-    backgroundColor: "rgba(232,160,18,0.1)", borderWidth: 1, borderColor: "rgba(232,160,18,0.15)",
+    backgroundColor: "rgba(44,62,80,0.1)", borderWidth: 1, borderColor: "rgba(44,62,80,0.15)",
     alignItems: "center", justifyContent: "center",
   },
-  cardTitle: { fontSize: 13, fontWeight: "600", color: C.white, fontFamily: F.dm, flex: 1 },
-  cardMeta: { fontSize: 10, color: "rgba(245,240,232,0.25)", fontFamily: F.mono, marginTop: 2 },
+  cardTitle: { fontSize: 13, fontWeight: "600", color: C.textPrimary, fontFamily: F.dm, flex: 1 },
+  cardMeta: { fontSize: 10, color: C.textMuted, fontFamily: F.mono, marginTop: 2 },
   actionDot: { width: 7, height: 7, borderRadius: 4, position: "absolute", top: -3, right: -3 },
 
-  cardDesc: { fontSize: 11, color: "rgba(245,240,232,0.4)", fontFamily: F.dm, lineHeight: 17 },
-  cardAgainst: { fontSize: 10, color: C.gold, fontFamily: F.mono },
+  cardDesc: { fontSize: 11, color: C.textSecondary, fontFamily: F.dm, lineHeight: 17 },
+  cardAgainst: { fontSize: 10, color: C.primary, fontFamily: F.mono },
 
   verdictStrip: {
     flexDirection: "row", alignItems: "center",
@@ -271,11 +252,11 @@ const S = StyleSheet.create({
   pillText: { fontSize: 9, fontWeight: "700", textTransform: "uppercase", fontFamily: F.mono, letterSpacing: 1 },
 
   emptyState: { alignItems: "center", paddingTop: 60, gap: 10 },
-  emptyTitle: { fontSize: 14, fontWeight: "700", color: "rgba(245,240,232,0.4)", fontFamily: F.dm },
-  emptySub: { fontSize: 11, color: "rgba(245,240,232,0.25)", fontFamily: F.mono, textAlign: "center" },
+  emptyTitle: { fontSize: 14, fontWeight: "700", color: C.textSecondary, fontFamily: F.dm },
+  emptySub: { fontSize: 11, color: C.textMuted, fontFamily: F.mono, textAlign: "center" },
   retryBtn: {
     paddingHorizontal: 18, paddingVertical: 7, borderRadius: 3,
-    backgroundColor: "rgba(232,160,18,0.08)", borderWidth: 1, borderColor: "rgba(232,160,18,0.15)",
+    backgroundColor: "rgba(44,62,80,0.08)", borderWidth: 1, borderColor: "rgba(44,62,80,0.15)",
   },
-  retryBtnText: { fontSize: 11, fontWeight: "600", color: C.gold, fontFamily: F.mono, letterSpacing: 0.5 },
+  retryBtnText: { fontSize: 11, fontWeight: "600", color: C.primary, fontFamily: F.mono, letterSpacing: 0.5 },
 });

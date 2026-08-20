@@ -19,7 +19,6 @@ import MaintenanceNew from "./src/screens/maintenance/MaintenanceNew";
 import MaintenanceDetail from "./src/screens/maintenance/MaintenanceDetail";
 import PaymentMethod from "./src/screens/payments/PaymentMethod";
 import PaymentUpload from "./src/screens/payments/PaymentUpload";
-import PaymentInvoice from "./src/screens/payments/PaymentInvoice";
 import PaymentReceipt from "./src/screens/payments/PaymentReceipt"
 import Complaints from "./src/screens/complaints/Complaints";
 import ComplaintDetail from "./src/screens/complaints/ComplaintDetail";
@@ -32,6 +31,8 @@ import CollectionsStatus from "./src/screens/payments/CollectionsStatus";
 import RequestRepaymentPlan from "./src/screens/payments/RequestRepaymentPlan";
 import RepaymentPlan from "./src/screens/payments/RepaymentPlan";
 import InvoiceDetail from "./src/screens/payments/InvoiceDetail";
+import PaymentInvoice from "./src/screens/payments/InvoiceList.jsx";
+import DepositStatus from "./src/screens/payments/DepositStatus.jsx";
 
 
 const Stack = createStackNavigator();
@@ -152,7 +153,6 @@ export default function App() {``
             <Stack.Screen name="MaintenanceDetail" component={MaintenanceDetail} />
             <Stack.Screen name="PaymentMethod" component={PaymentMethod} />
             <Stack.Screen name="PaymentUpload" component={PaymentUpload} />
-            <Stack.Screen name="PaymentInvoice" component={PaymentInvoice} />
             <Stack.Screen name="PaymentReceipt" component={PaymentReceipt} />
             <Stack.Screen name="Complaints" component={Complaints} />
             <Stack.Screen name="ComplaintDetail" component={ComplaintDetail} />
@@ -161,10 +161,12 @@ export default function App() {``
             <Stack.Screen name="NotificationDetail" component={NotificationDetail} />
             <Stack.Screen name="Profile" component={Profile} />
             <Stack.Screen name="Settings" component={Settings} />
-            <Stack.Screen name="CollectionsStatus"      component={CollectionsStatus} />
-            <Stack.Screen name="RequestRepaymentPlan"   component={RequestRepaymentPlan} />
-            <Stack.Screen name="RepaymentPlan"          component={RepaymentPlan} />
-            <Stack.Screen name="InvoiceDetail"          component={InvoiceDetail} />
+            <Stack.Screen name="CollectionsStatus" component={CollectionsStatus} />
+            <Stack.Screen name="RequestRepaymentPlan" component={RequestRepaymentPlan} />
+            <Stack.Screen name="RepaymentPlan" component={RepaymentPlan} />
+            <Stack.Screen name="InvoiceDetail" component={InvoiceDetail} />
+            <Stack.Screen name="PaymentInvoice" component={PaymentInvoice} />
+            <Stack.Screen name="DepositStatus" component={DepositStatus} />
           </>
         ) : (
           <>

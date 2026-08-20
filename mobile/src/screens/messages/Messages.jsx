@@ -1,42 +1,49 @@
-// Tenant messages screen
+// Tenant messages screen 
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
   StyleSheet, SafeAreaView, StatusBar, RefreshControl,
   ActivityIndicator, KeyboardAvoidingView, Platform, Alert,
-  Linking, Modal, Keyboard,
+  Linking, Modal, Keyboard, Image,
 } from "react-native";
 import { Ionicons, Feather } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import api from "../../utils/api";
-import { Image } from "react-native";
-
-const C = {
-  black:      "#0a0a0a",
-  muted:      "#141414",
-  muted2:     "#1a1a1a",
-  border:     "#2a2a2a",
-  gold:       "#E8A012",
-  white:      "#F5F0E8",
-  blue:       "#3A8FD4",
-  green:      "#1A7A4A",
-  red:        "#E05A4A",
-  purple:     "#8B5CF6",
-};
-const F = { bebas: "bebas-neue", dm: "dm-sans", mono: "space-mono" };
+import { C, F } from "../../styles/theme";
 
 function initials(name = "") {
   return (name || "").split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
 }
+
 function timeAgo(dateStr) {
   if (!dateStr) return "";
   const diff = (Date.now() - new Date(dateStr).getTime()) / 1000;
-  if (diff < 60)         return "Just now";
-  if (diff < 3600)       return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400)      return `${Math.floor(diff / 3600)}h ago`;
-  if (diff < 7 * 86400)  return `${Math.floor(diff / 86400)}d ago`;
+  if (diff < 60) return "Just now";
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  if (diff < 7 * 86400) return `${Math.floor(diff / 86400)}d ago`;
   return new Date(dateStr).toLocaleDateString("en-ZA", { day: "2-digit", month: "short" });
+}
+
+function formatDateHeader(dateStr) {
+  if (!dateStr) return "";
+  const date = new Date(dateStr);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  if (date.toDateString() === today.toDateString()) return "Today";
+  if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
+  if (date > new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7)) return "This Week";
+  return date.toLocaleDateString("en-ZA", { day: "2-digit", month: "long", year: "numeric" });
+}
+
+function formatFileSize(bytes) {
+  if (!bytes) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 const QUICK_REPLIES = [
@@ -153,7 +160,7 @@ function ChatBubble({ message, isMine }) {
                   {att.mime_type?.includes("pdf") ? (
                     <Ionicons name="document-text-outline" size={22} color={C.red} />
                   ) : (
-                    <Ionicons name="document-outline" size={22} color="rgba(245,240,232,0.5)" />
+                    <Ionicons name="document-outline" size={22} color={C.textMuted} />
                   )}
                   <View style={{ flex: 1, marginLeft: 8 }}>
                     <Text style={S.attachmentName} numberOfLines={2}>
@@ -161,16 +168,12 @@ function ChatBubble({ message, isMine }) {
                     </Text>
                     {att.file_size ? (
                       <Text style={S.attachmentSize}>
-                        {att.file_size > 1024 * 1024
-                          ? `${(att.file_size / (1024 * 1024)).toFixed(1)} MB`
-                          : att.file_size > 1024
-                          ? `${(att.file_size / 1024).toFixed(0)} KB`
-                          : `${att.file_size} B`}
+                        {formatFileSize(att.file_size)}
                       </Text>
                     ) : null}
                   </View>
                   <View style={[S.attDownloadBtn, isMine ? S.attDownloadMine : S.attDownloadTheirs]}>
-                    <Ionicons name="arrow-down-circle-outline" size={16} color={isMine ? C.gold : C.blue} />
+                    <Ionicons name="arrow-down-circle-outline" size={16} color={isMine ? C.primary : C.blue} />
                   </View>
                 </TouchableOpacity>
               );
@@ -178,11 +181,14 @@ function ChatBubble({ message, isMine }) {
           </View>
         )}
 
-        {/* Timestamp */}
+        {/* Timestamp + read receipt */}
         <View style={[S.bubbleMeta, isMine && S.bubbleMetaMine]}>
           <Text style={S.bubbleTime}>{timeAgo(message.created_at)}</Text>
           {isMine && message.read && (
             <Ionicons name="checkmark-done" size={12} color={C.green} style={{ marginLeft: 4 }} />
+          )}
+          {isMine && !message.read && (
+            <Ionicons name="checkmark" size={12} color={C.textMuted} style={{ marginLeft: 4 }} />
           )}
         </View>
       </View>
@@ -190,14 +196,14 @@ function ChatBubble({ message, isMine }) {
       {/* Full screen image modal */}
       <Modal visible={!!fullScreenImage} transparent animationType="fade" onRequestClose={() => setFullScreenImage(null)}>
         <View style={{
-          flex: 1, backgroundColor: "rgba(0,0,0,0.95)",
+          flex: 1, backgroundColor: "rgba(0,0,0,0.9)",
           justifyContent: "center", alignItems: "center",
         }}>
           <TouchableOpacity
             style={{ position: "absolute", top: 50, right: 20, zIndex: 10, padding: 10 }}
             onPress={() => setFullScreenImage(null)}
           >
-            <Ionicons name="close-circle" size={32} color={C.white} />
+            <Ionicons name="close-circle" size={32} color="#ffffff" />
           </TouchableOpacity>
 
           {fullScreenImage && (
@@ -213,7 +219,7 @@ function ChatBubble({ message, isMine }) {
               style={{
                 flex: 1,
                 paddingHorizontal: 20, paddingVertical: 12,
-                backgroundColor: C.gold, borderRadius: 8,
+                backgroundColor: C.primary, borderRadius: 8,
                 alignItems: "center", justifyContent: "center",
               }}
               onPress={() => {
@@ -221,7 +227,7 @@ function ChatBubble({ message, isMine }) {
                 setFullScreenImage(null);
               }}
             >
-              <Text style={{ color: C.black, fontWeight: "700", fontFamily: F.dm }}>Open Full Size</Text>
+              <Text style={{ color: "#ffffff", fontWeight: "700", fontFamily: F.dm }}>Open Full Size</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={{
@@ -233,7 +239,7 @@ function ChatBubble({ message, isMine }) {
               }}
               onPress={() => setFullScreenImage(null)}
             >
-              <Text style={{ color: C.white, fontWeight: "600", fontFamily: F.dm }}>Close</Text>
+              <Text style={{ color: C.textPrimary, fontWeight: "600", fontFamily: F.dm }}>Close</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -276,15 +282,13 @@ function NewMessageModal({ visible, onClose, onSend, recipients }) {
           style={{ width: "100%" }}
         >
           <View style={S.modalCard}>
-            {/* Header */}
             <View style={S.modalHeader}>
               <Text style={S.modalTitle}>New Message</Text>
               <TouchableOpacity onPress={handleClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Ionicons name="close" size={22} color="rgba(245,240,232,0.4)" />
+                <Ionicons name="close" size={22} color={C.textMuted} />
               </TouchableOpacity>
             </View>
 
-            {/* Recipient list */}
             <Text style={S.modalLabel}>TO</Text>
             <ScrollView style={{ maxHeight: 160, marginBottom: 16 }} keyboardShouldPersistTaps="handled">
               {recipients.map(r => (
@@ -295,7 +299,7 @@ function NewMessageModal({ visible, onClose, onSend, recipients }) {
                   activeOpacity={0.7}
                 >
                   <View style={[S.recipientAvatar, selectedId === r.user_id && S.recipientAvatarActive]}>
-                    <Text style={[S.recipientAvatarText, selectedId === r.user_id && { color: C.gold }]}>
+                    <Text style={[S.recipientAvatarText, selectedId === r.user_id && { color: C.primary }]}>
                       {initials(r.name)}
                     </Text>
                   </View>
@@ -306,20 +310,19 @@ function NewMessageModal({ visible, onClose, onSend, recipients }) {
                     </Text>
                   </View>
                   {selectedId === r.user_id && (
-                    <Ionicons name="checkmark-circle" size={20} color={C.gold} />
+                    <Ionicons name="checkmark-circle" size={20} color={C.primary} />
                   )}
                 </TouchableOpacity>
               ))}
             </ScrollView>
 
-            {/* Message input */}
             <Text style={S.modalLabel}>MESSAGE</Text>
             <TextInput
               style={S.modalInput}
               value={msg}
               onChangeText={setMsg}
               placeholder="Type your message..."
-              placeholderTextColor="rgba(245,240,232,0.2)"
+              placeholderTextColor={C.textMuted}
               multiline
               maxLength={500}
               textAlignVertical="top"
@@ -332,7 +335,7 @@ function NewMessageModal({ visible, onClose, onSend, recipients }) {
               activeOpacity={0.8}
             >
               {sending ? (
-                <ActivityIndicator color={C.black} size="small" />
+                <ActivityIndicator color="#ffffff" size="small" />
               ) : (
                 <Text style={S.modalSendText}>Send Message</Text>
               )}
@@ -357,6 +360,7 @@ export default function MessagesScreen() {
   const [recipients, setRecipients]         = useState([]);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const messagesRef = useRef(null);
+  const [showJumpToBottom, setShowJumpToBottom] = useState(false);
 
   useEffect(() => {
     const show = Keyboard.addListener(
@@ -518,13 +522,32 @@ export default function MessagesScreen() {
 
   function handleQuickReply(text) { setMessageInput(text); }
 
+  function handleScroll(e) {
+    const { contentOffset, layoutMeasurement, contentSize } = e.nativeEvent;
+    const isNearBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - 50;
+    setShowJumpToBottom(!isNearBottom);
+  }
+
+  function scrollToBottom() {
+    messagesRef.current?.scrollToEnd({ animated: true });
+    setShowJumpToBottom(false);
+  }
+
   const unreadTotal = conversations.reduce((sum, c) => sum + (c.unread || 0), 0);
   const canSend     = (messageInput.trim().length > 0 || attachments.length > 0) && !sending;
+
+  // Group active convo messages by date
+  const messageGroups = activeConvo?.messages?.reduce((groups, msg) => {
+    const dateHeader = formatDateHeader(msg.created_at);
+    if (!groups[dateHeader]) groups[dateHeader] = [];
+    groups[dateHeader].push(msg);
+    return groups;
+  }, {}) || {};
 
   if (!activeConvo) {
     return (
       <SafeAreaView style={S.safe}>
-        <StatusBar barStyle="light-content" backgroundColor={C.black} />
+        <StatusBar barStyle="dark-content" backgroundColor={C.surface} />
         <View style={S.header}>
           <View style={{ flex: 1 }}>
             <Text style={S.headerTitle}>Messages</Text>
@@ -534,16 +557,16 @@ export default function MessagesScreen() {
             </Text>
           </View>
           <TouchableOpacity style={S.newMsgBtn} onPress={() => setShowNewMsg(true)} activeOpacity={0.7}>
-            <Ionicons name="create-outline" size={18} color={C.gold} />
+            <Ionicons name="create-outline" size={18} color={C.primary} />
           </TouchableOpacity>
         </View>
 
         {loading ? (
-          <View style={S.loader}><ActivityIndicator size="large" color={C.gold} /></View>
+          <View style={S.loader}><ActivityIndicator size="large" color={C.primary} /></View>
         ) : conversations.length === 0 ? (
           <View style={S.emptyState}>
             <View style={S.emptyIcon}>
-              <Ionicons name="chatbubbles-outline" size={40} color="rgba(245,240,232,0.1)" />
+              <Ionicons name="chatbubbles-outline" size={40} color={C.textMuted} />
             </View>
             <Text style={S.emptyTitle}>No messages yet</Text>
             <Text style={S.emptySub}>
@@ -559,13 +582,12 @@ export default function MessagesScreen() {
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.gold} />
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.primary} />
             }
           >
             {conversations.map(convo => (
               <ConversationItem key={convo.id} convo={convo} onPress={() => openConvo(convo)} />
             ))}
-            {/* Spacer so the last item clears the floating tab bar */}
             <View style={{ height: tabBarHeight + 24 }} />
           </ScrollView>
         )}
@@ -582,12 +604,12 @@ export default function MessagesScreen() {
 
   return (
     <SafeAreaView style={S.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={C.black} />
+      <StatusBar barStyle="dark-content" backgroundColor={C.surface} />
       <View style={{ flex: 1 }}>
         {/* Chat header */}
         <View style={S.chatHeader}>
           <TouchableOpacity onPress={closeConvo} style={S.backBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Feather name="arrow-left" size={20} color={C.white} />
+            <Feather name="arrow-left" size={20} color={C.textPrimary} />
           </TouchableOpacity>
           <View style={S.chatHeaderInfo}>
             <View>
@@ -615,27 +637,34 @@ export default function MessagesScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
-          onContentSizeChange={() => messagesRef.current?.scrollToEnd({ animated: true })}
+          onContentSizeChange={() => {
+            if (!showJumpToBottom) messagesRef.current?.scrollToEnd({ animated: false });
+          }}
+          onScroll={handleScroll}
+          scrollEventThrottle={100}
         >
-          <View style={S.dateDivider}>
-            <View style={S.dateLine} />
-            <Text style={S.dateText}>
-              {new Date(
-                activeConvo.messages?.[0]?.created_at || Date.now()
-              ).toLocaleDateString("en-ZA", {
-                weekday: "long",
-                day: "numeric",
-                month: "long",
-              })}
-            </Text>
-            <View style={S.dateLine} />
-          </View>
-
-          {(activeConvo.messages || []).map(msg => (
-            <ChatBubble key={msg.id} message={msg} isMine={msg.sender_id === "me"} />
+          {Object.entries(messageGroups).map(([dateHeader, msgs]) => (
+            <View key={dateHeader}>
+              {/* Date header */}
+              <View style={S.dateDivider}>
+                <View style={S.dateLine} />
+                <Text style={S.dateText}>{dateHeader}</Text>
+                <View style={S.dateLine} />
+              </View>
+              {msgs.map(msg => (
+                <ChatBubble key={msg.id} message={msg} isMine={msg.sender_id === "me"} />
+              ))}
+            </View>
           ))}
           <View style={{ height: 16 }} />
         </ScrollView>
+
+        {/* Jump to bottom */}
+        {showJumpToBottom && (
+          <TouchableOpacity style={S.jumpBtn} onPress={scrollToBottom} activeOpacity={0.8}>
+            <Ionicons name="arrow-down" size={18} color="#ffffff" />
+          </TouchableOpacity>
+        )}
 
         {/* Quick replies */}
         {keyboardHeight === 0 && (
@@ -671,11 +700,12 @@ export default function MessagesScreen() {
                   color={C.blue}
                 />
                 <Text style={S.attachmentPreviewName} numberOfLines={1}>{file.name}</Text>
+                <Text style={S.attachmentPreviewSize}>{formatFileSize(file.size)}</Text>
                 <TouchableOpacity
                   onPress={() => setAttachments(prev => prev.filter((_, j) => j !== i))}
                   hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                 >
-                  <Ionicons name="close-circle" size={16} color="rgba(245,240,232,0.35)" />
+                  <Ionicons name="close-circle" size={16} color={C.textMuted} />
                 </TouchableOpacity>
               </View>
             ))}
@@ -696,7 +726,7 @@ export default function MessagesScreen() {
         >
           <View style={S.inputRow}>
             <TouchableOpacity style={S.attachBtn} onPress={pickFile} activeOpacity={0.7}>
-              <Ionicons name="attach" size={20} color="rgba(245,240,232,0.45)" />
+              <Ionicons name="attach" size={20} color={C.textMuted} />
             </TouchableOpacity>
 
             <TextInput
@@ -704,7 +734,7 @@ export default function MessagesScreen() {
               value={messageInput}
               onChangeText={setMessageInput}
               placeholder="Type a message..."
-              placeholderTextColor="rgba(245,240,232,0.25)"
+              placeholderTextColor={C.textMuted}
               multiline
               maxLength={500}
               returnKeyType="default"
@@ -719,12 +749,12 @@ export default function MessagesScreen() {
               activeOpacity={0.8}
             >
               {sending ? (
-                <ActivityIndicator size="small" color={canSend ? C.black : "rgba(245,240,232,0.3)"} />
+                <ActivityIndicator size="small" color={canSend ? "#ffffff" : C.textMuted} />
               ) : (
                 <Ionicons
                   name="send"
                   size={16}
-                  color={canSend ? C.black : "rgba(245,240,232,0.25)"}
+                  color={canSend ? "#ffffff" : C.textMuted}
                 />
               )}
             </TouchableOpacity>
@@ -736,37 +766,34 @@ export default function MessagesScreen() {
 }
 
 const S = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.black },
+  safe: { flex: 1, backgroundColor: C.background },
 
-  // List header
   header: {
     flexDirection: "row", alignItems: "center",
     paddingHorizontal: 16, paddingTop: 14, paddingBottom: 12,
-    backgroundColor: C.muted2, borderBottomWidth: 1, borderBottomColor: C.border,
+    backgroundColor: C.surface, borderBottomWidth: 1, borderBottomColor: C.border,
   },
-  headerTitle: { fontSize: 22, fontWeight: "700", color: C.white, fontFamily: F.bebas, letterSpacing: 1 },
-  headerSub: { fontSize: 11, color: "rgba(245,240,232,0.3)", fontFamily: F.mono, marginTop: 2 },
+  headerTitle: { fontSize: 22, fontWeight: "700", color: C.textPrimary, fontFamily: F.bebas, letterSpacing: 1 },
+  headerSub: { fontSize: 11, color: C.textMuted, fontFamily: F.mono, marginTop: 2 },
   newMsgBtn: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: "rgba(232,160,18,0.1)", borderWidth: 1, borderColor: "rgba(232,160,18,0.2)",
+    backgroundColor: "rgba(44,62,80,0.08)", borderWidth: 1, borderColor: C.border,
     alignItems: "center", justifyContent: "center",
   },
 
   loader: { flex: 1, alignItems: "center", justifyContent: "center" },
   scroll: { flex: 1 },
 
-  // Empty state
   emptyState: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 40 },
   emptyIcon: {
-    width: 72, height: 72, borderRadius: 36, backgroundColor: C.muted2,
+    width: 72, height: 72, borderRadius: 36, backgroundColor: C.card,
     borderWidth: 1, borderColor: C.border, alignItems: "center", justifyContent: "center", marginBottom: 12,
   },
-  emptyTitle: { fontSize: 16, fontWeight: "700", color: "rgba(245,240,232,0.4)", fontFamily: F.bebas, letterSpacing: 1, marginBottom: 4 },
-  emptySub: { fontSize: 12, color: "rgba(245,240,232,0.25)", fontFamily: F.mono, textAlign: "center", lineHeight: 18, marginBottom: 16 },
-  emptyBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20, backgroundColor: C.gold },
-  emptyBtnText: { fontSize: 12, fontWeight: "700", color: C.black, fontFamily: F.dm },
+  emptyTitle: { fontSize: 16, fontWeight: "700", color: C.textSecondary, fontFamily: F.bebas, letterSpacing: 1, marginBottom: 4 },
+  emptySub: { fontSize: 12, color: C.textMuted, fontFamily: F.mono, textAlign: "center", lineHeight: 18, marginBottom: 16 },
+  emptyBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20, backgroundColor: C.primary },
+  emptyBtnText: { fontSize: 12, fontWeight: "700", color: "#ffffff", fontFamily: F.dm },
 
-  // Conversation item
   convoItem: {
     flexDirection: "row", alignItems: "center", gap: 12,
     paddingHorizontal: 16, paddingVertical: 16,
@@ -774,83 +801,95 @@ const S = StyleSheet.create({
   },
   convoAvatar: {
     width: 52, height: 52, borderRadius: 26,
-    backgroundColor: "rgba(232,160,18,0.1)", borderWidth: 1.5, borderColor: "rgba(232,160,18,0.15)",
+    backgroundColor: "rgba(44,62,80,0.1)", borderWidth: 1.5, borderColor: C.border,
     alignItems: "center", justifyContent: "center",
   },
-  convoAvatarText: { color: C.gold, fontSize: 17, fontWeight: "700", fontFamily: F.bebas },
+  convoAvatarText: { color: C.primary, fontSize: 17, fontWeight: "700", fontFamily: F.bebas },
   onlineDot: {
     position: "absolute", bottom: 2, right: 2,
     width: 12, height: 12, borderRadius: 6,
-    backgroundColor: C.green, borderWidth: 2, borderColor: C.black,
+    backgroundColor: C.green, borderWidth: 2, borderColor: C.background,
   },
   convoContent: { flex: 1, minWidth: 0 },
   convoHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 },
-  convoName: { fontSize: 15, fontWeight: "600", color: C.white, fontFamily: F.dm, flex: 1, marginRight: 8 },
+  convoName: { fontSize: 15, fontWeight: "600", color: C.textPrimary, fontFamily: F.dm, flex: 1, marginRight: 8 },
   convoNameUnread: { fontWeight: "700" },
-  convoTime: { fontSize: 10, color: "rgba(245,240,232,0.25)", fontFamily: F.mono },
+  convoTime: { fontSize: 10, color: C.textMuted, fontFamily: F.mono },
   convoFooter: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  convoPreview: { fontSize: 13, color: "rgba(245,240,232,0.4)", fontFamily: F.dm, flex: 1, marginRight: 8 },
-  convoPreviewUnread: { color: "rgba(245,240,232,0.8)", fontWeight: "500" },
+  convoPreview: { fontSize: 13, color: C.textMuted, fontFamily: F.dm, flex: 1, marginRight: 8 },
+  convoPreviewUnread: { color: C.textPrimary, fontWeight: "500" },
   unreadBadge: {
-    minWidth: 22, height: 22, borderRadius: 11, backgroundColor: C.gold,
+    minWidth: 22, height: 22, borderRadius: 11, backgroundColor: C.primary,
     alignItems: "center", justifyContent: "center", paddingHorizontal: 6,
   },
-  unreadBadgeText: { color: C.black, fontSize: 11, fontWeight: "700", fontFamily: F.mono },
+  unreadBadgeText: { color: "#ffffff", fontSize: 11, fontWeight: "700", fontFamily: F.mono },
 
-  // Chat header
   chatHeader: {
     flexDirection: "row", alignItems: "center", gap: 12,
     paddingHorizontal: 14, paddingVertical: 12,
-    backgroundColor: C.muted2, borderBottomWidth: 1, borderBottomColor: C.border,
+    backgroundColor: C.surface, borderBottomWidth: 1, borderBottomColor: C.border,
   },
   backBtn: { padding: 4 },
   chatHeaderInfo: { flex: 1, flexDirection: "row", alignItems: "center", gap: 10 },
   chatAvatar: {
     width: 40, height: 40, borderRadius: 20,
-    backgroundColor: "rgba(232,160,18,0.12)", borderWidth: 1.5, borderColor: "rgba(232,160,18,0.2)",
+    backgroundColor: "rgba(44,62,80,0.1)", borderWidth: 1.5, borderColor: C.border,
     alignItems: "center", justifyContent: "center",
   },
-  chatAvatarText: { color: C.gold, fontSize: 14, fontWeight: "700", fontFamily: F.bebas },
+  chatAvatarText: { color: C.primary, fontSize: 14, fontWeight: "700", fontFamily: F.bebas },
   onlineDotSmall: {
     position: "absolute", bottom: 0, right: 0,
     width: 10, height: 10, borderRadius: 5,
-    backgroundColor: C.green, borderWidth: 2, borderColor: C.muted2,
+    backgroundColor: C.green, borderWidth: 2, borderColor: C.surface,
   },
-  chatName: { fontSize: 15, fontWeight: "600", color: C.white, fontFamily: F.dm },
-  chatRole: { fontSize: 11, color: "rgba(245,240,232,0.3)", fontFamily: F.mono, marginTop: 2 },
+  chatName: { fontSize: 15, fontWeight: "600", color: C.textPrimary, fontFamily: F.dm },
+  chatRole: { fontSize: 11, color: C.textMuted, fontFamily: F.mono, marginTop: 2 },
 
-  // Messages
   messagesScroll: { flex: 1 },
   messagesPad: { paddingHorizontal: 14, paddingVertical: 12, paddingBottom: 80 },
-  dateDivider: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 18, marginTop: 6 },
+  dateDivider: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 14, marginTop: 6 },
   dateLine: { flex: 1, height: 1, backgroundColor: C.border },
-  dateText: { fontSize: 10, color: "rgba(245,240,232,0.2)", fontFamily: F.mono, letterSpacing: 1, textTransform: "uppercase" },
+  dateText: { fontSize: 10, color: C.textMuted, fontFamily: F.mono, letterSpacing: 1, textTransform: "uppercase" },
 
-  // Bubbles
   bubbleRow: { marginBottom: 14, alignItems: "flex-start", maxWidth: "82%" },
   bubbleRowMine: { alignSelf: "flex-end", alignItems: "flex-end" },
   bubble: { borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10 },
-  bubbleTheirs: { backgroundColor: C.muted2, borderWidth: 1, borderColor: C.border, borderBottomLeftRadius: 4 },
-  bubbleMine: { backgroundColor: "rgba(232,160,18,0.12)", borderWidth: 1, borderColor: "rgba(232,160,18,0.2)", borderBottomRightRadius: 4 },
-  bubbleText: { fontSize: 14, color: C.white, fontFamily: F.dm, lineHeight: 20 },
-  bubbleTextMine: { color: C.white },
+  bubbleTheirs: { backgroundColor: "#f1f3f5", borderWidth: 1, borderColor: C.border, borderBottomLeftRadius: 4 },
+  bubbleMine: { backgroundColor: "#e8f0f5", borderWidth: 1, borderColor: C.border, borderBottomRightRadius: 4 },
+  bubbleText: { fontSize: 14, color: C.textPrimary, fontFamily: F.dm, lineHeight: 20 },
+  bubbleTextMine: { color: C.textPrimary },
   bubbleMeta: { flexDirection: "row", alignItems: "center", marginTop: 4, paddingHorizontal: 4 },
   bubbleMetaMine: { justifyContent: "flex-end" },
-  bubbleTime: { fontSize: 9, color: "rgba(245,240,232,0.2)", fontFamily: F.mono },
+  bubbleTime: { fontSize: 9, color: C.textMuted, fontFamily: F.mono },
 
-  // Attachments in bubbles
-  attachmentsWrap: { maxWidth: "100%" },
   attachmentItem: { flexDirection: "row", alignItems: "center", paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10, marginBottom: 4, minWidth: 200 },
-  attachmentItemTheirs: { backgroundColor: C.muted2, borderWidth: 1, borderColor: C.border, borderBottomLeftRadius: 3 },
-  attachmentItemMine: { backgroundColor: "rgba(232,160,18,0.12)", borderWidth: 1, borderColor: "rgba(232,160,18,0.2)", borderBottomRightRadius: 3 },
-  attachmentName: { fontSize: 13, fontWeight: "500", color: C.white, fontFamily: F.dm },
-  attachmentSize: { fontSize: 10, color: "rgba(245,240,232,0.4)", fontFamily: F.mono, marginTop: 2 },
+  attachmentItemTheirs: { backgroundColor: "#f1f3f5", borderWidth: 1, borderColor: C.border, borderBottomLeftRadius: 3 },
+  attachmentItemMine: { backgroundColor: "#e8f0f5", borderWidth: 1, borderColor: C.border, borderBottomRightRadius: 3 },
+  attachmentName: { fontSize: 13, fontWeight: "500", color: C.textPrimary, fontFamily: F.dm },
+  attachmentSize: { fontSize: 10, color: C.textMuted, fontFamily: F.mono, marginTop: 2 },
   attDownloadBtn: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center", marginLeft: 8 },
-  attDownloadMine: { backgroundColor: "rgba(232,160,18,0.2)" },
-  attDownloadTheirs: { backgroundColor: "rgba(58,143,212,0.15)" },
+  attDownloadMine: { backgroundColor: "rgba(44,62,80,0.15)" },
+  attDownloadTheirs: { backgroundColor: "rgba(52,152,219,0.15)" },
+
+  jumpBtn: {
+    position: "absolute",
+    bottom: 100,
+    right: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: C.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
 
   quickRepliesBar: {
-    backgroundColor: C.muted2,
+    backgroundColor: C.surface,
     borderTopWidth: 1,
     borderTopColor: C.border,
     paddingVertical: 6,
@@ -864,31 +903,31 @@ const S = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
-    backgroundColor: C.black,
+    backgroundColor: C.background,
     borderWidth: 1,
     borderColor: C.border,
   },
   quickReplyText: {
     fontSize: 11,
-    color: "rgba(245,240,232,0.5)",
+    color: C.textSecondary,
     fontFamily: F.mono,
   },
-  // Attachment previews
+
   attachmentsPreview: {
     flexDirection: "row", flexWrap: "wrap", gap: 6,
     paddingHorizontal: 12, paddingVertical: 8,
-    backgroundColor: C.muted2, borderTopWidth: 1, borderTopColor: C.border,
+    backgroundColor: C.surface, borderTopWidth: 1, borderTopColor: C.border,
   },
   attachmentPreviewItem: {
     flexDirection: "row", alignItems: "center", gap: 6,
-    backgroundColor: C.black, borderWidth: 1, borderColor: C.border,
+    backgroundColor: C.card, borderWidth: 1, borderColor: C.border,
     borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6,
   },
-  attachmentPreviewName: { fontSize: 11, color: "rgba(245,240,232,0.5)", fontFamily: F.mono, maxWidth: 100 },
+  attachmentPreviewName: { fontSize: 11, color: C.textSecondary, fontFamily: F.mono, maxWidth: 100 },
+  attachmentPreviewSize: { fontSize: 9, color: C.textMuted, fontFamily: F.mono },
 
-  // Input bar
   inputBar: {
-    backgroundColor: C.muted2,
+    backgroundColor: C.surface,
     borderTopWidth: 1,
     borderTopColor: C.border,
     paddingHorizontal: 12,
@@ -901,14 +940,14 @@ const S = StyleSheet.create({
   },
   attachBtn: {
     width: 40, height: 40, borderRadius: 20,
-    backgroundColor: C.black, borderWidth: 1, borderColor: C.border,
+    backgroundColor: C.background, borderWidth: 1, borderColor: C.border,
     alignItems: "center", justifyContent: "center",
     marginBottom: 2,
   },
 
   messageInput: {
     flex: 1,
-    backgroundColor: "#0f0f0f",
+    backgroundColor: C.card,
     borderWidth: 1,
     borderColor: C.border,
     borderRadius: 22,
@@ -917,35 +956,34 @@ const S = StyleSheet.create({
     paddingBottom: 10,
     fontSize: 14,
     fontFamily: F.dm,
-    color: C.white,
+    color: C.textPrimary,
     maxHeight: 120,
     minHeight: 42,
   },
-  sendBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.gold, alignItems: "center", justifyContent: "center", marginBottom: 2 },
-  sendBtnDisabled: { backgroundColor: C.muted, borderWidth: 1, borderColor: C.border },
+  sendBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.primary, alignItems: "center", justifyContent: "center", marginBottom: 2 },
+  sendBtnDisabled: { backgroundColor: C.surface, borderWidth: 1, borderColor: C.border },
 
-  // New message modal
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.75)", justifyContent: "flex-end" },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
   modalCard: {
-    backgroundColor: C.muted2, borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    backgroundColor: C.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20,
     padding: 20, paddingBottom: Platform.OS === "ios" ? 34 : 20,
   },
   modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 18 },
-  modalTitle: { fontSize: 18, fontWeight: "700", color: C.white, fontFamily: F.bebas, letterSpacing: 1 },
-  modalLabel: { fontSize: 10, fontWeight: "700", color: "rgba(245,240,232,0.3)", fontFamily: F.mono, letterSpacing: 2, marginBottom: 8, textTransform: "uppercase" },
+  modalTitle: { fontSize: 18, fontWeight: "700", color: C.textPrimary, fontFamily: F.bebas, letterSpacing: 1 },
+  modalLabel: { fontSize: 10, fontWeight: "700", color: C.textMuted, fontFamily: F.mono, letterSpacing: 2, marginBottom: 8, textTransform: "uppercase" },
 
   modalInput: {
-    backgroundColor: C.black, borderWidth: 1, borderColor: C.border, borderRadius: 8,
-    padding: 12, fontSize: 14, color: C.white, fontFamily: F.dm,
+    backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 8,
+    padding: 12, fontSize: 14, color: C.textPrimary, fontFamily: F.dm,
     minHeight: 80, textAlignVertical: "top", marginBottom: 16,
   },
-  modalSendBtn: { backgroundColor: C.gold, borderRadius: 8, paddingVertical: 14, alignItems: "center" },
-  modalSendText: { fontSize: 14, fontWeight: "700", color: C.black, fontFamily: F.dm, letterSpacing: 1, textTransform: "uppercase" },
+  modalSendBtn: { backgroundColor: C.primary, borderRadius: 8, paddingVertical: 14, alignItems: "center" },
+  modalSendText: { fontSize: 14, fontWeight: "700", color: "#ffffff", fontFamily: F.dm, letterSpacing: 1, textTransform: "uppercase" },
   recipientItem: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 8, marginBottom: 4 },
-  recipientItemActive: { backgroundColor: "rgba(232,160,18,0.08)", borderWidth: 1, borderColor: "rgba(232,160,18,0.2)" },
-  recipientAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(245,240,232,0.08)", alignItems: "center", justifyContent: "center" },
-  recipientAvatarActive: { backgroundColor: "rgba(232,160,18,0.15)" },
-  recipientAvatarText: { fontSize: 14, fontWeight: "700", color: "rgba(245,240,232,0.5)", fontFamily: F.bebas },
-  recipientName: { fontSize: 14, fontWeight: "600", color: C.white, fontFamily: F.dm },
-  recipientRole: { fontSize: 11, color: "rgba(245,240,232,0.3)", fontFamily: F.mono, textTransform: "capitalize" },
+  recipientItemActive: { backgroundColor: "rgba(44,62,80,0.08)", borderWidth: 1, borderColor: C.border },
+  recipientAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.background, alignItems: "center", justifyContent: "center" },
+  recipientAvatarActive: { backgroundColor: "rgba(44,62,80,0.15)" },
+  recipientAvatarText: { fontSize: 14, fontWeight: "700", color: C.textMuted, fontFamily: F.bebas },
+  recipientName: { fontSize: 14, fontWeight: "600", color: C.textPrimary, fontFamily: F.dm },
+  recipientRole: { fontSize: 11, color: C.textMuted, fontFamily: F.mono, textTransform: "capitalize" },
 });

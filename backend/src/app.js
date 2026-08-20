@@ -3,16 +3,9 @@ const cors = require("cors");
 const path = require("path");
 const pool = require("./config/database");
 const cron = require("node-cron");
-const { runInvoiceAgingJob } = require("./jobs/invoiceAging");
-
- cron.schedule("0 2 * * *", () => {
-  runInvoiceAgingJob().catch((err) =>
-    console.error("Scheduled invoice aging job failed:", err)
-  );
- });
+const { startInvoiceScheduler } = require("./jobs/invoiceScheduler");
 
 
-// Import route files
 const authRoutes = require("./routes/auth");
 const tenantRoutes = require("./routes/tenants");
 const maintenanceRoutes = require("./routes/maintenance");
@@ -35,6 +28,9 @@ const repaymentPlanRoutes = require("./routes/repaymentPlans");
 const collectionRoutes = require("./routes/collections");
 const leaseRoutes = require("./routes/leases");
 const landlordMaintenanceRoutes = require("./routes/landlordMaintenance");
+const landlordDashboard = require("./routes/dashboard");
+const searchRoutes = require("./routes/search");
+
 
 const app = express();
 
@@ -66,6 +62,7 @@ app.use("/upload", uploadRoutes);
 app.use("/caretaker", caretakerRoutes);
 app.use("/landlord/payment-settings", paymentSettingsRoutes);
 app.use("/landlord/settings", landlordSettingsRoutes);
+app.use("/landlord/history", landlordPaymentRoutes);
 app.use("/landlord/payments", landlordPaymentRoutes);
 app.use("/messages", messageRoutes);
 app.use("/notifications", notificationRoutes);
@@ -78,6 +75,9 @@ app.use("/repayment-plans", repaymentPlanRoutes);
 app.use("/collections", collectionRoutes);
 app.use("/leases", leaseRoutes);
 app.use("/landlord/maintenance", landlordMaintenanceRoutes);
+app.use("/landlord/dashboard", landlordDashboard);
+app.use("/search", searchRoutes);
+
 
 app.get("/uploads/maintenance/:filename", (req, res) => {
   const filePath = path.join(__dirname, '..', 'uploads', 'maintenance', req.params.filename);
@@ -96,7 +96,10 @@ async function startServer() {
   try {
     await pool.query("SELECT 1");
     console.log("Database connected successfully");
-    
+
+    startInvoiceScheduler();
+    console.log("Invoice scheduler started.");
+
     app.listen(PORT, "0.0.0.0", () => {
       console.log(`Server running on http://localhost:${PORT}`);
     });

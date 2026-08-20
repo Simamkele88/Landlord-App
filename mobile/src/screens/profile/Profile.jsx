@@ -1,29 +1,14 @@
 // TENANT PROFILE & LEASE SCREEN
 import { useState, useEffect, useCallback } from "react";
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet
-  , StatusBar, ActivityIndicator, Alert,
-  TextInput,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet,
+  StatusBar, ActivityIndicator, Alert, TextInput,
 } from "react-native";
-import { safeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons, MaterialIcons, Feather, FontAwesome5 } from "@expo/vector-icons";
 import api from "../../utils/api";
-
-const C = {
-  black:        "#0a0a0a",
-  muted:        "#141414",
-  muted2:       "#1a1a1a",
-  border:       "#2a2a2a",
-  gold:         "#E8A012",
-  white:        "#F5F0E8",
-  blue:         "#3A8FD4",
-  greenLight:   "#1A7A4A",
-  redLight:     "#E05A4A",
-  orange:       "#F97316",
-  purple:       "#8B5CF6",
-};
-const F = { bebas: "bebas-neue", dm: "dm-sans", mono: "space-mono" };
+import { C, F } from "../../styles/theme";
 
 function format(n) { return n ? `R ${Number(n).toLocaleString("en-ZA")}` : "—"; }
 function formatDate(d) { return d ? new Date(d).toLocaleDateString("en-ZA", { day: "2-digit", month: "long", year: "numeric" }) : "—"; }
@@ -31,9 +16,9 @@ function initials(name = "") { return (name || "").split(" ").map(n => n[0]).joi
 function daysUntil(d) { if (!d) return null; return Math.ceil((new Date(d) - Date.now()) / 86400000); }
 
 const SCORE_CONFIG = {
-  "reliable":      { color: C.greenLight, bg: "rgba(26,122,74,0.08)", border: "rgba(76,186,122,0.15)", label: "Reliable" },
-  "moderate_risk": { color: C.gold,       bg: "rgba(232,160,18,0.06)", border: "rgba(232,160,18,0.12)", label: "Moderate Risk" },
-  "high_risk":     { color: C.redLight,   bg: "rgba(224,90,74,0.08)", border: "rgba(224,90,74,0.15)", label: "High Risk" },
+  "reliable":      { color: C.green,  bg: "rgba(43,122,75,0.08)",  border: "rgba(43,122,75,0.15)", label: "Reliable" },
+  "moderate_risk": { color: C.blue,   bg: "rgba(52,152,219,0.08)", border: "rgba(52,152,219,0.15)", label: "Moderate Risk" },
+  "high_risk":     { color: C.red,    bg: "rgba(158,58,58,0.08)",  border: "rgba(158,58,58,0.15)", label: "High Risk" },
 };
 
 function getScoreConfig(score) {
@@ -45,7 +30,7 @@ function SectionCard({ title, icon, children }) {
   return (
     <View style={S.sectionCard}>
       <View style={S.sectionHeader}>
-        <Ionicons name={icon} size={14} color={C.gold} />
+        <Ionicons name={icon} size={14} color={C.primary} />
         <Text style={S.sectionTitle}>{title}</Text>
       </View>
       {children}
@@ -57,7 +42,7 @@ function InfoRow({ label, value, icon, mono }) {
   return (
     <View style={S.infoRow}>
       <View style={S.infoLabelWrap}>
-        {icon && <Ionicons name={icon} size={13} color="rgba(245,240,232,0.25)" style={{ marginRight: 6 }} />}
+        {icon && <Ionicons name={icon} size={13} color={C.textMuted} style={{ marginRight: 6 }} />}
         <Text style={S.infoLabel}>{label}</Text>
       </View>
       <Text style={[S.infoValue, mono && { fontFamily: F.mono }]}>{value}</Text>
@@ -85,9 +70,9 @@ function ScoreBreakdown({ tenant }) {
 
       {/* Bars */}
       {[
-        { label: "On-time", value: onTime, color: C.greenLight },
-        { label: "Late", value: late, color: C.gold },
-        { label: "Missed", value: missed, color: C.redLight },
+        { label: "On-time", value: onTime, color: C.green },
+        { label: "Late", value: late, color: C.blue },
+        { label: "Missed", value: missed, color: C.red },
       ].map(bar => (
         <View key={bar.label} style={S.barRow}>
           <Text style={S.barLabel}>{bar.label}</Text>
@@ -172,20 +157,28 @@ export default function ProfileScreen() {
   if (loading) {
     return (
       <SafeAreaView style={S.safe}>
-        <View style={S.loader}><ActivityIndicator size="large" color={C.gold} /></View>
+        <StatusBar barStyle="dark-content" backgroundColor={C.surface} />
+        <View style={S.loader}><ActivityIndicator size="large" color={C.primary} /></View>
       </SafeAreaView>
     );
   }
 
   const $input = {
-    backgroundColor: C.black, borderWidth: 1, borderColor: C.border,
-    borderRadius: 3, paddingHorizontal: 12, paddingVertical: 10,
-    fontSize: 13, color: C.white, fontFamily: F.dm, flex: 1,
+    backgroundColor: C.background,
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 3,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 13,
+    color: C.textPrimary,
+    fontFamily: F.dm,
+    flex: 1,
   };
 
   return (
     <SafeAreaView style={S.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={C.black} />
+      <StatusBar barStyle="dark-content" backgroundColor={C.surface} />
 
       {/* HEADER */}
       <View style={S.header}>
@@ -197,7 +190,7 @@ export default function ProfileScreen() {
           activeOpacity={0.7}
         >
           {saving ? (
-            <ActivityIndicator size="small" color={editing ? C.black : C.gold} />
+            <ActivityIndicator size="small" color={editing ? "#ffffff" : C.primary} />
           ) : (
             <Text style={[S.editBtnText, editing && S.editBtnTextActive]}>
               {editing ? "Save" : "Edit"}
@@ -217,8 +210,8 @@ export default function ProfileScreen() {
           <View style={S.profileInfo}>
             {editing ? (
               <View style={{ flexDirection: "row", gap: 8 }}>
-                <TextInput style={$input} value={form.first_name} onChangeText={v => updateField("first_name", v)} placeholder="First name" placeholderTextColor="rgba(245,240,232,0.2)" />
-                <TextInput style={$input} value={form.last_name} onChangeText={v => updateField("last_name", v)} placeholder="Last name" placeholderTextColor="rgba(245,240,232,0.2)" />
+                <TextInput style={$input} value={form.first_name} onChangeText={v => updateField("first_name", v)} placeholder="First name" placeholderTextColor={C.textMuted} />
+                <TextInput style={$input} value={form.last_name} onChangeText={v => updateField("last_name", v)} placeholder="Last name" placeholderTextColor={C.textMuted} />
               </View>
             ) : (
               <Text style={S.profileName}>{tenant?.first_name} {tenant?.last_name}</Text>
@@ -229,9 +222,12 @@ export default function ProfileScreen() {
 
         {/* LEASE STATUS BANNER */}
         {(leaseExpired || leaseExpiring) && (
-          <View style={[S.leaseBanner, { backgroundColor: leaseExpired ? "rgba(224,90,74,0.06)" : "rgba(232,160,18,0.04)", borderColor: leaseExpired ? "rgba(224,90,74,0.15)" : "rgba(232,160,18,0.12)" }]}>
-            <Ionicons name={leaseExpired ? "warning" : "time"} size={16} color={leaseExpired ? C.redLight : C.gold} />
-            <Text style={[S.leaseBannerText, { color: leaseExpired ? C.redLight : C.gold }]}>
+          <View style={[S.leaseBanner, {
+            backgroundColor: leaseExpired ? "rgba(158,58,58,0.06)" : "rgba(52,152,219,0.04)",
+            borderColor: leaseExpired ? "rgba(158,58,58,0.15)" : "rgba(52,152,219,0.12)"
+          }]}>
+            <Ionicons name={leaseExpired ? "warning" : "time"} size={16} color={leaseExpired ? C.red : C.blue} />
+            <Text style={[S.leaseBannerText, { color: leaseExpired ? C.red : C.blue }]}>
               {leaseExpired ? "Your lease has expired. Contact your landlord to renew." : `Lease expires in ${daysLeft} day${daysLeft !== 1 ? "s" : ""}`}
             </Text>
           </View>
@@ -294,22 +290,22 @@ export default function ProfileScreen() {
 }
 
 const S = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.black },
+  safe: { flex: 1, backgroundColor: C.background },
   loader: { flex: 1, alignItems: "center", justifyContent: "center" },
 
   header: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     paddingHorizontal: 16, paddingTop: 14, paddingBottom: 12,
-    backgroundColor: C.muted2, borderBottomWidth: 1, borderBottomColor: C.border,
+    backgroundColor: C.surface, borderBottomWidth: 1, borderBottomColor: C.border,
   },
-  headerTitle: { fontSize: 22, fontWeight: "700", color: C.white, fontFamily: F.bebas, letterSpacing: 1 },
+  headerTitle: { fontSize: 22, fontWeight: "700", color: C.textPrimary, fontFamily: F.bebas, letterSpacing: 1 },
   editBtn: {
     paddingHorizontal: 14, paddingVertical: 6, borderRadius: 3,
-    backgroundColor: "transparent", borderWidth: 1, borderColor: "rgba(232,160,18,0.3)",
+    backgroundColor: "transparent", borderWidth: 1, borderColor: C.primary,
   },
-  editBtnActive: { backgroundColor: C.gold, borderColor: C.gold },
-  editBtnText: { fontSize: 11, fontWeight: "600", color: C.gold, fontFamily: F.mono, letterSpacing: 0.5 },
-  editBtnTextActive: { color: C.black },
+  editBtnActive: { backgroundColor: C.primary, borderColor: C.primary },
+  editBtnText: { fontSize: 11, fontWeight: "600", color: C.primary, fontFamily: F.mono, letterSpacing: 0.5 },
+  editBtnTextActive: { color: "#ffffff" },
 
   scroll: { flex: 1 },
   pad: { padding: 14, gap: 12 },
@@ -318,13 +314,13 @@ const S = StyleSheet.create({
   profileHeader: { flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 4 },
   profileAvatar: {
     width: 64, height: 64, borderRadius: 32,
-    backgroundColor: "rgba(232,160,18,0.12)", borderWidth: 2, borderColor: "rgba(232,160,18,0.2)",
+    backgroundColor: "rgba(44,62,80,0.1)", borderWidth: 2, borderColor: C.border,
     alignItems: "center", justifyContent: "center",
   },
-  profileAvatarText: { color: C.gold, fontSize: 22, fontWeight: "700", fontFamily: F.bebas },
+  profileAvatarText: { color: C.primary, fontSize: 22, fontWeight: "700", fontFamily: F.bebas },
   profileInfo: { flex: 1 },
-  profileName: { fontSize: 18, fontWeight: "700", color: C.white, fontFamily: F.bebas, letterSpacing: 0.5 },
-  profileUnit: { fontSize: 12, color: "rgba(245,240,232,0.35)", fontFamily: F.mono, marginTop: 3 },
+  profileName: { fontSize: 18, fontWeight: "700", color: C.textPrimary, fontFamily: F.bebas, letterSpacing: 0.5 },
+  profileUnit: { fontSize: 12, color: C.textMuted, fontFamily: F.mono, marginTop: 3 },
 
   // LEASE BANNER
   leaseBanner: {
@@ -335,7 +331,7 @@ const S = StyleSheet.create({
 
   // SECTION CARD
   sectionCard: {
-    backgroundColor: C.muted2, borderRadius: 6, borderWidth: 1, borderColor: C.border,
+    backgroundColor: C.card, borderRadius: 6, borderWidth: 1, borderColor: C.border,
     overflow: "hidden",
   },
   sectionHeader: {
@@ -344,7 +340,7 @@ const S = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: C.border,
   },
   sectionTitle: {
-    fontSize: 10, fontWeight: "700", color: "rgba(245,240,232,0.2)",
+    fontSize: 10, fontWeight: "700", color: "#888888",
     fontFamily: F.mono, letterSpacing: 2,
   },
 
@@ -355,8 +351,8 @@ const S = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: C.border,
   },
   infoLabelWrap: { flexDirection: "row", alignItems: "center" },
-  infoLabel: { fontSize: 12, color: "rgba(245,240,232,0.4)", fontFamily: F.mono },
-  infoValue: { fontSize: 12, fontWeight: "600", color: C.white, fontFamily: F.dm, textAlign: "right", flex: 1, marginLeft: 12 },
+  infoLabel: { fontSize: 12, color: C.textMuted, fontFamily: F.mono },
+  infoValue: { fontSize: 12, fontWeight: "600", color: C.textPrimary, fontFamily: F.dm, textAlign: "right", flex: 1, marginLeft: 12 },
 
   // SCORE CARD
   scoreCard: { padding: 14 },
@@ -368,11 +364,11 @@ const S = StyleSheet.create({
   scoreLabel: { fontSize: 11, fontWeight: "600", fontFamily: F.mono, textTransform: "uppercase", letterSpacing: 1 },
 
   barRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 },
-  barLabel: { width: 55, fontSize: 10, color: "rgba(245,240,232,0.3)", fontFamily: F.mono, textAlign: "right" },
-  barTrack: { flex: 1, height: 4, borderRadius: 2, backgroundColor: "rgba(245,240,232,0.06)", overflow: "hidden" },
+  barLabel: { width: 55, fontSize: 10, color: C.textMuted, fontFamily: F.mono, textAlign: "right" },
+  barTrack: { flex: 1, height: 4, borderRadius: 2, backgroundColor: "rgba(0,0,0,0.06)", overflow: "hidden" },
   barFill: { height: 4, borderRadius: 2 },
-  barValue: { width: 24, fontSize: 10, fontWeight: "600", color: C.white, fontFamily: F.mono, textAlign: "center" },
+  barValue: { width: 24, fontSize: 10, fontWeight: "600", color: C.textPrimary, fontFamily: F.mono, textAlign: "center" },
 
   // NOTE
-  noteText: { fontSize: 12, color: "rgba(245,240,232,0.5)", fontFamily: F.dm, lineHeight: 19, padding: 12 },
+  noteText: { fontSize: 12, color: C.textSecondary, fontFamily: F.dm, lineHeight: 19, padding: 12 },
 });

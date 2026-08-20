@@ -101,6 +101,114 @@ router.get("/available", requireAuth, requireTenant, async (req, res) => {
   }
 });
 
+// GET /units/:id - Get unit by ID with full details
+router.get("/:id", requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query(
+      `SELECT 
+        u.*,
+        p.id AS property_id,
+        p.name AS property_name,
+        p.address_line1,
+        p.city,
+        p.province,
+        p.postal_code,
+        p.country,
+        t.id AS tenant_id,
+        usr.full_name AS tenant_name,
+        usr.email AS tenant_email,
+        usr.phone AS tenant_phone,
+        l.id AS lease_id,
+        l.lease_start_date,
+        l.lease_end_date,
+        l.rent_amount AS lease_rent_amount,
+        l.deposit_amount AS lease_deposit_amount,
+        l.payment_frequency,
+        l.payment_due_day,
+        l.status AS lease_status
+      FROM unit u
+      JOIN property p ON p.id = u.property_id
+      LEFT JOIN tenant t ON t.id = u.current_tenant_id
+      LEFT JOIN users usr ON usr.id = t.user_id
+      LEFT JOIN lease l ON l.tenant_id = t.id AND l.unit_id = u.id AND l.status = 'active'
+      WHERE u.id = $1`,
+      [id]
+    );
+
+    if (!result.rows.length) {
+      return res.status(404).json({ error: "Unit not found" });
+    }
+
+    const unit = result.rows[0];
+
+    const maintenanceResult = await pool.query(
+      `SELECT 
+        id, title, description, category, priority, status,
+        created_at, updated_at, scheduled_date, completed_at,
+        estimated_cost, actual_cost, contractor_name, contractor_phone
+      FROM maintenance_request
+      WHERE unit_id = $1
+      ORDER BY created_at DESC`,
+      [id]
+    );
+
+    let invoices = [];
+    let payments = [];
+    let outstanding_balance = 0;
+
+    if (unit.lease_id) {
+      const invoiceResult = await pool.query(
+        `SELECT 
+          id, invoice_number, amount_due, paid_amount, remaining_balance,
+          status, due_date, billing_period_start, billing_period_end
+        FROM invoice
+        WHERE lease_id = $1
+        ORDER BY due_date DESC
+        LIMIT 20`,
+        [unit.lease_id]
+      );
+      invoices = invoiceResult.rows;
+
+      const paymentResult = await pool.query(
+        `SELECT 
+          id, amount_paid, payment_method, payment_date, status, bank_reference
+        FROM payment
+        WHERE lease_id = $1
+        ORDER BY payment_date DESC
+        LIMIT 20`,
+        [unit.lease_id]
+      );
+      payments = paymentResult.rows;
+
+      const balanceResult = await pool.query(
+        `SELECT COALESCE(SUM(remaining_balance), 0) AS total_remaining
+        FROM invoice
+        WHERE lease_id = $1
+          AND status NOT IN ('paid','void','cancelled')
+          AND remaining_balance > 0`,
+        [unit.lease_id]
+      );
+      outstanding_balance = Number(balanceResult.rows[0].total_remaining);
+    }
+
+    res.json({
+      unit: {
+        ...unit,
+        maintenance_requests: maintenanceResult.rows,
+        invoices,
+        payments,
+        outstanding_balance,
+        total_deposit: unit.lease_deposit_amount || unit.deposit_amount || 0
+      }
+    });
+  } catch (err) {
+    console.error("Get unit by ID:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 // PUT /units/:id - Update unit
 router.put("/:id", requireAuth, async (req, res) => {
   try {
@@ -112,8 +220,10 @@ router.put("/:id", requireAuth, async (req, res) => {
     const {
       unit_number, unit_type, floor_number, bedrooms, bathrooms,
       square_meters, monthly_rent, deposit_amount, status,
-      furnished, parking_bay, has_balcony
+      furnished, parking_bay, has_balcony, has_garden, available_from, notes
     } = req.body;
+
+    
     
     const result = await pool.query(
       `UPDATE unit SET
@@ -121,8 +231,9 @@ router.put("/:id", requireAuth, async (req, res) => {
         bedrooms = $4, bathrooms = $5, square_meters = $6,
         monthly_rent = $7, deposit_amount = $8, status = $9,
         furnished = $10, parking_bay = $11, has_balcony = $12,
+        has_garden = $13, available_from = $14, notes = $15,
         updated_at = NOW()
-       WHERE id = $13 RETURNING *`,
+       WHERE id = $16 RETURNING *`,
       [
         String(unit_number), unit_type,
         floor_number ? parseInt(floor_number) : null,
@@ -135,6 +246,9 @@ router.put("/:id", requireAuth, async (req, res) => {
         furnished || false,
         parking_bay || false,
         has_balcony || false,
+        has_garden || false,
+        available_from || null,
+        notes || null,
         id
       ]
     );

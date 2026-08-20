@@ -3,7 +3,6 @@ import * as Device from "expo-device";
 import { Platform, Alert } from "react-native";
 import api from "./api";
 
-// Show notifications when app is in foreground
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowBanner: true,
@@ -36,15 +35,12 @@ export async function registerForPushNotifications() {
   try {
     const tokenData = await Notifications.getExpoPushTokenAsync();
     const token = tokenData.data;
-    console.log("Push Token:", token);
 
-    // Send token to backend
     try {
       await api.post("/auth/push-token", {
         token: token,
         platform: Platform.OS,
       });
-      console.log("Token registered with backend");
     } catch (err) {
       console.log("Could not register token with backend:", err.message);
     }
@@ -68,7 +64,6 @@ export async function registerForPushNotifications() {
 export function addNotificationListeners(navigationRef) {
   const responseSub = Notifications.addNotificationResponseReceivedListener(response => {
     const data = response.notification.request.content.data;
-    console.log("Notification tapped:", data);
 
     if (navigationRef?.current) {
       if (data?.type?.includes("payment")) {

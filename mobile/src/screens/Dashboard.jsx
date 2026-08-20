@@ -28,18 +28,18 @@ function getGreeting() {
 }
 
 function reliabilityColor(score) {
-  if (!score) return C.greenLight;
-  if (score === "reliable" || score === "Reliable") return C.greenLight;
-  if (score === "moderate_risk" || score === "Moderate Risk") return C.gold;
-  return C.redLight;
+  if (!score) return C.green;
+  if (score === "reliable" || score === "Reliable") return C.green;
+  if (score === "moderate_risk" || score === "Moderate Risk") return C.primary;
+  return C.red;
 }
 
 function maintenanceStatusColor(status) {
   switch (status) {
-    case "completed": case "closed": return C.greenLight;
-    case "in_progress": case "assigned": return C.gold;
+    case "completed": case "closed": return C.green;
+    case "in_progress": case "assigned": return C.blue;
     case "pending_approval": return C.purple;
-    default: return C.redLight;
+    default: return C.red;
   }
 }
 
@@ -56,12 +56,12 @@ function maintenanceStatusLabel(status) {
 
 function rentStatusConfig(status) {
   switch (status) {
-    case "paid": return { color: C.greenLight, bg: "rgba(26,122,74,0.08)", border: "rgba(76,186,122,0.15)", label: "Paid", icon: "checkmark-circle" };
-    case "partial": return { color: C.gold, bg: "rgba(232,160,18,0.06)", border: "rgba(232,160,18,0.12)", label: "Partial", icon: "time" };
-    case "pending": case "pending_approval": return { color: C.gold, bg: "rgba(232,160,18,0.06)", border: "rgba(232,160,18,0.12)", label: "Pending", icon: "hourglass" };
-    case "overdue": return { color: C.redLight, bg: "rgba(224,90,74,0.08)", border: "rgba(224,90,74,0.15)", label: "Overdue", icon: "alert-circle" };
-    case "sent": case "unpaid": return { color: C.redLight, bg: "rgba(224,90,74,0.08)", border: "rgba(224,90,74,0.15)", label: "Unpaid", icon: "close-circle" };
-    default: return { color: "rgba(245,240,232,0.4)", bg: C.muted2, border: C.border, label: status || "Unknown", icon: "help-circle" };
+    case "paid": return { color: C.green, bg: "rgba(43,122,75,0.08)", border: "rgba(43,122,75,0.15)", label: "Paid", icon: "checkmark-circle" };
+    case "partial": return { color: C.blue, bg: "rgba(52,152,219,0.08)", border: "rgba(52,152,219,0.15)", label: "Partial", icon: "time" };
+    case "pending": case "pending_approval": return { color: C.blue, bg: "rgba(52,152,219,0.08)", border: "rgba(52,152,219,0.15)", label: "Pending", icon: "hourglass" };
+    case "overdue": return { color: C.red, bg: "rgba(158,58,58,0.08)", border: "rgba(158,58,58,0.15)", label: "Overdue", icon: "alert-circle" };
+    case "sent": case "unpaid": return { color: C.red, bg: "rgba(158,58,58,0.08)", border: "rgba(158,58,58,0.15)", label: "Unpaid", icon: "close-circle" };
+    default: return { color: C.textMuted, bg: C.surface, border: C.border, label: status || "Unknown", icon: "help-circle" };
   }
 }
 
@@ -135,10 +135,10 @@ export default function TenantDashboard() {
   if (loading) {
     return (
       <SafeAreaView style={S.safe}>
-        <StatusBar barStyle="light-content" backgroundColor={C.black} />
+        <StatusBar barStyle="dark-content" backgroundColor={C.surface} />
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-          <ActivityIndicator size="large" color={C.gold} />
-          <Text style={{ marginTop: 12, fontSize: 13, color: "rgba(245,240,232,0.3)", fontFamily: F.mono }}>Loading dashboard...</Text>
+          <ActivityIndicator size="large" color={C.primary} />
+          <Text style={{ marginTop: 12, fontSize: 13, color: C.textMuted, fontFamily: F.mono }}>Loading dashboard...</Text>
         </View>
       </SafeAreaView>
     );
@@ -147,12 +147,12 @@ export default function TenantDashboard() {
   if (error && !dashboard) {
     return (
       <SafeAreaView style={S.safe}>
-        <StatusBar barStyle="light-content" backgroundColor={C.black} />
+        <StatusBar barStyle="dark-content" backgroundColor={C.surface} />
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 24 }}>
-          <Feather name="wifi-off" size={36} color="rgba(245,240,232,0.15)" />
-          <Text style={{ marginTop: 12, fontSize: 14, color: "rgba(245,240,232,0.4)", fontFamily: F.dm, textAlign: "center" }}>{error}</Text>
-          <TouchableOpacity onPress={() => fetchDashboard()} style={{ marginTop: 16, paddingHorizontal: 20, paddingVertical: 8, borderRadius: 3, backgroundColor: "rgba(232,160,18,0.08)", borderWidth: 1, borderColor: "rgba(232,160,18,0.15)" }}>
-            <Text style={{ fontSize: 12, fontWeight: "600", color: C.gold, fontFamily: F.mono }}>Retry</Text>
+          <Feather name="wifi-off" size={36} color="#cccccc" />
+          <Text style={{ marginTop: 12, fontSize: 14, color: C.textSecondary, fontFamily: F.dm, textAlign: "center" }}>{error}</Text>
+          <TouchableOpacity onPress={() => fetchDashboard()} style={{ marginTop: 16, paddingHorizontal: 20, paddingVertical: 8, borderRadius: 3, backgroundColor: "rgba(44,62,80,0.08)", borderWidth: 1, borderColor: C.border }}>
+            <Text style={{ fontSize: 12, fontWeight: "600", color: C.primary, fontFamily: F.mono }}>Retry</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -202,67 +202,67 @@ export default function TenantDashboard() {
     if (isPaid) {
       return (
         <View style={S.rentBannerContent}>
-          <Ionicons name="checkmark-circle" size={15} color={C.greenLight} />
-          <Text style={[S.rentBannerText, { color: C.greenLight }]}>Rent confirmed for this month</Text>
+          <Ionicons name="checkmark-circle" size={15} color={C.green} />
+          <Text style={[S.rentBannerText, { color: C.green }]}>Rent confirmed for this month</Text>
         </View>
       );
     }
     if (isPartial) {
       return (
         <View style={S.rentBannerContent}>
-          <Ionicons name="time" size={15} color={C.gold} />
-          <Text style={[S.rentBannerText, { color: C.gold }]}>Partial payment. {formatAmount(remainingBalance)} remaining</Text>
+          <Ionicons name="time" size={15} color={C.blue} />
+          <Text style={[S.rentBannerText, { color: C.blue }]}>Partial payment. {formatAmount(remainingBalance)} remaining</Text>
         </View>
       );
     }
     if (isPending) {
       return (
         <View style={S.rentBannerContent}>
-          <MaterialIcons name="pending-actions" size={15} color={C.gold} />
-          <Text style={[S.rentBannerText, { color: C.gold }]}>Awaiting landlord approval</Text>
+          <MaterialIcons name="pending-actions" size={15} color={C.blue} />
+          <Text style={[S.rentBannerText, { color: C.blue }]}>Awaiting landlord approval</Text>
         </View>
       );
     }
     if (isOverdue) {
       return (
         <View style={S.rentBannerContent}>
-          <MaterialIcons name="error" size={15} color={C.redLight} />
-          <Text style={[S.rentBannerText, { color: C.redLight }]}>Payment overdue. Please pay now</Text>
+          <MaterialIcons name="error" size={15} color={C.red} />
+          <Text style={[S.rentBannerText, { color: C.red }]}>Payment overdue. Please pay now</Text>
         </View>
       );
     }
     if (days === 0) {
       return (
         <View style={S.rentBannerContent}>
-          <MaterialIcons name="warning-amber" size={15} color={C.redLight} />
-          <Text style={[S.rentBannerText, { color: C.redLight }]}>Due today</Text>
+          <MaterialIcons name="warning-amber" size={15} color={C.red} />
+          <Text style={[S.rentBannerText, { color: C.red }]}>Due today</Text>
         </View>
       );
     }
     if (days === 1) {
       return (
         <View style={S.rentBannerContent}>
-          <Ionicons name="time-outline" size={15} color={C.gold} />
-          <Text style={[S.rentBannerText, { color: C.gold }]}>Due tomorrow</Text>
+          <Ionicons name="time-outline" size={15} color={C.blue} />
+          <Text style={[S.rentBannerText, { color: C.blue }]}>Due tomorrow</Text>
         </View>
       );
     }
     return (
       <View style={S.rentBannerContent}>
-        <Ionicons name="time-outline" size={15} color="rgba(245,240,232,0.3)" />
-        <Text style={[S.rentBannerText, { color: "rgba(245,240,232,0.4)" }]}>Due in {days} days</Text>
+        <Ionicons name="time-outline" size={15} color={C.textMuted} />
+        <Text style={[S.rentBannerText, { color: C.textMuted }]}>Due in {days} days</Text>
       </View>
     );
   };
 
   return (
     <SafeAreaView style={S.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={C.black} />
+      <StatusBar barStyle="dark-content" backgroundColor={C.surface} />
       <ScrollView
         style={S.scroll}
         contentContainerStyle={S.content}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchDashboard(true); }} tintColor={C.gold} colors={[C.gold]} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchDashboard(true); }} tintColor={C.primary} colors={[C.primary]} />}
       >
         <View style={S.topBar}>
           <View>
@@ -270,7 +270,7 @@ export default function TenantDashboard() {
             <Text style={S.tenantName}>{firstName(tenantName)}</Text>
           </View>
           <TouchableOpacity style={S.bellWrap} onPress={() => navigation.navigate("Alerts")} activeOpacity={0.8}>
-            <Ionicons name="notifications-outline" size={22} color={C.white} />
+            <Ionicons name="notifications-outline" size={22} color={C.textPrimary} />
             {unreadMessages > 0 && (
               <View style={S.bellBadge}>
                 <Text style={S.bellBadgeText}>{unreadMessages}</Text>
@@ -295,7 +295,7 @@ export default function TenantDashboard() {
             <View>
               <Text style={S.rentCardLabel}>{periodLabel} Rent</Text>
               <Text style={S.rentCardAmount}>{formatAmount(invoiceAmount)}</Text>
-              {isPartial && <Text style={{ fontSize: 10, color: C.gold, fontFamily: F.mono, marginTop: 2 }}>{formatAmount(currentInvoice?.paid_amount || 0)} paid</Text>}
+              {isPartial && <Text style={{ fontSize: 10, color: C.blue, fontFamily: F.mono, marginTop: 2 }}>{formatAmount(currentInvoice?.paid_amount || 0)} paid</Text>}
             </View>
             <View style={[S.rentStatusPill, { backgroundColor: rentCfg.bg, borderColor: rentCfg.border }]}>
               <Ionicons name={rentCfg.icon} size={10} color={rentCfg.color} style={{ marginRight: 3 }} />
@@ -303,48 +303,48 @@ export default function TenantDashboard() {
             </View>
           </View>
           <View style={[S.rentBanner, {
-            backgroundColor: isPaid ? "rgba(26,122,74,0.06)" : isPending ? "rgba(232,160,18,0.04)" : isOverdue || isUnpaid ? "rgba(224,90,74,0.06)" : days <= 3 ? "rgba(224,90,74,0.04)" : C.muted2,
+            backgroundColor: isPaid ? "rgba(43,122,75,0.06)" : isPending ? "rgba(52,152,219,0.04)" : isOverdue || isUnpaid ? "rgba(158,58,58,0.06)" : days <= 3 ? "rgba(158,58,58,0.04)" : C.surface,
           }]}>
             {renderRentBanner()}
-            <MaterialIcons name="chevron-right" size={18} color="rgba(245,240,232,0.25)" />
+            <MaterialIcons name="chevron-right" size={18} color="#cccccc" />
           </View>
         </TouchableOpacity>
 
         {isOverdue && (
           <View style={S.alertBanner}>
-            <MaterialIcons name="warning" size={15} color={C.redLight} />
+            <MaterialIcons name="warning" size={15} color={C.red} />
             <Text style={S.alertText}>Your account may be sent to collections if payment is not made urgently.</Text>
           </View>
         )}
 
         <SectionLabel title="QUICK ACTIONS" />
         <View style={S.qaGrid}>
-          <QuickAction icon="credit-card" iconLibrary="FontAwesome5" label="Pay Rent" color={C.black} bg={C.gold} onPress={() => navigation.navigate("Payments")} />
-          <QuickAction icon="build" iconLibrary="MaterialIcons" label="Maintenance" color={C.white} bg={C.muted2} onPress={() => navigation.navigate("Maintenance")} badge={openMaintenance} />
-          <QuickAction icon="chatbubbles" iconLibrary="Ionicons" label="Messages" color={C.white} bg={C.muted2} onPress={() => navigation.navigate("Messages")} badge={unreadMessages} />
-          <QuickAction icon="flag" iconLibrary="MaterialIcons" label="Complaints" color={C.white} bg={C.muted2} onPress={() => navigation.navigate("Complaints")} badge={openComplaints} />
+          <QuickAction icon="credit-card" iconLibrary="FontAwesome5" label="Pay Rent" color="#ffffff" bg={C.primary} onPress={() => navigation.navigate("Payments")} />
+          <QuickAction icon="build" iconLibrary="MaterialIcons" label="Maintenance" color={C.textPrimary} bg={C.surface} onPress={() => navigation.navigate("Maintenance")} badge={openMaintenance} />
+          <QuickAction icon="chatbubbles" iconLibrary="Ionicons" label="Messages" color={C.textPrimary} bg={C.surface} onPress={() => navigation.navigate("Messages")} badge={unreadMessages} />
+          <QuickAction icon="flag" iconLibrary="MaterialIcons" label="Complaints" color={C.textPrimary} bg={C.surface} onPress={() => navigation.navigate("Complaints")} badge={openComplaints} />
         </View>
 
         {openMaintenance > 0 && (
           <>
             <SectionLabel title={`MAINTENANCE (${openMaintenance})`} actionLabel="View all" onAction={() => navigation.navigate("Maintenance")} />
             <View style={S.infoCard}>
-              <MaterialIcons name="build" size={16} color={C.gold} style={{ marginRight: 8 }} />
-              <Text style={{ fontSize: 12, color: "rgba(245,240,232,0.5)", fontFamily: F.dm, flex: 1 }}>
+              <MaterialIcons name="build" size={16} color={C.blue} style={{ marginRight: 8 }} />
+              <Text style={{ fontSize: 12, color: C.textSecondary, fontFamily: F.dm, flex: 1 }}>
                 You have {openMaintenance} open maintenance request{openMaintenance !== 1 ? "s" : ""}. Tap to view details.
               </Text>
-              <MaterialIcons name="chevron-right" size={16} color="rgba(245,240,232,0.2)" />
+              <MaterialIcons name="chevron-right" size={16} color="#cccccc" />
             </View>
           </>
         )}
 
         {openComplaints > 0 && (
           <View style={[S.infoCard, { marginTop: 8 }]}>
-            <MaterialIcons name="flag" size={16} color={C.orange} style={{ marginRight: 8 }} />
-            <Text style={{ fontSize: 12, color: "rgba(245,240,232,0.5)", fontFamily: F.dm, flex: 1 }}>
+            <MaterialIcons name="flag" size={16} color={C.purple} style={{ marginRight: 8 }} />
+            <Text style={{ fontSize: 12, color: C.textSecondary, fontFamily: F.dm, flex: 1 }}>
               You have {openComplaints} open complaint{openComplaints !== 1 ? "s" : ""}.
             </Text>
-            <MaterialIcons name="chevron-right" size={16} color="rgba(245,240,232,0.2)" />
+            <MaterialIcons name="chevron-right" size={16} color="#cccccc" />
           </View>
         )}
 
@@ -355,48 +355,48 @@ export default function TenantDashboard() {
 }
 
 const S = {
-  safe: { flex: 1, backgroundColor: C.black },
+  safe: { flex: 1, backgroundColor: C.background },
   scroll: { flex: 1 },
   content: { padding: 16, paddingBottom: 40 },
 
   topBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 },
-  greeting: { fontSize: 13, color: "rgba(245,240,232,0.4)", fontFamily: F.mono, marginBottom: 2 },
-  tenantName: { fontSize: 22, fontWeight: "700", color: C.white, fontFamily: F.bebas, letterSpacing: 1 },
-  bellWrap: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.muted2, borderWidth: 1, borderColor: C.border, alignItems: "center", justifyContent: "center" },
-  bellBadge: { position: "absolute", top: -3, right: -3, width: 18, height: 18, borderRadius: 9, backgroundColor: C.redLight, alignItems: "center", justifyContent: "center" },
-  bellBadgeText: { fontSize: 10, fontWeight: "700", color: C.white },
+  greeting: { fontSize: 13, color: C.textMuted, fontFamily: F.mono, marginBottom: 2 },
+  tenantName: { fontSize: 22, fontWeight: "700", color: C.textPrimary, fontFamily: F.bebas, letterSpacing: 1 },
+  bellWrap: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, alignItems: "center", justifyContent: "center" },
+  bellBadge: { position: "absolute", top: -3, right: -3, width: 18, height: 18, borderRadius: 9, backgroundColor: C.red, alignItems: "center", justifyContent: "center" },
+  bellBadgeText: { fontSize: 10, fontWeight: "700", color: "#ffffff" },
 
-  unitCard: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: C.muted2, borderRadius: 6, borderWidth: 1, borderColor: C.border, padding: 14, marginBottom: 16 },
+  unitCard: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: C.surface, borderRadius: 6, borderWidth: 1, borderColor: C.border, padding: 14, marginBottom: 16 },
   unitCardLeft: { flex: 1 },
-  unitCardProperty: { fontSize: 14, fontWeight: "600", color: C.white, fontFamily: F.dm, marginBottom: 2 },
-  unitCardUnit: { fontSize: 11, color: "rgba(245,240,232,0.4)", fontFamily: F.mono },
-  unitCardLease: { fontSize: 10, color: "rgba(245,240,232,0.25)", fontFamily: F.mono, marginTop: 4 },
+  unitCardProperty: { fontSize: 14, fontWeight: "600", color: C.textPrimary, fontFamily: F.dm, marginBottom: 2 },
+  unitCardUnit: { fontSize: 11, color: C.textMuted, fontFamily: F.mono },
+  unitCardLease: { fontSize: 10, color: "#888888", fontFamily: F.mono, marginTop: 4 },
   scorePill: { borderWidth: 1.5, borderRadius: 3, paddingHorizontal: 10, paddingVertical: 4 },
   scoreText: { fontSize: 10, fontWeight: "700", fontFamily: F.mono, letterSpacing: 1, textTransform: "uppercase" },
 
-  rentCard: { backgroundColor: C.muted2, borderRadius: 6, borderWidth: 1, borderColor: C.border, overflow: "hidden", marginBottom: 12 },
+  rentCard: { backgroundColor: C.surface, borderRadius: 6, borderWidth: 1, borderColor: C.border, overflow: "hidden", marginBottom: 12 },
   rentTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", padding: 14 },
-  rentCardLabel: { fontSize: 12, color: "rgba(245,240,232,0.4)", fontFamily: F.mono, marginBottom: 4 },
-  rentCardAmount: { fontSize: 24, fontWeight: "700", color: C.white, fontFamily: F.bebas, letterSpacing: 1 },
+  rentCardLabel: { fontSize: 12, color: C.textMuted, fontFamily: F.mono, marginBottom: 4 },
+  rentCardAmount: { fontSize: 24, fontWeight: "700", color: C.textPrimary, fontFamily: F.bebas, letterSpacing: 1 },
   rentStatusPill: { flexDirection: "row", alignItems: "center", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 3, borderWidth: 1 },
   rentStatusText: { fontSize: 9, fontWeight: "700", textTransform: "uppercase", fontFamily: F.mono, letterSpacing: 0.5 },
   rentBanner: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 10, paddingHorizontal: 14 },
   rentBannerContent: { flexDirection: "row", alignItems: "center", gap: 8 },
   rentBannerText: { fontSize: 11, fontWeight: "500", fontFamily: F.dm },
 
-  alertBanner: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "rgba(224,90,74,0.06)", borderRadius: 4, borderWidth: 1, borderColor: "rgba(224,90,74,0.15)", padding: 10, marginBottom: 16 },
-  alertText: { fontSize: 11, color: C.redLight, fontFamily: F.dm, flex: 1, lineHeight: 16 },
+  alertBanner: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "rgba(158,58,58,0.06)", borderRadius: 4, borderWidth: 1, borderColor: "rgba(158,58,58,0.15)", padding: 10, marginBottom: 16 },
+  alertText: { fontSize: 11, color: C.red, fontFamily: F.dm, flex: 1, lineHeight: 16 },
 
   sectionRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10, marginTop: 8 },
-  sectionLabel: { fontSize: 10, fontWeight: "700", color: "rgba(245,240,232,0.2)", fontFamily: F.mono, letterSpacing: 2, textTransform: "uppercase" },
-  sectionAction: { fontSize: 11, color: C.gold, fontWeight: "600", fontFamily: F.mono },
+  sectionLabel: { fontSize: 10, fontWeight: "700", color: "#888888", fontFamily: F.mono, letterSpacing: 2, textTransform: "uppercase" },
+  sectionAction: { fontSize: 11, color: C.primary, fontWeight: "600", fontFamily: F.mono },
 
   qaGrid: { flexDirection: "row", gap: 8, marginBottom: 20 },
   qaCard: { flex: 1, borderRadius: 6, borderWidth: 1, borderColor: C.border, padding: 14, alignItems: "center", gap: 8 },
   qaIconWrap: { position: "relative" },
-  qaBadge: { position: "absolute", top: -6, right: -10, width: 18, height: 18, borderRadius: 9, backgroundColor: C.redLight, alignItems: "center", justifyContent: "center" },
-  qaBadgeText: { fontSize: 10, fontWeight: "700", color: C.white },
+  qaBadge: { position: "absolute", top: -6, right: -10, width: 18, height: 18, borderRadius: 9, backgroundColor: C.red, alignItems: "center", justifyContent: "center" },
+  qaBadgeText: { fontSize: 10, fontWeight: "700", color: "#ffffff" },
   qaLabel: { fontSize: 11, fontWeight: "600", fontFamily: F.dm, textAlign: "center" },
 
-  infoCard: { flexDirection: "row", alignItems: "center", backgroundColor: C.muted2, borderRadius: 4, borderWidth: 1, borderColor: C.border, padding: 12 },
+  infoCard: { flexDirection: "row", alignItems: "center", backgroundColor: C.surface, borderRadius: 4, borderWidth: 1, borderColor: C.border, padding: 12 },
 };

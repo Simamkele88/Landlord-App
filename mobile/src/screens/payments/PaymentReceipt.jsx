@@ -6,24 +6,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { Feather, Ionicons } from "@expo/vector-icons";
-
-const C = {
-  black:        "#0a0a0a",
-  muted:        "#141414",
-  muted2:       "#1a1a1a",
-  border:       "#2a2a2a",
-  gold:         "#E8A012",
-  white:        "#F5F0E8",
-  blue:         "#3A8FD4",
-  greenLight:   "#1A7A4A",
-  redLight:     "#E05A4A",
-};
-
-const F = {
-  bebas: "bebas-neue",
-  dm:    "dm-sans",
-  mono:  "space-mono",
-};
+import { C, F } from "../../styles/theme";
 
 function fmt(amount) { return `R ${Number(amount || 0).toLocaleString("en-ZA")}`; }
 
@@ -57,15 +40,16 @@ export default function PaymentReceipt() {
   if (!payment) {
     return (
       <SafeAreaView style={S.safe}>
+        <StatusBar barStyle="dark-content" backgroundColor={C.surface} />
         <View style={S.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={S.backBtn}>
-            <Feather name="arrow-left" size={20} color={C.white} />
+            <Feather name="arrow-left" size={20} color={C.textPrimary} />
           </TouchableOpacity>
           <Text style={S.headerTitle}>Receipt</Text>
           <View style={{ width: 40 }} />
         </View>
         <View style={S.centerBlock}>
-          <Feather name="file-text" size={40} color="rgba(245,240,232,0.15)" />
+          <Feather name="file-text" size={40} color="#cccccc" />
           <Text style={S.emptyText}>Receipt not found</Text>
           <TouchableOpacity onPress={() => navigation.goBack()} style={S.goBackBtn}>
             <Text style={S.goBackText}>Go Back</Text>
@@ -93,12 +77,12 @@ export default function PaymentReceipt() {
 
   return (
     <SafeAreaView style={S.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={C.black} />
+      <StatusBar barStyle="dark-content" backgroundColor={C.surface} />
 
       {/* HEADER */}
       <View style={S.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={S.backBtn}>
-          <Feather name="arrow-left" size={20} color={C.white} />
+          <Feather name="arrow-left" size={20} color={C.textPrimary} />
         </TouchableOpacity>
         <Text style={S.headerTitle}>Receipt</Text>
         <View style={{ width: 40 }} />
@@ -108,7 +92,7 @@ export default function PaymentReceipt() {
         {/* SUCCESS HEADER */}
         <View style={S.receiptHeader}>
           <View style={S.checkCircle}>
-            <Ionicons name="checkmark" size={30} color={C.white} />
+            <Ionicons name="checkmark" size={30} color="#ffffff" />
           </View>
           <Text style={S.receiptTitle}>Payment Receipt</Text>
           <Text style={S.receiptSub}>Verified and approved by landlord</Text>
@@ -151,7 +135,7 @@ export default function PaymentReceipt() {
           onPress={() => Alert.alert("Download", "PDF download coming soon.")}
           activeOpacity={0.8}
         >
-          <Feather name="download" size={14} color={C.gold} />
+          <Feather name="download" size={14} color={C.primary} />
           <Text style={S.btnDownloadText}>DOWNLOAD PDF</Text>
         </TouchableOpacity>
         <TouchableOpacity style={S.btnClose} onPress={() => navigation.goBack()} activeOpacity={0.8}>
@@ -163,43 +147,43 @@ export default function PaymentReceipt() {
 }
 
 const S = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.black },
+  safe: { flex: 1, backgroundColor: C.background },
   centerBlock: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
-  emptyText: { color: "rgba(245,240,232,0.3)", fontSize: 14, fontFamily: F.mono },
+  emptyText: { color: C.textMuted, fontSize: 14, fontFamily: F.mono },
   goBackBtn: { paddingHorizontal: 20, paddingVertical: 8, borderRadius: 3, borderWidth: 1, borderColor: C.border },
-  goBackText: { color: C.gold, fontSize: 12, fontFamily: F.mono },
+  goBackText: { color: C.primary, fontSize: 12, fontFamily: F.mono },
 
   header: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     paddingHorizontal: 14, paddingVertical: 12,
-    backgroundColor: C.muted2, borderBottomWidth: 1, borderBottomColor: C.border,
+    backgroundColor: C.surface, borderBottomWidth: 1, borderBottomColor: C.border,
   },
   backBtn: { width: 38, height: 38, alignItems: "center", justifyContent: "center" },
-  headerTitle: { fontSize: 16, fontWeight: "700", color: C.white, fontFamily: F.bebas, letterSpacing: 1 },
+  headerTitle: { fontSize: 16, fontWeight: "700", color: C.textPrimary, fontFamily: F.bebas, letterSpacing: 1 },
   scroll: { flex: 1 },
   scrollPad: { padding: 16 },
 
   receiptHeader: { alignItems: "center", paddingVertical: 24, marginBottom: 20 },
   checkCircle: {
     width: 64, height: 64, borderRadius: 32,
-    backgroundColor: C.greenLight,
-    borderWidth: 3, borderColor: "rgba(76,186,122,0.3)",
+    backgroundColor: C.green,
+    borderWidth: 3, borderColor: "rgba(43,122,75,0.3)",
     alignItems: "center", justifyContent: "center", marginBottom: 14,
   },
-  receiptTitle: { fontSize: 20, fontWeight: "700", color: C.white, fontFamily: F.bebas, letterSpacing: 1, marginBottom: 4 },
-  receiptSub: { fontSize: 12, color: "rgba(245,240,232,0.4)", fontFamily: F.mono },
+  receiptTitle: { fontSize: 20, fontWeight: "700", color: C.textPrimary, fontFamily: F.bebas, letterSpacing: 1, marginBottom: 4 },
+  receiptSub: { fontSize: 12, color: C.textMuted, fontFamily: F.mono },
   receiptBadge: {
-    backgroundColor: "rgba(26,122,74,0.08)", paddingHorizontal: 12, paddingVertical: 4,
-    borderRadius: 3, borderWidth: 1, borderColor: "rgba(76,186,122,0.15)", marginTop: 10,
+    backgroundColor: "rgba(43,122,75,0.08)", paddingHorizontal: 12, paddingVertical: 4,
+    borderRadius: 3, borderWidth: 1, borderColor: "rgba(43,122,75,0.15)", marginTop: 10,
   },
-  receiptBadgeText: { fontSize: 11, fontWeight: "600", color: C.greenLight, fontFamily: F.mono, letterSpacing: 0.5 },
+  receiptBadgeText: { fontSize: 11, fontWeight: "600", color: C.green, fontFamily: F.mono, letterSpacing: 0.5 },
 
   detailCard: {
-    backgroundColor: C.muted2, borderRadius: 6, borderWidth: 1,
+    backgroundColor: C.card, borderRadius: 6, borderWidth: 1,
     borderColor: C.border, overflow: "hidden", marginBottom: 16,
   },
   detailCardTitle: {
-    fontSize: 10, fontWeight: "700", color: "rgba(245,240,232,0.2)",
+    fontSize: 10, fontWeight: "700", color: "#888888",
     fontFamily: F.mono, letterSpacing: 2, textTransform: "uppercase",
     paddingHorizontal: 14, paddingTop: 14, paddingBottom: 8,
     borderBottomWidth: 1, borderBottomColor: C.border,
@@ -209,27 +193,27 @@ const S = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 11,
     borderBottomWidth: 1, borderBottomColor: C.border,
   },
-  detailLabel: { fontSize: 12, color: "rgba(245,240,232,0.4)", fontFamily: F.mono },
+  detailLabel: { fontSize: 12, color: C.textMuted, fontFamily: F.mono },
   detailValue: {
-    fontSize: 12, fontWeight: "600", color: C.white,
+    fontSize: 12, fontWeight: "600", color: C.textPrimary,
     fontFamily: F.dm, textAlign: "right", flex: 1, marginLeft: 16,
   },
   totalRow: {
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
     paddingHorizontal: 14, paddingVertical: 14,
-    backgroundColor: "rgba(232,160,18,0.03)",
+    backgroundColor: "#f9fafb",
   },
-  totalLabel: { fontSize: 14, fontWeight: "700", color: C.white, fontFamily: F.bebas, letterSpacing: 0.5 },
-  totalValue: { fontSize: 20, fontWeight: "700", color: C.gold, fontFamily: F.bebas, letterSpacing: 1 },
+  totalLabel: { fontSize: 14, fontWeight: "700", color: C.textPrimary, fontFamily: F.bebas, letterSpacing: 0.5 },
+  totalValue: { fontSize: 20, fontWeight: "700", color: C.primary, fontFamily: F.bebas, letterSpacing: 1 },
 
   footnote: {
-    fontSize: 10, color: "rgba(245,240,232,0.15)", fontFamily: F.mono,
+    fontSize: 10, color: "#888888", fontFamily: F.mono,
     textAlign: "center", marginTop: 8, lineHeight: 16,
   },
 
   footer: {
     flexDirection: "row", gap: 10, padding: 14,
-    borderTopWidth: 1, borderTopColor: C.border, backgroundColor: C.muted2,
+    borderTopWidth: 1, borderTopColor: C.border, backgroundColor: C.surface,
   },
   btnDownload: {
     flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
@@ -237,15 +221,15 @@ const S = StyleSheet.create({
     backgroundColor: "transparent", borderWidth: 1, borderColor: C.border,
   },
   btnDownloadText: {
-    fontSize: 12, fontWeight: "600", color: C.gold,
+    fontSize: 12, fontWeight: "600", color: C.primary,
     fontFamily: F.dm, letterSpacing: 1,
   },
   btnClose: {
     flex: 1, alignItems: "center", justifyContent: "center",
-    paddingVertical: 13, borderRadius: 3, backgroundColor: C.gold,
+    paddingVertical: 13, borderRadius: 3, backgroundColor: C.primary,
   },
   btnCloseText: {
-    fontSize: 12, fontWeight: "700", color: C.black,
+    fontSize: 12, fontWeight: "700", color: "#ffffff",
     fontFamily: F.dm, letterSpacing: 1, textTransform: "uppercase",
   },
 });

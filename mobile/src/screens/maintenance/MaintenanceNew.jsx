@@ -11,58 +11,55 @@ import * as ImagePicker from "expo-image-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { uploadImages } from "../../utils/upload";
 import api from "../../utils/api";
-
-const C = {
-  black:        "#0a0a0a",
-  muted:        "#141414",
-  muted2:       "#1a1a1a",
-  border:       "#2a2a2a",
-  gold:         "#E8A012",
-  white:        "#F5F0E8",
-  blue:         "#3A8FD4",
-  greenLight:   "#1A7A4A",
-  redLight:     "#E05A4A",
-  purple:       "#8B5CF6",
-};
-
-const F = {
-  bebas: "bebas-neue",
-  dm:    "dm-sans",
-  mono:  "space-mono",
-};
+import { C, F } from "../../styles/theme";
 
 const CATEGORIES = [
   { id: "plumbing",     label: "Plumbing",     icon: "water",           color: C.blue,       desc: "Leaks, pipes, drains, taps" },
-  { id: "electrical",  label: "Electrical",   icon: "flash",           color: C.gold,       desc: "Wiring, power, lights, outlets" },
+  { id: "electrical",  label: "Electrical",   icon: "flash",           color: C.primary,    desc: "Wiring, power, lights, outlets" },
   { id: "structural",  label: "Structural",   icon: "business",        color: C.purple,     desc: "Walls, floors, ceilings, doors" },
-  { id: "appliance",   label: "Appliance",    icon: "settings",        color: "#48ecb5",    desc: "Stove, fridge, washing machine" },
-  { id: "hvac",        label: "HVAC",         icon: "thermometer",     color: "#062fd4",    desc: "Heating, cooling, ventilation" },
-  { id: "painting",    label: "Painting",     icon: "color-palette",   color: "#84CC16",    desc: "Paint, damp, mould, stains" },
-  { id: "cleaning",    label: "Cleaning",     icon: "sparkles",        color: C.greenLight, desc: "Deep clean, pest, fumigation" },
-  { id: "pest_control",label: "Pest Control", icon: "bug",             color: C.redLight,   desc: "Insects, rodents, infestations" },
-  { id: "other",       label: "Other",        icon: "ellipsis-horizontal", color: "rgba(245,240,232,0.4)", desc: "Anything not listed above" },
+  { id: "appliance",   label: "Appliance",    icon: "settings",        color: C.green,      desc: "Stove, fridge, washing machine" },
+  { id: "hvac",        label: "HVAC",         icon: "thermometer",     color: C.blue,       desc: "Heating, cooling, ventilation" },
+  { id: "painting",    label: "Painting",     icon: "color-palette",   color: C.primary,    desc: "Paint, damp, mould, stains" },
+  { id: "cleaning",    label: "Cleaning",     icon: "sparkles",        color: C.green,      desc: "Deep clean, pest, fumigation" },
+  { id: "pest_control",label: "Pest Control", icon: "bug",             color: C.red,        desc: "Insects, rodents, infestations" },
+  { id: "other",       label: "Other",        icon: "ellipsis-horizontal", color: C.textMuted, desc: "Anything not listed above" },
 ];
 
 const PRIORITIES = [
-  { id: "low",    label: "Low",    color: C.greenLight },
-  { id: "medium", label: "Medium", color: C.gold },
-  { id: "high",   label: "High",   color: C.redLight },
-  { id: "urgent", label: "Urgent", color: "#FF2D55" },
+  { id: "low",    label: "Low",    color: C.green },
+  { id: "medium", label: "Medium", color: C.primary },
+  { id: "high",   label: "High",   color: C.red },
+  { id: "urgent", label: "Urgent", color: C.red },
 ];
 
 const $input = {
-  backgroundColor: C.muted2, borderWidth: 1, borderColor: C.border,
-  borderRadius: 3, paddingHorizontal: 12, paddingVertical: 12,
-  fontSize: 14, color: C.white, fontFamily: F.dm,
+  backgroundColor: C.card,
+  borderWidth: 1,
+  borderColor: C.border,
+  borderRadius: 3,
+  paddingHorizontal: 12,
+  paddingVertical: 12,
+  fontSize: 14,
+  color: C.textPrimary,
+  fontFamily: F.dm,
 };
-const $btnGold = {
-  backgroundColor: C.gold, borderRadius: 3, paddingVertical: 13,
-  alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 6,
+const $btnPrimary = {
+  backgroundColor: C.primary,
+  borderRadius: 3,
+  paddingVertical: 13,
+  alignItems: "center",
+  justifyContent: "center",
+  flexDirection: "row",
+  gap: 6,
 };
 const $btnGhost = {
-  backgroundColor: "transparent", borderWidth: 1, borderColor: C.border,
-  borderRadius: 3, paddingVertical: 13,
-  alignItems: "center", justifyContent: "center",
+  backgroundColor: "transparent",
+  borderWidth: 1,
+  borderColor: C.border,
+  borderRadius: 3,
+  paddingVertical: 13,
+  alignItems: "center",
+  justifyContent: "center",
 };
 
 export default function MaintenanceNew() {
@@ -146,14 +143,16 @@ export default function MaintenanceNew() {
     } finally { setLoading(false); setUploading(false); }
   }
 
-  const inputStyle = (key) => [$input, errors[key] && { borderColor: C.redLight }];
+  const inputStyle = (key) => [$input, errors[key] && { borderColor: C.red }];
 
   if (step === 1) {
     return (
       <SafeAreaView style={S.safe}>
-        <StatusBar barStyle="light-content" backgroundColor={C.black} />
+        <StatusBar barStyle="dark-content" backgroundColor={C.surface} />
         <View style={S.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}><Feather name="arrow-left" size={20} color={C.white} /></TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Feather name="arrow-left" size={20} color={C.textPrimary} />
+          </TouchableOpacity>
           <Text style={S.headerTitle}>New Request</Text>
           <View style={{ width: 24 }} />
         </View>
@@ -178,9 +177,11 @@ export default function MaintenanceNew() {
 
   return (
     <SafeAreaView style={S.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={C.black} />
+      <StatusBar barStyle="dark-content" backgroundColor={C.surface} />
       <View style={S.header}>
-        <TouchableOpacity onPress={backToCategory}><Feather name="arrow-left" size={20} color={C.white} /></TouchableOpacity>
+        <TouchableOpacity onPress={backToCategory}>
+          <Feather name="arrow-left" size={20} color={C.textPrimary} />
+        </TouchableOpacity>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
           <View style={[S.catIconSmall, { backgroundColor: category.color + "15", borderColor: category.color + "25" }]}>
             <Ionicons name={category.icon} size={15} color={category.color} />
@@ -188,7 +189,7 @@ export default function MaintenanceNew() {
           <Text style={S.headerTitle}>{category.label}</Text>
         </View>
         <TouchableOpacity onPress={() => navigation.goBack()} style={S.closeBtn}>
-          <Feather name="x" size={16} color="rgba(245,240,232,0.3)" />
+          <Feather name="x" size={16} color={C.textMuted} />
         </TouchableOpacity>
       </View>
 
@@ -196,7 +197,7 @@ export default function MaintenanceNew() {
         <ScrollView contentContainerStyle={S.pad}>
           {uploading && (
             <View style={S.uploadingBanner}>
-              <ActivityIndicator size="small" color={C.gold} />
+              <ActivityIndicator size="small" color={C.primary} />
               <Text style={S.uploadingText}>Uploading photos...</Text>
             </View>
           )}
@@ -204,7 +205,7 @@ export default function MaintenanceNew() {
           <Text style={S.label}>ISSUE TITLE *</Text>
           <TextInput style={inputStyle("title")} value={title}
             onChangeText={v => { setTitle(v); setErrors(e => ({ ...e, title: undefined })); }}
-            placeholder="e.g. Burst pipe under kitchen sink" placeholderTextColor="rgba(245,240,232,0.15)" maxLength={100} />
+            placeholder="e.g. Burst pipe under kitchen sink" placeholderTextColor={C.textMuted} maxLength={100} />
           <View style={S.inputFooter}>
             {errors.title && <Text style={S.error}>{errors.title}</Text>}
             <Text style={S.charCount}>{title.length}/100</Text>
@@ -213,7 +214,7 @@ export default function MaintenanceNew() {
           <Text style={S.label}>DESCRIPTION *</Text>
           <TextInput style={[inputStyle("description"), S.textarea]} value={description}
             onChangeText={v => { setDesc(v); setErrors(e => ({ ...e, description: undefined })); }}
-            placeholder="Describe the issue in detail..." placeholderTextColor="rgba(245,240,232,0.15)"
+            placeholder="Describe the issue in detail..." placeholderTextColor={C.textMuted}
             multiline numberOfLines={6} textAlignVertical="top" />
           {errors.description && <Text style={S.error}>{errors.description}</Text>}
 
@@ -225,7 +226,7 @@ export default function MaintenanceNew() {
                 <View key={idx} style={S.imageWrap}>
                   <Image source={{ uri: img.uri }} style={S.image} />
                   <TouchableOpacity style={S.removeBtn} onPress={() => removeImage(idx)}>
-                    <Feather name="x" size={11} color={C.white} />
+                    <Feather name="x" size={11} color="#ffffff" />
                   </TouchableOpacity>
                 </View>
               ))}
@@ -233,7 +234,7 @@ export default function MaintenanceNew() {
           )}
           {images.length < 3 && (
             <TouchableOpacity style={S.addPhotoBtn} onPress={pickImage} activeOpacity={0.75}>
-              <View style={S.addPhotoIcon}><Feather name="camera" size={18} color={C.gold} /></View>
+              <View style={S.addPhotoIcon}><Feather name="camera" size={18} color={C.primary} /></View>
               <View>
                 <Text style={S.addPhotoText}>Tap to add photo</Text>
                 <Text style={S.addPhotoSub}>{3 - images.length} remaining</Text>
@@ -259,11 +260,11 @@ export default function MaintenanceNew() {
         <TouchableOpacity style={[$btnGhost, { flex: 1 }]} onPress={() => navigation.goBack()} disabled={loading}>
           <Text style={S.btnGhostText}>Cancel</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[$btnGold, { flex: 1 }, (loading || uploading) && { opacity: 0.6 }]} onPress={handleSubmit} disabled={loading || uploading}>
+        <TouchableOpacity style={[$btnPrimary, { flex: 1 }, (loading || uploading) && { opacity: 0.6 }]} onPress={handleSubmit} disabled={loading || uploading}>
           {loading ? (
-            <><ActivityIndicator color={C.black} size="small" /><Text style={S.btnGoldText}>{uploading ? "Uploading..." : "Submitting..."}</Text></>
+            <><ActivityIndicator color="#ffffff" size="small" /><Text style={S.btnPrimaryText}>{uploading ? "Uploading..." : "Submitting..."}</Text></>
           ) : (
-            <Text style={S.btnGoldText}>SUBMIT REQUEST</Text>
+            <Text style={S.btnPrimaryText}>SUBMIT REQUEST</Text>
           )}
         </TouchableOpacity>
       </View>
@@ -271,88 +272,87 @@ export default function MaintenanceNew() {
   );
 }
 
-
 const S = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.black },
+  safe: { flex: 1, backgroundColor: C.background },
   header: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     paddingHorizontal: 14, paddingVertical: 12,
-    backgroundColor: C.muted2, borderBottomWidth: 1, borderBottomColor: C.border,
+    backgroundColor: C.surface, borderBottomWidth: 1, borderBottomColor: C.border,
   },
-  headerTitle: { fontSize: 16, fontWeight: "700", color: C.white, fontFamily: F.bebas, letterSpacing: 1 },
+  headerTitle: { fontSize: 16, fontWeight: "700", color: C.textPrimary, fontFamily: F.bebas, letterSpacing: 1 },
   closeBtn: {
     width: 30, height: 30, borderRadius: 4, alignItems: "center", justifyContent: "center",
-    backgroundColor: C.muted, borderWidth: 1, borderColor: C.border,
+    backgroundColor: C.card, borderWidth: 1, borderColor: C.border,
   },
   catIconSmall: { width: 30, height: 30, borderRadius: 4, alignItems: "center", justifyContent: "center", borderWidth: 1 },
   pad: { padding: 16 },
 
-  stepTitle: { fontSize: 20, fontWeight: "700", color: C.white, fontFamily: F.bebas, letterSpacing: 1, marginBottom: 4 },
-  stepSub: { fontSize: 12, color: "rgba(245,240,232,0.35)", fontFamily: F.mono, marginBottom: 22 },
+  stepTitle: { fontSize: 20, fontWeight: "700", color: C.textPrimary, fontFamily: F.bebas, letterSpacing: 1, marginBottom: 4 },
+  stepSub: { fontSize: 12, color: C.textMuted, fontFamily: F.mono, marginBottom: 22 },
   catGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   catTile: {
-    width: "47%", backgroundColor: C.muted2, borderRadius: 6,
+    width: "47%", backgroundColor: C.card, borderRadius: 6,
     borderWidth: 1, padding: 14, gap: 8,
   },
   catIcon: { width: 44, height: 44, borderRadius: 6, alignItems: "center", justifyContent: "center", borderWidth: 1 },
-  catLabel: { fontSize: 13, fontWeight: "600", color: C.white, fontFamily: F.dm },
-  catDesc: { fontSize: 10, color: "rgba(245,240,232,0.35)", fontFamily: F.mono, lineHeight: 14 },
+  catLabel: { fontSize: 13, fontWeight: "600", color: C.textPrimary, fontFamily: F.dm },
+  catDesc: { fontSize: 10, color: C.textMuted, fontFamily: F.mono, lineHeight: 14 },
 
   uploadingBanner: {
     flexDirection: "row", alignItems: "center", gap: 8,
-    backgroundColor: "rgba(232,160,18,0.06)", borderRadius: 4, padding: 12, marginBottom: 16,
-    borderWidth: 1, borderColor: "rgba(232,160,18,0.12)",
+    backgroundColor: "rgba(44,62,80,0.06)", borderRadius: 4, padding: 12, marginBottom: 16,
+    borderWidth: 1, borderColor: "rgba(44,62,80,0.12)",
   },
-  uploadingText: { fontSize: 12, color: C.gold, fontWeight: "600", fontFamily: F.mono },
+  uploadingText: { fontSize: 12, color: C.primary, fontWeight: "600", fontFamily: F.mono },
 
   label: {
-    fontSize: 10, fontWeight: "700", color: "rgba(245,240,232,0.25)",
+    fontSize: 10, fontWeight: "700", color: "#888888",
     fontFamily: F.mono, letterSpacing: 1.5, marginBottom: 6, marginTop: 18,
   },
-  labelHint: { fontSize: 10, color: "rgba(245,240,232,0.2)", fontFamily: F.mono, marginBottom: 8 },
+  labelHint: { fontSize: 10, color: C.textMuted, fontFamily: F.mono, marginBottom: 8 },
 
   inputFooter: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 4 },
-  charCount: { fontSize: 9, color: "rgba(245,240,232,0.2)", fontFamily: F.mono },
-  error: { fontSize: 10, color: C.redLight, fontFamily: F.mono, flex: 1 },
+  charCount: { fontSize: 9, color: C.textMuted, fontFamily: F.mono },
+  error: { fontSize: 10, color: C.red, fontFamily: F.mono, flex: 1 },
   textarea: { minHeight: 110, paddingTop: 12 },
 
   imageGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 8 },
   imageWrap: { position: "relative" },
-  image: { width: 84, height: 84, borderRadius: 4, backgroundColor: C.muted },
+  image: { width: 84, height: 84, borderRadius: 4, backgroundColor: C.surface },
   removeBtn: {
     position: "absolute", top: -6, right: -6,
-    width: 20, height: 20, borderRadius: 10, backgroundColor: C.redLight,
+    width: 20, height: 20, borderRadius: 10, backgroundColor: C.red,
     alignItems: "center", justifyContent: "center",
   },
   addPhotoBtn: {
     flexDirection: "row", alignItems: "center", gap: 10,
-    backgroundColor: C.muted2, borderWidth: 1, borderColor: C.border,
+    backgroundColor: C.card, borderWidth: 1, borderColor: C.border,
     borderStyle: "dashed", borderRadius: 4, padding: 14,
   },
-  addPhotoIcon: { width: 40, height: 40, borderRadius: 4, backgroundColor: "rgba(232,160,18,0.1)", borderWidth: 1, borderColor: "rgba(232,160,18,0.15)", alignItems: "center", justifyContent: "center" },
-  addPhotoText: { fontSize: 12, fontWeight: "600", color: C.gold, fontFamily: F.mono },
-  addPhotoSub: { fontSize: 10, color: "rgba(245,240,232,0.25)", fontFamily: F.mono, marginTop: 2 },
+  addPhotoIcon: { width: 40, height: 40, borderRadius: 4, backgroundColor: "rgba(44,62,80,0.1)", borderWidth: 1, borderColor: "rgba(44,62,80,0.15)", alignItems: "center", justifyContent: "center" },
+  addPhotoText: { fontSize: 12, fontWeight: "600", color: C.primary, fontFamily: F.mono },
+  addPhotoSub: { fontSize: 10, color: C.textMuted, fontFamily: F.mono, marginTop: 2 },
 
   priorityRow: { flexDirection: "row", gap: 6 },
   priorityBtn: {
     flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4,
-    paddingVertical: 9, borderRadius: 3, backgroundColor: C.muted2,
+    paddingVertical: 9, borderRadius: 3, backgroundColor: C.card,
     borderWidth: 1, borderColor: C.border,
   },
   priorityDot: { width: 5, height: 5, borderRadius: 3 },
-  priorityText: { fontSize: 10, fontWeight: "600", color: "rgba(245,240,232,0.4)", fontFamily: F.mono, letterSpacing: 0.5 },
+  priorityText: { fontSize: 10, fontWeight: "600", color: C.textMuted, fontFamily: F.mono, letterSpacing: 0.5 },
 
   infoBox: {
     flexDirection: "row", alignItems: "flex-start", gap: 8,
-    padding: 12, backgroundColor: "rgba(58,143,212,0.06)", borderRadius: 3,
-    borderWidth: 1, borderColor: "rgba(58,143,212,0.15)", marginTop: 22,
+    padding: 12, backgroundColor: "rgba(52,152,219,0.06)", borderRadius: 3,
+    borderWidth: 1, borderColor: "rgba(52,152,219,0.15)", marginTop: 22,
   },
-  infoText: { flex: 1, fontSize: 11, color: "rgba(58,143,212,0.7)", lineHeight: 16, fontFamily: F.mono },
+  infoText: { flex: 1, fontSize: 11, color: C.blue, lineHeight: 16, fontFamily: F.mono },
 
   footer: {
     flexDirection: "row", gap: 10, padding: 14,
-    borderTopWidth: 1, borderTopColor: C.border, backgroundColor: C.muted2,
+    borderTopWidth: 1, borderTopColor: C.border, backgroundColor: C.surface,
   },
-  btnGhostText: { fontSize: 12, fontWeight: "500", color: "rgba(245,240,232,0.5)", fontFamily: F.dm, letterSpacing: 0.5 },
-  btnGoldText: { fontSize: 12, fontWeight: "700", color: C.black, fontFamily: F.dm, letterSpacing: 1, textTransform: "uppercase" },
+  btnGhostText: { fontSize: 12, fontWeight: "500", color: C.textSecondary, fontFamily: F.dm, letterSpacing: 0.5 },
+  btnPrimaryText: { fontSize: 12, fontWeight: "700", color: "#ffffff", fontFamily: F.dm, letterSpacing: 1, textTransform: "uppercase" },
 });

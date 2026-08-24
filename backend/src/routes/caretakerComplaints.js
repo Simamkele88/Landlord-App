@@ -5,22 +5,71 @@ const { requireAuth } = require("../middleware/auth");
 const { requireCaretaker } = require("../middleware/roleCheck");
 const { createNotification } = require("../utils/notifications");
 
-// Helper: Get caretaker's assigned property
 async function getCaretakerProperty(userId) {
   const result = await pool.query(
-    "SELECT id, assigned_property FROM caretaker WHERE user_id = $1", 
-    [userId]
+    "SELECT id, assigned_property FROM caretaker WHERE user_id = $1",
+    [userId],
   );
   return result.rows[0] || null;
 }
 
-// Helper: Verify complaint belongs to caretaker's property
 async function verifyComplaintAccess(complaintId, propertyId) {
   const result = await pool.query(
     "SELECT * FROM complaint WHERE id = $1 AND property_id = $2",
-    [complaintId, propertyId]
+    [complaintId, propertyId],
   );
   return result.rows[0] || null;
+}
+
+async function createFineInvoice(
+  tenantId,
+  landlordId,
+  fineAmount,
+  reqUserId,
+  complaintSubject,
+) {
+  const leaseRes = await pool.query(
+    `SELECT id, unit_id
+     FROM lease
+     WHERE tenant_id = $1
+       AND status = 'active'
+     ORDER BY lease_start_date DESC
+     LIMIT 1`,
+    [tenantId],
+  );
+
+  if (!leaseRes.rows.length) return null;
+
+  const lease = leaseRes.rows[0];
+  const dueDate = new Date();
+  dueDate.setDate(dueDate.getDate() + 7);
+
+  const invoiceNumber = `INV-FINE-${Date.now()}`;
+
+  const result = await pool.query(
+    `INSERT INTO invoice (
+       lease_id, tenant_id, unit_id, landlord_id,
+       invoice_number, amount_due,
+       rent_amount, utilities_amount, late_fees, other_charges, discounts,
+       billing_period_start, billing_period_end, due_date,
+       status, paid_amount, invoice_type, notes
+     ) VALUES ($1, $2, $3, $4, $5, $6, 0, 0, 0, $6, 0, $7, $8, $9, 'sent', 0, 'fine', $10)
+     RETURNING id`,
+    [
+      lease.id,
+      tenantId,
+      lease.unit_id,
+      landlordId,
+      invoiceNumber,
+      fineAmount,
+      new Date().toISOString().slice(0, 10),
+      new Date(dueDate).toISOString().slice(0, 10),
+      dueDate.toISOString().slice(0, 10),
+      `Fine: ${complaintSubject || "Complaint fine"}`,
+    ],
+  );
+
+  return result.rows[0].id;
 }
 
 // GET /caretaker/complaints - Get all complaints for the caretaker's assigned property
@@ -28,20 +77,18 @@ router.get("/", requireAuth, requireCaretaker, async (req, res) => {
   try {
     const cr = await getCaretakerProperty(req.userId);
     if (!cr) return res.status(404).json({ error: "Caretaker not found" });
-    
-    // Handle no assigned property
+
     if (!cr.assigned_property) {
-      return res.json({ 
-        complaints: [], 
-        property: null, 
-        message: "No property assigned yet. Please contact your landlord." 
+      return res.json({
+        complaints: [],
+        property: null,
+        message: "No property assigned yet. Please contact your landlord.",
       });
     }
 
-    // Get property info
     const property = await pool.query(
       "SELECT id, name, property_type, address_line1, city FROM property WHERE id = $1",
-      [cr.assigned_property]
+      [cr.assigned_property],
     );
 
     const result = await pool.query(
@@ -83,13 +130,13 @@ router.get("/", requireAuth, requireCaretaker, async (req, res) => {
        LEFT JOIN complaint_verdict cv ON cv.complaint_id = c.id
        WHERE c.property_id = $1
        ORDER BY c.created_at DESC`,
-      [cr.assigned_property]
+      [cr.assigned_property],
     );
 
-    res.json({ 
+    res.json({
       complaints: result.rows,
       property: property.rows[0] || null,
-      caretaker_id: cr.id
+      caretaker_id: cr.id,
     });
   } catch (err) {
     console.error("Get caretaker complaints:", err);
@@ -144,7 +191,7 @@ router.get("/:id", requireAuth, requireCaretaker, async (req, res) => {
        LEFT JOIN property p ON p.id = c.property_id
        LEFT JOIN complaint_verdict cv ON cv.complaint_id = c.id
        WHERE c.id = $1`,
-      [id]
+      [id],
     );
 
     if (!result.rows.length) {
@@ -163,37 +210,40 @@ router.put("/:id/review", requireAuth, requireCaretaker, async (req, res) => {
   try {
     const { id } = req.params;
     const cr = await getCaretakerProperty(req.userId);
-    
+
     // Verify property ownership
     const complaint = await verifyComplaintAccess(id, cr.assigned_property);
     if (!complaint) {
-      return res.status(403).json({ error: "This complaint is not in your assigned property" });
+      return res
+        .status(403)
+        .json({ error: "This complaint is not in your assigned property" });
     }
-    if (complaint.status !== 'open') {
-      return res.status(400).json({ error: `Complaint is already ${complaint.status}` });
+    if (complaint.status !== "open") {
+      return res
+        .status(400)
+        .json({ error: `Complaint is already ${complaint.status}` });
     }
-    
+
     const result = await pool.query(
       "UPDATE complaint SET status = 'under_review', updated_at = NOW() WHERE id = $1 AND status = 'open' RETURNING *",
-      [id]
+      [id],
     );
-    
+
     if (!result.rows.length) {
       return res.status(404).json({ error: "Complaint not found or not open" });
     }
-    
-    // Notify tenant
+
     if (result.rows[0].filed_by) {
       await createNotification(
-        result.rows[0].filed_by, 
-        "complaint_update", 
+        result.rows[0].filed_by,
+        "complaint_update",
         "Complaint Under Review",
         `Your complaint "${result.rows[0].subject}" is now being reviewed by the caretaker.`,
-        id, 
-        "complaint"
+        id,
+        "complaint",
       );
     }
-    
+
     res.json({ message: "Complaint under review", complaint: result.rows[0] });
   } catch (err) {
     console.error("Review complaint:", err);
@@ -210,14 +260,18 @@ router.put("/:id/clarify", requireAuth, requireCaretaker, async (req, res) => {
     if (!clarification_notes) {
       return res.status(400).json({ error: "Clarification notes required" });
     }
-    
+
     const cr = await getCaretakerProperty(req.userId);
-    const complaintCheck = await verifyComplaintAccess(id, cr.assigned_property);
+    const complaintCheck = await verifyComplaintAccess(
+      id,
+      cr.assigned_property,
+    );
     if (!complaintCheck) {
-      return res.status(403).json({ error: "This complaint is not in your assigned property" });
+      return res
+        .status(403)
+        .json({ error: "This complaint is not in your assigned property" });
     }
 
-    // clarification_requested column EXISTS on complaint table per schema
     const result = await pool.query(
       `UPDATE complaint 
        SET status = 'awaiting_clarification', 
@@ -226,21 +280,23 @@ router.put("/:id/clarify", requireAuth, requireCaretaker, async (req, res) => {
            updated_at = NOW() 
        WHERE id = $1 AND status IN ('open', 'under_review') 
        RETURNING *`,
-      [id, clarification_notes]
+      [id, clarification_notes],
     );
 
     if (!result.rows.length) {
-      return res.status(404).json({ error: "Complaint not found or cannot request clarification" });
+      return res
+        .status(404)
+        .json({ error: "Complaint not found or cannot request clarification" });
     }
 
     if (result.rows[0].filed_by) {
       await createNotification(
-        result.rows[0].filed_by, 
-        "complaint_update", 
+        result.rows[0].filed_by,
+        "complaint_update",
         "Clarification Needed",
         `The caretaker needs more information about your complaint "${result.rows[0].subject}". Please provide clarification.`,
-        id, 
-        "complaint"
+        id,
+        "complaint",
       );
     }
 
@@ -257,12 +313,18 @@ router.put("/:id/reject", requireAuth, requireCaretaker, async (req, res) => {
     const { id } = req.params;
     const { reason } = req.body;
 
-    if (!reason) return res.status(400).json({ error: "Rejection reason required" });
-    
+    if (!reason)
+      return res.status(400).json({ error: "Rejection reason required" });
+
     const cr = await getCaretakerProperty(req.userId);
-    const complaintCheck = await verifyComplaintAccess(id, cr.assigned_property);
+    const complaintCheck = await verifyComplaintAccess(
+      id,
+      cr.assigned_property,
+    );
     if (!complaintCheck) {
-      return res.status(403).json({ error: "This complaint is not in your assigned property" });
+      return res
+        .status(403)
+        .json({ error: "This complaint is not in your assigned property" });
     }
 
     const result = await pool.query(
@@ -274,36 +336,41 @@ router.put("/:id/reject", requireAuth, requireCaretaker, async (req, res) => {
            updated_at = NOW() 
        WHERE id = $1 AND status IN ('open', 'under_review', 'awaiting_clarification') 
        RETURNING *`,
-      [id, reason, req.userId]
+      [id, reason, req.userId],
     );
 
     if (!result.rows.length) {
-      return res.status(404).json({ error: "Complaint not found or cannot be rejected" });
+      return res
+        .status(404)
+        .json({ error: "Complaint not found or cannot be rejected" });
     }
 
     const complaint = result.rows[0];
 
     if (complaint.filed_by) {
       await createNotification(
-        complaint.filed_by, 
-        "complaint_update", 
+        complaint.filed_by,
+        "complaint_update",
         "Complaint Rejected",
         `Your complaint "${complaint.subject}" was rejected. Reason: ${reason}`,
-        id, 
-        "complaint"
+        id,
+        "complaint",
       );
     }
-    
+
     if (complaint.against_tenant_id) {
-      const target = await pool.query("SELECT user_id FROM tenant WHERE id = $1", [complaint.against_tenant_id]);
+      const target = await pool.query(
+        "SELECT user_id FROM tenant WHERE id = $1",
+        [complaint.against_tenant_id],
+      );
       if (target.rows.length) {
         await createNotification(
-          target.rows[0].user_id, 
-          "complaint_update", 
+          target.rows[0].user_id,
+          "complaint_update",
           "Complaint Dismissed",
           `A complaint against you regarding "${complaint.subject}" has been rejected.`,
-          id, 
-          "complaint"
+          id,
+          "complaint",
         );
       }
     }
@@ -321,14 +388,19 @@ router.post("/:id/verdict", requireAuth, requireCaretaker, async (req, res) => {
     const { id } = req.params;
     const { verdict_type, fine_amount, notes } = req.body;
 
-    if (!verdict_type || !['warning', 'fine', 'dismissed'].includes(verdict_type)) {
-      return res.status(400).json({ error: "Valid verdict_type (warning, fine, dismissed) is required" });
+    if (
+      !verdict_type ||
+      !["warning", "fine", "dismissed"].includes(verdict_type)
+    ) {
+      return res.status(400).json({
+        error: "Valid verdict_type (warning, fine, dismissed) is required",
+      });
     }
 
-    if (verdict_type === 'fine' && (!fine_amount || Number(fine_amount) <= 0)) {
+    if (verdict_type === "fine" && (!fine_amount || Number(fine_amount) <= 0)) {
       return res.status(400).json({ error: "Fine amount is required for fine verdicts" });
     }
-    
+
     const cr = await getCaretakerProperty(req.userId);
     const complaintCheck = await verifyComplaintAccess(id, cr.assigned_property);
     if (!complaintCheck) {
@@ -339,33 +411,79 @@ router.post("/:id/verdict", requireAuth, requireCaretaker, async (req, res) => {
       "SELECT * FROM complaint WHERE id = $1 AND status IN ('open', 'under_review', 'awaiting_clarification', 'approved')",
       [id]
     );
-
     if (!complaint.rows.length) {
       return res.status(404).json({ error: "Complaint not found or cannot receive verdict" });
     }
+
+    const targetTenantId = complaint.rows[0].against_tenant_id;
+    const complaintSubject = complaint.rows[0].subject;
 
     const verdictResult = await pool.query(
       `INSERT INTO complaint_verdict (complaint_id, verdict_type, fine_amount, issued_by, notes)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [id, verdict_type, verdict_type === 'fine' ? Number(fine_amount) : null, req.userId, notes || null]
+      [
+        id,
+        verdict_type,
+        verdict_type === "fine" ? Number(fine_amount) : null,
+        req.userId,
+        notes || null,
+      ]
     );
 
-    const targetTenantId = complaint.rows[0].against_tenant_id;
     if (targetTenantId) {
-      const targetUser = await pool.query("SELECT user_id FROM tenant WHERE id = $1", [targetTenantId]);
+      if (verdict_type === "warning") {
+        await pool.query(
+          `UPDATE tenant SET total_warnings = total_warnings + 1, updated_at = NOW()
+           WHERE id = $1`,
+          [targetTenantId]
+        );
+      } else if (verdict_type === "fine") {
+        await pool.query(
+          `UPDATE tenant SET total_fines = COALESCE(total_fines, 0) + $2, updated_at = NOW()
+           WHERE id = $1`,
+          [targetTenantId, fine_amount || 0]
+        );
+
+        await createFineInvoice(
+          targetTenantId,
+          cr.landlord_id,
+          fine_amount,
+          req.userId,
+          complaintSubject
+        );
+      }
+
+      await pool.query(`SELECT public.recalculate_tenant_score($1, $2)`, [
+        targetTenantId,
+        req.userId,
+      ]);
+    }
+
+    const newStatus = verdict_type === "dismissed" ? "dismissed" : "resolved";
+    await pool.query(
+      `UPDATE complaint SET status = $2, resolved_by = $3, resolved_at = NOW(), resolution_notes = $4, updated_at = NOW()
+       WHERE id = $1`,
+      [id, newStatus, req.userId, notes || `Verdict: ${verdict_type}`]
+    );
+
+    if (targetTenantId) {
+      const targetUser = await pool.query(
+        "SELECT user_id FROM tenant WHERE id = $1",
+        [targetTenantId]
+      );
       if (targetUser.rows.length) {
         const labels = {
           warning: "A warning has been issued against you",
-          fine: `A fine of R${Number(fine_amount).toLocaleString('en-ZA')} has been issued against you`,
-          dismissed: "The complaint against you has been dismissed"
+          fine: `A fine of R${Number(fine_amount).toLocaleString("en-ZA")} has been issued against you`,
+          dismissed: "The complaint against you has been dismissed",
         };
         await createNotification(
-          targetUser.rows[0].user_id, 
+          targetUser.rows[0].user_id,
           "complaint_update",
-          verdict_type === 'dismissed' ? "Complaint Dismissed" : "Verdict Issued",
-          `${labels[verdict_type]} regarding: "${complaint.rows[0].subject}". ${notes || ''}`,
-          id, 
+          verdict_type === "dismissed" ? "Complaint Dismissed" : "Verdict Issued",
+          `${labels[verdict_type]} regarding: "${complaintSubject}". ${notes || ""}`,
+          id,
           "complaint"
         );
       }
@@ -374,35 +492,41 @@ router.post("/:id/verdict", requireAuth, requireCaretaker, async (req, res) => {
     if (complaint.rows[0].filed_by) {
       const labels = {
         warning: "A warning was issued against the tenant",
-        fine: `A fine of R${Number(fine_amount).toLocaleString('en-ZA')} was issued against the tenant`,
-        dismissed: "The complaint was dismissed - no action taken"
+        fine: `A fine of R${Number(fine_amount).toLocaleString("en-ZA")} was issued against the tenant`,
+        dismissed: "The complaint was dismissed - no action taken",
       };
       await createNotification(
-        complaint.rows[0].filed_by, 
-        "complaint_update", 
+        complaint.rows[0].filed_by,
+        "complaint_update",
         "Complaint Resolved",
-        `${labels[verdict_type]} for your complaint "${complaint.rows[0].subject}". ${notes || ''}`,
-        id, 
+        `${labels[verdict_type]} for your complaint "${complaintSubject}". ${notes || ""}`,
+        id,
         "complaint"
       );
     }
 
     const landlord = await pool.query(
-      "SELECT u.id FROM users u JOIN landlord l ON l.user_id = u.id JOIN property p ON p.landlord_id = l.id WHERE p.id = $1",
+      `SELECT u.id FROM users u
+       JOIN landlord l ON l.user_id = u.id
+       JOIN property p ON p.landlord_id = l.id
+       WHERE p.id = $1`,
       [complaint.rows[0].property_id]
     );
     if (landlord.rows.length) {
       await createNotification(
-        landlord.rows[0].id, 
-        "complaint_update", 
+        landlord.rows[0].id,
+        "complaint_update",
         "Complaint Resolved",
-        `Caretaker resolved complaint "${complaint.rows[0].subject}" — ${verdict_type} issued.${fine_amount ? ` Fine: R${Number(fine_amount).toLocaleString('en-ZA')}` : ''}`,
-        id, 
+        `Caretaker resolved complaint "${complaintSubject}" — ${verdict_type} issued.${fine_amount ? ` Fine: R${Number(fine_amount).toLocaleString("en-ZA")}` : ""}`,
+        id,
         "complaint"
       );
     }
 
-    res.status(201).json({ message: "Verdict issued", verdict: verdictResult.rows[0] });
+    res.status(201).json({
+      message: "Verdict issued",
+      verdict: verdictResult.rows[0],
+    });
   } catch (err) {
     console.error("Issue verdict:", err);
     res.status(500).json({ error: "Server error" });
@@ -415,12 +539,18 @@ router.put("/:id/escalate", requireAuth, requireCaretaker, async (req, res) => {
     const { id } = req.params;
     const { reason } = req.body;
 
-    if (!reason) return res.status(400).json({ error: "Escalation reason is required" });
-    
+    if (!reason)
+      return res.status(400).json({ error: "Escalation reason is required" });
+
     const cr = await getCaretakerProperty(req.userId);
-    const complaintCheck = await verifyComplaintAccess(id, cr.assigned_property);
+    const complaintCheck = await verifyComplaintAccess(
+      id,
+      cr.assigned_property,
+    );
     if (!complaintCheck) {
-      return res.status(403).json({ error: "This complaint is not in your assigned property" });
+      return res
+        .status(403)
+        .json({ error: "This complaint is not in your assigned property" });
     }
 
     const result = await pool.query(
@@ -429,25 +559,27 @@ router.put("/:id/escalate", requireAuth, requireCaretaker, async (req, res) => {
            updated_at = NOW() 
        WHERE id = $1 AND status IN ('open', 'under_review', 'awaiting_clarification', 'approved') 
        RETURNING *`,
-      [id]
+      [id],
     );
 
     if (!result.rows.length) {
-      return res.status(404).json({ error: "Complaint not found or cannot be escalated" });
+      return res
+        .status(404)
+        .json({ error: "Complaint not found or cannot be escalated" });
     }
 
     const landlord = await pool.query(
       "SELECT u.id FROM users u JOIN landlord l ON l.user_id = u.id JOIN property p ON p.landlord_id = l.id WHERE p.id = $1",
-      [result.rows[0].property_id]
+      [result.rows[0].property_id],
     );
     if (landlord.rows.length) {
       await createNotification(
-        landlord.rows[0].id, 
-        "complaint_update", 
+        landlord.rows[0].id,
+        "complaint_update",
         "Complaint Escalated",
         `Caretaker escalated complaint "${result.rows[0].subject}" — requires your decision. Reason: ${reason}`,
-        id, 
-        "complaint"
+        id,
+        "complaint",
       );
     }
 
@@ -458,11 +590,14 @@ router.put("/:id/escalate", requireAuth, requireCaretaker, async (req, res) => {
         "Complaint Escalated",
         `Your complaint "${result.rows[0].subject}" has been escalated to the landlord for review.`,
         id,
-        "complaint"
+        "complaint",
       );
     }
 
-    res.json({ message: "Complaint escalated to landlord", complaint: result.rows[0] });
+    res.json({
+      message: "Complaint escalated to landlord",
+      complaint: result.rows[0],
+    });
   } catch (err) {
     console.error("Escalate complaint:", err);
     res.status(500).json({ error: "Server error" });

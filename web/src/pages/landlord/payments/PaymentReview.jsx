@@ -6,7 +6,8 @@ import axios from "axios";
 import { useToast } from '../../../contexts/ToastContext';
 import useDocumentTitle from "../../../hooks/useDocumentTitle";
 import { Icon } from "../../../components/Icon";
-import { FiChevronRight, FiChevronDown } from "react-icons/fi";
+import { FiChevronRight, FiChevronDown, FiShield } from "react-icons/fi";
+
 
 const API = "http://localhost:4000";
 
@@ -200,7 +201,7 @@ function RejectionModal({ payment, onClose, onConfirmReject }) {
         </div>
 
         <div style={{ padding: '1.2rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          
+
 
           <div>
             <p style={{ fontSize: '12px', fontWeight: 500, color: '#7f8c8d', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '0.5rem' }}>
@@ -273,6 +274,130 @@ function RejectionModal({ payment, onClose, onConfirmReject }) {
   );
 }
 
+function TenantRiskPanel({ tenant, loading }) {
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', padding: '2rem' }}>
+        <span style={{ width: 18, height: 18, border: '2px solid rgba(44,62,80,0.1)', borderTopColor: '#2c3e50', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+        <span style={{ fontSize: '14px', color: '#6c757d' }}>Loading tenant risk...</span>
+      </div>
+    );
+  }
+
+  if (!tenant) {
+    return <div style={{ padding: '2rem', textAlign: 'center', color: '#6c757d' }}>Tenant risk data not available.</div>;
+  }
+
+  const score = tenant.reliability_score || 'moderate_risk';
+  const scoreValue = tenant.reliability_score_value;
+  const breakdown = tenant.score_breakdown || {};
+
+  const scoreColor =
+    score === 'reliable' ? '#2b7a4b' :
+      score === 'moderate_risk' ? '#b9770e' : '#c0392b';
+  const scoreLabel = score.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
+  const subScores = [
+    { key: 'payment', label: 'Payment' },
+    { key: 'complaints', label: 'Complaints' },
+    { key: 'lease', label: 'Lease' },
+    { key: 'tenure', label: 'Tenure' },
+    { key: 'maintenance', label: 'Maintenance' },
+  ];
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      {/* Score header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+        <span style={{
+          display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+          padding: '0.3rem 0.8rem', borderRadius: '12px',
+          background: `${scoreColor}22`, color: scoreColor,
+          fontSize: '13px', fontWeight: 600,
+        }}>
+          <FiShield size={14} /> {scoreLabel}
+        </span>
+        <span style={{ fontSize: '1.6rem', fontWeight: 700, color: scoreColor }}>
+          {scoreValue != null ? Number(scoreValue).toFixed(1) : '—'}
+        </span>
+      </div>
+
+      {/* Score drivers */}
+      <div style={{ background: '#f9fafb', border: '1px solid #e9ecef', borderRadius: '2px', padding: '0.8rem' }}>
+        <p style={{ fontSize: '13px', fontWeight: 500, color: '#2c3e50', margin: '0 0 0.5rem' }}>Score Drivers</p>
+        {subScores.map(({ key, label }) => {
+          const val = breakdown[key] != null ? Number(breakdown[key]) : null;
+          return (
+            <div key={key} style={{ marginBottom: '0.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '0.2rem' }}>
+                <span style={{ color: '#6c757d' }}>{label}</span>
+                <span style={{ fontWeight: 500, color: '#2c3e50' }}>{val !== null ? val.toFixed(1) : '—'}</span>
+              </div>
+              <div style={{ height: '6px', background: '#eee', borderRadius: '3px', overflow: 'hidden' }}>
+                <div style={{
+                  width: `${val !== null ? Math.max(0, Math.min(100, val)) : 0}%`,
+                  height: '100%',
+                  background: val !== null ? (val >= 80 ? '#2b7a4b' : val >= 50 ? '#b9770e' : '#c0392b') : '#ccc',
+                }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Payment history */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '0.6rem' }}>
+        {[
+          ['On-time', tenant.on_time_payments ?? 0],
+          ['Late', tenant.late_payments ?? 0],
+          ['Missed', tenant.missed_payments ?? 0],
+          ['Partial', tenant.partial_payments ?? 0],
+          ['Warnings', tenant.total_warnings ?? 0],
+          ['Fines', tenant.total_fines ?? 0],
+        ].map(([label, val]) => (
+          <div key={label} style={{
+            padding: '0.5rem', background: '#f9fafb', border: '1px solid #e9ecef',
+            borderRadius: '2px', textAlign: 'center',
+          }}>
+            <div style={{ fontSize: '11px', color: '#6c757d', textTransform: 'uppercase' }}>{label}</div>
+            <div style={{ fontSize: '1.2rem', fontWeight: 600, color: '#2c3e50' }}>{val}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Outstanding balance */}
+      <div style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        background: '#f9fafb', border: '1px solid #e9ecef', padding: '0.6rem 0.8rem',
+        borderRadius: '2px',
+      }}>
+        <span style={{ fontSize: '13px', color: '#6c757d' }}>Outstanding Balance</span>
+        <strong style={{ fontSize: '14px', color: Number(tenant.outstanding_balance) > 0 ? '#c0392b' : '#2b7a4b' }}>
+          {formatAmount(tenant.outstanding_balance || 0)}
+        </strong>
+      </div>
+
+      {/* Recent score changes */}
+      {tenant.score_history?.length > 0 && (
+        <div>
+          <p style={{ fontSize: '13px', fontWeight: 500, color: '#2c3e50', margin: '0 0 0.4rem' }}>Recent Score Changes</p>
+          {tenant.score_history.slice(0, 3).map((h, idx) => (
+            <div key={idx} style={{ display: 'flex', gap: '0.5rem', fontSize: '12px', color: '#6c757d' }}>
+              <span>{new Date(h.created_at).toLocaleDateString('en-ZA', { day: '2-digit', month: 'short' })}</span>
+              <span>{h.old_score?.replace(/_/g, ' ')} → {h.new_score?.replace(/_/g, ' ')}</span>
+              <span>
+                {h.old_score_value != null && h.new_score_value != null
+                  ? `${Number(h.old_score_value).toFixed(1)} → ${Number(h.new_score_value).toFixed(1)}`
+                  : ''}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function PaymentReview() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -284,6 +409,8 @@ export default function PaymentReview() {
   const [activeTab, setActiveTab] = useState("details");
   const [approving, setApproving] = useState(false);
   const [receiptNo, setReceiptNo] = useState("");
+  const [tenantProfile, setTenantProfile] = useState(null);
+  const [tenantLoading, setTenantLoading] = useState(false);
 
   useDocumentTitle("Review Payment");
 
@@ -291,6 +418,12 @@ export default function PaymentReview() {
     if (!payment && id) fetchPayment(id);
     else if (!payment && !id) navigate("/landlord/payments", { replace: true });
   }, [id]);
+
+  useEffect(() => {
+    if (payment?.tenant_id && !tenantProfile) {
+      fetchTenantRisk(payment.tenant_id);
+    }
+  }, [payment?.tenant_id]);
 
   async function fetchPayment(paymentId) {
     setLoading(true);
@@ -300,10 +433,26 @@ export default function PaymentReview() {
         headers: { Authorization: `Bearer ${token}` },
       });
       setPayment(data.payment);
+      if (data.payment.tenant_id) fetchTenantRisk(data.payment.tenant_id);
     } catch (err) {
       navigate("/landlord/payments", { replace: true });
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function fetchTenantRisk(tenantId) {
+    setTenantLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      const { data } = await axios.get(`${API}/tenants/${tenantId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setTenantProfile(data.tenant);
+    } catch (err) {
+      console.error("Couldn't load tenant risk:", err);
+    } finally {
+      setTenantLoading(false);
     }
   }
 
@@ -447,6 +596,9 @@ export default function PaymentReview() {
               </span>
             )}
           </button>
+          <button onClick={() => setActiveTab("risk")} style={S.tabBtn(activeTab === "risk")}>
+             Tenant Risk
+          </button>
         </div>
 
         {/* Tab content */}
@@ -524,6 +676,10 @@ export default function PaymentReview() {
                 </div>
               </div>
             </div>
+          )}
+
+          {activeTab === "risk" && (
+            <TenantRiskPanel tenant={tenantProfile} loading={tenantLoading} />
           )}
         </div>
 

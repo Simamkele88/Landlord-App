@@ -12,16 +12,8 @@ async function getTenant(userId) {
 
 const VALID_CATEGORIES = ['plumbing', 'electrical', 'structural', 'appliance', 'hvac', 'painting', 'cleaning', 'pest_control', 'other'];
 const VALID_PRIORITIES = ['low', 'medium', 'high', 'urgent', 'emergency'];
-const ALLOWED_TRANSITIONS = {
-  needs_repair: ['assigned', 'in_progress', 'cancelled'],
-  assigned: ['in_progress', 'cancelled', 'needs_repair'],
-  in_progress: ['completed', 'cancelled', 'needs_repair'],
-  completed: ['closed', 'cancelled'],
-  cancelled: [],
-  closed: [],
-  pending_approval: ['assigned', 'in_progress', 'cancelled', 'needs_repair'],
-};
 
+// POST /maintenance  - Tenant submits a maintenance request
 router.post("/", requireAuth, requireTenant, async (req, res) => {
   const { title, description, category, priority, photos } = req.body;
 
@@ -132,6 +124,7 @@ router.post("/", requireAuth, requireTenant, async (req, res) => {
   }
 });
 
+// GET /maintenance - Get maintenance list for any role
 router.get("/", requireAuth, async (req, res) => {
   try {
     let where, params;
@@ -171,6 +164,7 @@ router.get("/", requireAuth, async (req, res) => {
   }
 });
 
+// PUT /maintenance/:id/confirm - Tenant confirms maintenance completion
 router.put("/:id/confirm", requireAuth, requireTenant, async (req, res) => {
   try {
     const { id } = req.params;
@@ -231,6 +225,7 @@ router.put("/:id/confirm", requireAuth, requireTenant, async (req, res) => {
   }
 });
 
+// PUT /maintenance/:id/reopen - Tenant reopens a maintenance request
 router.put("/:id/reopen", requireAuth, requireTenant, async (req, res) => {
   try {
     const { id } = req.params;
@@ -289,6 +284,7 @@ router.put("/:id/reopen", requireAuth, requireTenant, async (req, res) => {
   }
 });
 
+// GET /maintenance/:id - Get a single maintenance request for any role
 router.get("/:id", requireAuth, async (req, res) => {
   try {
     const { id } = req.params;

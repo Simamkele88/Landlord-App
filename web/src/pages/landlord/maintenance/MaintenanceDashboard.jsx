@@ -11,22 +11,23 @@ const API = "http://localhost:4000";
 const FONT = '"Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif';
 
 const STATUS_CONFIG = {
-  "needs_repair":     { label: "Needs Repair",    color: "#9e3a3a", bg: "#fbeaea", border: "1px solid #e5bdbd", dot: "#9e3a3a", icon: "alert-circle" },
-  "assigned":         { label: "Assigned",         color: "#2c6b9b", bg: "#e8f0f5", border: "1px solid #b0cfe0", dot: "#2c6b9b", icon: "user-check" },
-  "in_progress":      { label: "In Progress",      color: "#8b6e1a", bg: "#faf6ed", border: "1px solid #e5dbb8", dot: "#8b6e1a", icon: "clock" },
-  "completed":        { label: "Completed",        color: "#2b7a4b", bg: "#eef5e8", border: "1px solid #c5d9b8", dot: "#2b7a4b", icon: "check-circle" },
-  "closed":           { label: "Closed",           color: "#5a5a5a", bg: "#f2f2f2", border: "1px solid #d0d0d0", dot: "#6b6b6b", icon: "lock" },
-  "cancelled":        { label: "Cancelled",        color: "#5a5a5a", bg: "#f2f2f2", border: "1px solid #d0d0d0", dot: "#6b6b6b", icon: "x-circle" },
+  "needs_repair": { label: "Needs Repair", color: "#9e3a3a", bg: "#fbeaea", border: "1px solid #e5bdbd", dot: "#9e3a3a", icon: "alert-circle" },
+  "assigned": { label: "Assigned", color: "#2c6b9b", bg: "#e8f0f5", border: "1px solid #b0cfe0", dot: "#2c6b9b", icon: "user-check" },
+  "in_progress": { label: "In Progress", color: "#8b6e1a", bg: "#faf6ed", border: "1px solid #e5dbb8", dot: "#8b6e1a", icon: "clock" },
+  "completed": { label: "Completed", color: "#2b7a4b", bg: "#eef5e8", border: "1px solid #c5d9b8", dot: "#2b7a4b", icon: "check-circle" },
+  "closed": { label: "Closed", color: "#5a5a5a", bg: "#f2f2f2", border: "1px solid #d0d0d0", dot: "#6b6b6b", icon: "lock" },
+  "cancelled": { label: "Cancelled", color: "#5a5a5a", bg: "#f2f2f2", border: "1px solid #d0d0d0", dot: "#6b6b6b", icon: "x-circle" },
   "pending_approval": { label: "Pending Approval", color: "#54326b", bg: "#eee7f3", border: "1px solid #d1c2dc", dot: "#54326b", icon: "clock" },
 };
 
 const PRIORITY_CONFIG = {
   "emergency": { bg: "#fbeaea", color: "#9e3a3a", label: "Emergency" },
-  "urgent":    { bg: "#fdf0f0", color: "#9e3a3a", label: "Urgent" },
-  "high":      { bg: "#fef9e7", color: "#c25e1a", label: "High" },
-  "medium":    { bg: "#e8f0f5", color: "#2c6b9b", label: "Medium" },
-  "low":       { bg: "#f5f5f5", color: "#5f6b7a", label: "Low" },
+  "urgent": { bg: "#fdf0f0", color: "#9e3a3a", label: "Urgent" },
+  "high": { bg: "#fef9e7", color: "#c25e1a", label: "High" },
+  "medium": { bg: "#e8f0f5", color: "#2c6b9b", label: "Medium" },
+  "low": { bg: "#f5f5f5", color: "#5f6b7a", label: "Low" },
 };
+
 
 const FILTERS = [
   { label: "All", value: "all" },
@@ -38,7 +39,7 @@ const FILTERS = [
 
 const PAGE_SIZE = 8;
 
-function fmt(n) { return n ? `R ${Number(n).toLocaleString("en-ZA")}` : "—"; }
+function fmt(n) { return n ? `R ${Number(n).toLocaleString("en-ZA")}` : "0"; }
 function timeAgo(dateStr) { if (!dateStr) return ""; const diff = (Date.now() - new Date(dateStr)) / 1000; if (diff < 60) return "Just now"; if (diff < 3600) return `${Math.floor(diff / 60)}m ago`; if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`; return `${Math.floor(diff / 86400)}d ago`; }
 
 function StatusBadge({ status }) {
@@ -65,6 +66,26 @@ function PriorityBadge({ priority }) {
     }}>
       {cfg.label}
     </span>
+  );
+}
+
+function StatCard({ label, value, sub, color, bg, border }) {
+  return (
+    <div style={{
+      padding: "0.8rem 1rem",
+      borderRadius: "3px",
+      background: bg || "#f9fafb",
+      border: `1px solid ${border || "#e9ecef"}`,
+      textAlign: "center",
+    }}>
+      <div style={{ fontSize: "0.68rem", fontWeight: 600, color: "#555", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: FONT }}>
+        {label}
+      </div>
+      <div style={{ fontSize: "1.4rem", fontWeight: 700, color: color || "#000", fontFamily: FONT, marginTop: "2px" }}>
+        {value}
+      </div>
+      {sub && <div style={{ fontSize: "0.6rem", color: "#888", marginTop: "2px", fontFamily: FONT }}>{sub}</div>}
+    </div>
   );
 }
 
@@ -325,6 +346,23 @@ export default function LandlordMaintenance() {
           </h4>
         </div>
 
+        {/* Summary cards */}
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+          gap: "0.6rem",
+          padding: "0.85rem 1.1rem",
+          background: "#f9fafb",
+          borderBottom: "1px solid #dfe3e8",
+        }}>
+          <StatCard label="Open" value={stats.total || 0} sub="active requests" color="#9e3a3a" bg="rgba(158,58,58,0.06)" border="rgba(158,58,58,0.15)" />
+          <StatCard label="In Progress" value={stats.in_progress || 0} sub="being repaired" color="#8b6e1a" bg="rgba(139,110,26,0.06)" border="rgba(139,110,26,0.15)" />
+          <StatCard label="Pending Approval" value={stats.pending_approval || 0} sub="awaiting landlord" color="#54326b" bg="rgba(84,50,107,0.06)" border="rgba(84,50,107,0.15)" />
+          <StatCard label="Urgent Open" value={stats.urgent_open || 0} sub="urgent/emergency" color="#9e3a3a" bg="rgba(158,58,58,0.06)" border="rgba(158,58,58,0.15)" />
+          <StatCard label="Completed this month" value={stats.completed_this_month || 0} sub={stats.avg_completion_days != null ? `avg ${stats.avg_completion_days}d` : "—"} color="#2b7a4b" bg="rgba(43,122,75,0.06)" border="rgba(43,122,75,0.15)" />
+          <StatCard label="Cost this month" value={fmt(stats.cost_this_month)} sub="completed repairs" color="#2c3e50" bg="rgba(44,62,80,0.06)" border="rgba(44,62,80,0.15)" />
+        </div>
+
         {/* Toolbar */}
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -411,6 +449,20 @@ export default function LandlordMaintenance() {
             </select>
           </div>
         </div>
+
+        {stats.unassigned_urgent?.length > 0 && (
+          <div style={{ margin: "0 1.7rem 1rem", padding: "0.8rem 1rem", background: "#fbeaea", border: "1px solid #e5bdbd", borderRadius: "3px" }}>
+            <p style={{ fontSize: "13px", fontWeight: 600, color: "#9e3a3a", margin: "0 0 0.4rem" }}>
+              Unassigned urgent requests
+            </p>
+            {stats.unassigned_urgent.map(r => (
+              <div key={r.id} style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#333", padding: "0.2rem 0" }}>
+                <span>{r.title} ({r.tenant_name})</span>
+                <span>{r.unit_number} · {r.property_name}</span>
+              </div>
+            ))}
+          </div>
+        )}
 
         {error && (
           <div style={{ padding: '0.6rem 0.9rem', borderRadius: '2px', background: '#fbeaea', border: '1px solid #e5bdbd', margin: '0 1.7rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

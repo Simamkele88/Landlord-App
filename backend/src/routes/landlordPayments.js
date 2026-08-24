@@ -24,14 +24,20 @@ function getPagination(req) {
 
 async function recalculateCollectionBalance(tenantId, client) {
   const result = await client.query(
-    `SELECT COALESCE(SUM(remaining_balance), 0) AS total_remaining
+    `SELECT 
+      COALESCE(SUM(remaining_balance), 0) AS total_remaining,
+      COUNT(*) FILTER (WHERE status = 'partial') AS partial_count,
+      COUNT(*) FILTER (WHERE status = 'overdue') AS overdue_count
      FROM invoice
      WHERE tenant_id = $1
        AND status NOT IN ('paid', 'void', 'cancelled')
        AND remaining_balance > 0`,
     [tenantId],
   );
+
   const totalRemaining = Number(result.rows[0].total_remaining);
+  const partialCount = Number(result.rows[0].partial_count);
+  const overdueCount = Number(result.rows[0].overdue_count);
 
   if (totalRemaining <= 0) {
     await client.query(
@@ -40,21 +46,29 @@ async function recalculateCollectionBalance(tenantId, client) {
            outstanding_balance = 0,
            updated_at = NOW()
        WHERE tenant_id = $1
-         AND status IN ('active', 'flagged', 'repayment_agreed')`,
+         AND status IN ('active', 'flagged', 'repayment_agreed', 'partial_collection')`,
       [tenantId],
     );
   } else {
     await client.query(
       `UPDATE collection
        SET outstanding_balance = $1,
+           status = CASE 
+             WHEN $2 > 0 THEN 'partial_collection'
+             ELSE 'active'
+           END,
            updated_at = NOW()
-       WHERE tenant_id = $2
-         AND status IN ('active', 'flagged', 'repayment_agreed')`,
-      [totalRemaining, tenantId],
+       WHERE tenant_id = $3
+         AND status IN ('active', 'flagged', 'repayment_agreed', 'partial_collection')`,
+      [totalRemaining, partialCount, tenantId],
     );
   }
 
-  return totalRemaining;
+  return {
+    total_remaining: totalRemaining,
+    partial_count: partialCount,
+    overdue_count: overdueCount,
+  };
 }
 
 // GET /landlord/payments - Get a payments
@@ -130,7 +144,9 @@ router.get("/", requireAuth, requireLandlord, async (req, res) => {
         ip.approved_amount,
         ip.rejected_amount,
         ip.last_payment_date,
-        ip.payments AS payment_details
+        ip.payments AS payment_details,
+        ri.id AS repayment_instalment_id, 
+        ri.instalment_number
       FROM payment p
       LEFT JOIN tenant t ON t.id = p.tenant_id
       LEFT JOIN users usr ON usr.id = t.user_id
@@ -138,6 +154,7 @@ router.get("/", requireAuth, requireLandlord, async (req, res) => {
       LEFT JOIN unit u ON u.id = inv.unit_id
       LEFT JOIN property prop ON prop.id = u.property_id
       LEFT JOIN public.invoice_payment_summary ip ON ip.invoice_id = p.invoice_id
+      LEFT JOIN repayment_instalment ri ON ri.payment_id = p.id
       WHERE ${whereSql}
       ORDER BY p.payment_date DESC
       LIMIT $${params.length + 1} OFFSET $${params.length + 2}
@@ -165,7 +182,7 @@ router.get("/", requireAuth, requireLandlord, async (req, res) => {
   }
 });
 
-// GET /landlord/payments/invoices
+// GET /landlord/payments/invoices - Get list of invoices
 router.get("/invoices", requireAuth, requireLandlord, async (req, res) => {
   try {
     const landlordId = await getLandlordId(req.userId);
@@ -237,15 +254,18 @@ router.get("/invoices", requireAuth, requireLandlord, async (req, res) => {
         COALESCE(ip.approved_amount, 0) AS approved_amount,
         COALESCE(ip.rejected_amount, 0) AS rejected_amount,
         ip.last_payment_date,
-        ip.payments
+        ip.payments,
+        rpi.repayment_plan_id AS linked_plan_id
       FROM invoice i
       JOIN tenant t ON t.id = i.tenant_id
       JOIN users usr ON usr.id = t.user_id
       JOIN unit u ON u.id = i.unit_id
       JOIN property prop ON prop.id = u.property_id
       LEFT JOIN public.invoice_payment_summary ip ON ip.invoice_id = i.id
+      LEFT JOIN repayment_plan_invoice rpi ON rpi.invoice_id = i.id
+      LEFT JOIN repayment_plan rp ON rp.id = rpi.repayment_plan_id AND rp.status IN ('active', 'pending')
       WHERE ${whereSql}
-      ORDER BY i.billing_period_start DESC, i.status NOT IN ('paid') DESC
+      ORDER BY i.status IN ('overdue') DESC, i.status IN ('sent') DESC
       LIMIT $${params.length + 1} OFFSET $${params.length + 2}
     `;
 
@@ -304,7 +324,9 @@ router.post("/invoices", requireAuth, requireLandlord, async (req, res) => {
         .json({ error: "lease_id and a positive amount are required" });
     }
     if (
-      !["rent", "deposit", "utility", "damage", "other"].includes(invoice_type)
+      !["rent", "deposit", "utility", "damage", "other", "fine"].includes(
+        invoice_type,
+      )
     ) {
       return res.status(400).json({ error: "Invalid invoice_type" });
     }
@@ -432,12 +454,15 @@ router.get("/invoices/:id", requireAuth, requireLandlord, async (req, res) => {
           usr.full_name AS tenant_name,
           u.unit_number,
           prop.name AS property_name,
-          (SELECT id FROM deposit WHERE deposit.lease_id = i.lease_id LIMIT 1) AS deposit_id
+          (SELECT id FROM deposit WHERE deposit.lease_id = i.lease_id LIMIT 1) AS deposit_id,
+          rp.id AS linked_plan_id
       FROM invoice i
       JOIN tenant t ON t.id = i.tenant_id
       JOIN users usr ON usr.id = t.user_id
       JOIN unit u ON u.id = i.unit_id
       JOIN property prop ON prop.id = u.property_id
+      LEFT JOIN repayment_plan_invoice rpi ON rpi.invoice_id = i.id
+      LEFT JOIN repayment_plan rp ON rp.id = rpi.repayment_plan_id AND rp.status IN ('active', 'pending')
       WHERE i.id = $1 AND i.landlord_id = $2`,
       [id, landlordId],
     );
@@ -611,14 +636,31 @@ router.post("/cash", requireAuth, requireLandlord, async (req, res) => {
     }
 
     const invoiceCheck = await pool.query(
-      `SELECT id, tenant_id, lease_id, landlord_id, remaining_balance, status
+      `SELECT id, tenant_id, lease_id, landlord_id, remaining_balance, status, due_date
        FROM invoice WHERE id = $1`,
       [invoice_id],
     );
     if (!invoiceCheck.rows.length) {
       return res.status(404).json({ error: "Invoice not found" });
     }
+
+    const planLinkCheck = await pool.query(
+      `SELECT rp.id, rp.status
+        FROM repayment_plan_invoice rpi
+        JOIN repayment_plan rp ON rp.id = rpi.repayment_plan_id
+        WHERE rpi.invoice_id = $1 AND rp.status IN ('active', 'pending')`,
+      [invoice_id],
+    );
+    if (planLinkCheck.rows.length) {
+      return res.status(400).json({
+        error:
+          "This invoice is part of an active repayment plan. Manage payment through the repayment plan instead.",
+        repayment_plan_id: planLinkCheck.rows[0].id,
+      });
+    }
     const invoice = invoiceCheck.rows[0];
+    const isLate = invoice.due_date && new Date() > new Date(invoice.due_date);
+    const paymentStatus = isLate ? "late" : "paid";
     if (invoice.landlord_id !== landlordId) {
       return res
         .status(403)
@@ -694,7 +736,7 @@ router.post("/cash", requireAuth, requireLandlord, async (req, res) => {
         `INSERT INTO payment (
           invoice_id, tenant_id, lease_id, landlord_id, amount_paid,
           payment_method, payment_date, status, approved_by, approved_at, notes, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, 'cash', NOW(), 'paid', $6, NOW(), $7, NOW(), NOW())
+        ) VALUES ($1, $2, $3, $4, $5, 'cash', NOW(), $8, $6, NOW(), $7, NOW(), NOW())
         RETURNING id`,
         [
           invoice_id,
@@ -704,18 +746,17 @@ router.post("/cash", requireAuth, requireLandlord, async (req, res) => {
           amount_paid,
           req.userId,
           notes || "Cash payment recorded by landlord",
+          paymentStatus,
         ],
       );
 
       const paymentId = paymentResult.rows[0].id;
 
-      // Update payment with the generated reference
       await client.query(
         `UPDATE payment SET bank_reference = $1 WHERE id = $2`,
         [cashReference, paymentId],
       );
 
-      // Insert into invoice_payments with the same reference
       await client.query(
         `INSERT INTO public.invoice_payments (
           invoice_id, payment_id, amount, payment_date, method, reference, status, allocated_rent
@@ -790,7 +831,7 @@ router.get("/summary", requireAuth, requireLandlord, async (req, res) => {
       `SELECT 
         COUNT(*) AS total_payments,
         COALESCE(SUM(p.amount_paid), 0) AS total_expected,
-        COALESCE(SUM(CASE WHEN p.status = 'paid' THEN p.amount_paid ELSE 0 END), 0) AS total_collected,
+        COALESCE(SUM(CASE WHEN p.status IN ('paid', 'late') THEN p.amount_paid ELSE 0 END), 0) AS total_collected,
         COUNT(CASE WHEN p.status IN ('pending', 'pending_approval') THEN 1 END) AS pending_count,
         COUNT(CASE WHEN p.status = 'late' THEN 1 END) AS late_count,
         COUNT(CASE WHEN p.status = 'collections' THEN 1 END) AS collections_count,
@@ -1038,7 +1079,7 @@ router.post(
 
       if (Number(amount) > available + 0.01) {
         return res.status(400).json({
-          error: `Amount exceeds available deposit balance of ${formatAmount(available)}`,
+          error: `Amount exceeds available deposit balance of R ${available.toFixed(2)}`,
         });
       }
 
@@ -1049,6 +1090,21 @@ router.post(
       if (!invoiceQuery.rows.length)
         return res.status(404).json({ error: "Invoice not found" });
       const invoice = invoiceQuery.rows[0];
+
+      const planLinkCheck = await pool.query(
+        `SELECT rp.id, rp.status
+          FROM repayment_plan_invoice rpi
+          JOIN repayment_plan rp ON rp.id = rpi.repayment_plan_id
+          WHERE rpi.invoice_id = $1 AND rp.status IN ('active', 'pending')`,
+        [invoice_id],
+      );
+      if (planLinkCheck.rows.length) {
+        return res.status(400).json({
+          error:
+            "This invoice is part of an active repayment plan. Manage payment through the repayment plan instead.",
+          repayment_plan_id: planLinkCheck.rows[0].id,
+        });
+      }
       if (
         invoice.status === "paid" ||
         invoice.status === "void" ||
@@ -1066,10 +1122,11 @@ router.post(
         await client.query(
           `UPDATE deposit
            SET used_amount = used_amount + $1,
-               status = CASE 
-                 WHEN deposit_amount - (used_amount + $1) - refund_amount <= 0 THEN 'forfeited'
-                 ELSE 'partially_refunded'
-               END,
+               status = (CASE
+                 WHEN deposit_amount - (used_amount + $1) - refund_amount <= 0
+                 THEN 'forfeited'::deposit_status
+                 ELSE 'partially_refunded'::deposit_status
+               END),
                deductions = COALESCE(deductions, '[]')::jsonb || $2::jsonb,
                updated_at = NOW()
            WHERE id = $3`,
@@ -1090,7 +1147,7 @@ router.post(
           `INSERT INTO payment (
             invoice_id, tenant_id, lease_id, landlord_id, amount_paid,
             payment_method, payment_date, status, approved_by, approved_at, notes
-          ) VALUES ($1, $2, $3, $4, $5, 'deposit', NOW(), 'paid', $6, NOW(), $7)
+          ) VALUES ($1, $2, $3, $4, $5, 'bank_transfer', NOW(), 'paid', $6, NOW(), $7)
           RETURNING id`,
           [
             invoice_id,
@@ -1123,7 +1180,7 @@ router.post(
             $1, $2, $3, $4,
             $5, $6,
             0, 0, 0, $6, 0,
-            CURRENT_DATE, CURRENT_DATE, $7,
+            CURRENT_DATE, CURRENT_DATE + INTERVAL '1 day', $7,
             'sent', 0, 'deposit', $8
           )`,
           [
@@ -1276,7 +1333,9 @@ router.get("/:id", requireAuth, requireLandlord, async (req, res) => {
         ip.approved_amount,
         ip.rejected_amount,
         ip.last_payment_date,
-        ip.payments AS payment_details
+        ip.payments AS payment_details,
+        ri.instalment_number, 
+        rp2.id AS repayment_plan_id
        FROM payment p
        LEFT JOIN tenant t ON t.id = p.tenant_id
        LEFT JOIN users usr ON usr.id = t.user_id
@@ -1284,6 +1343,8 @@ router.get("/:id", requireAuth, requireLandlord, async (req, res) => {
        LEFT JOIN unit u ON u.id = inv.unit_id
        LEFT JOIN property prop ON prop.id = u.property_id
        LEFT JOIN public.invoice_payment_summary ip ON ip.invoice_id = p.invoice_id
+       LEFT JOIN repayment_instalment ri ON ri.payment_id = p.id
+       LEFT JOIN repayment_plan rp2 ON rp2.id = ri.repayment_plan_id
        WHERE p.id = $1 AND p.landlord_id = $2`,
       [id, landlordId],
     );
@@ -1501,6 +1562,16 @@ router.put(
           [payment.invoice_id, id],
         );
 
+        const invDueRes = await client.query(
+          `SELECT due_date FROM invoice WHERE id = $1`,
+          [payment.invoice_id],
+        );
+
+        const isLate =
+          invDueRes.rows[0]?.due_date &&
+          new Date(payment.payment_date) > new Date(invDueRes.rows[0].due_date);
+        const newPaymentStatus = isLate ? "late" : "paid";
+
         await client.query(
           `UPDATE public.invoice_payments 
          SET status = 'rejected', updated_at = NOW()
@@ -1516,12 +1587,12 @@ router.put(
 
         await client.query(
           `UPDATE payment SET 
-          status = 'paid', 
-          approved_by = $1, 
-          approved_at = NOW(),
-          updated_at = NOW()
-         WHERE id = $2`,
-          [req.userId, id],
+            status = $3, 
+            approved_by = $1, 
+            approved_at = NOW(),
+            updated_at = NOW()
+          WHERE id = $2`,
+          [req.userId, id, newPaymentStatus],
         );
 
         await client.query(
@@ -1617,10 +1688,88 @@ router.put("/:id/approve", requireAuth, requireLandlord, async (req, res) => {
 
     const payment = paymentCheck.rows[0];
 
+    const instRes = await pool.query(
+      `SELECT ri.*, rp.tenant_id, rp.landlord_id, rp.id AS plan_id
+        FROM repayment_instalment ri
+        JOIN repayment_plan rp ON rp.id = ri.repayment_plan_id
+        WHERE ri.payment_id = $1`,
+      [id],
+    );
+    const linkedInstalment = instRes.rows[0] || null;
+
     if (payment.status !== "pending" && payment.status !== "pending_approval") {
       return res
         .status(400)
         .json({ error: "Only pending payments can be approved" });
+    }
+
+    if (linkedInstalment) {
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+
+        await client.query(
+          `UPDATE payment SET status = 'paid', approved_by = $1, approved_at = NOW(), updated_at = NOW() WHERE id = $2`,
+          [req.userId, id],
+        );
+        await client.query(
+          `UPDATE repayment_instalment SET status = 'paid', amount_paid = amount_due, paid_date = NOW(), updated_at = NOW() WHERE id = $1`,
+          [linkedInstalment.id],
+        );
+
+        const allPaid = await client.query(
+          `SELECT COUNT(*) AS total, COUNT(*) FILTER (WHERE status = 'paid') AS paid
+           FROM repayment_instalment WHERE repayment_plan_id = $1`,
+          [linkedInstalment.plan_id],
+        );
+        const allDone =
+          Number(allPaid.rows[0].total) === Number(allPaid.rows[0].paid);
+
+        if (allDone) {
+          await client.query(
+            `UPDATE invoice
+            SET status = 'paid', paid_amount = amount_due, updated_at = NOW()
+            WHERE id IN (SELECT invoice_id FROM repayment_plan_invoice WHERE repayment_plan_id = $1)`,
+            [linkedInstalment.plan_id],
+          );
+
+          await client.query(
+            `UPDATE repayment_plan SET status = 'completed', updated_at = NOW() WHERE id = $1`,
+            [linkedInstalment.plan_id],
+          );
+          await client.query(
+            `UPDATE collection SET status = 'recovered', updated_at = NOW()
+         WHERE tenant_id = $1 AND status IN ('active', 'repayment_agreed', 'partial_collection')`,
+            [linkedInstalment.tenant_id],
+          );
+        }
+
+        await client.query(`SELECT public.recalculate_tenant_score($1, $2)`, [
+          linkedInstalment.tenant_id,
+          req.userId,
+        ]);
+
+        await client.query("COMMIT");
+
+        await createNotification(
+          linkedInstalment.tenant_id,
+          "payment_approved",
+          "Instalment Payment Approved",
+          `Your payment for instalment #${linkedInstalment.instalment_number} has been approved.`,
+          linkedInstalment.id,
+          "repayment_instalment",
+        );
+
+        return res.json({
+          message: "Instalment payment approved",
+          plan_completed: allDone,
+        });
+      } catch (err) {
+        await client.query("ROLLBACK");
+        throw err;
+      } finally {
+        client.release();
+      }
     }
 
     const client = await pool.connect();
@@ -1638,6 +1787,15 @@ router.put("/:id/approve", requireAuth, requireLandlord, async (req, res) => {
         [payment.invoice_id, id],
       );
 
+      const invDueRes = await client.query(
+        `SELECT due_date FROM invoice WHERE id = $1`,
+        [payment.invoice_id],
+      );
+      const isLate =
+        invDueRes.rows[0]?.due_date &&
+        new Date(payment.payment_date) > new Date(invDueRes.rows[0].due_date);
+      const newPaymentStatus = isLate ? "late" : "paid";
+
       await client.query(
         `UPDATE public.invoice_payments 
         SET status = 'rejected', updated_at = NOW()
@@ -1653,12 +1811,12 @@ router.put("/:id/approve", requireAuth, requireLandlord, async (req, res) => {
 
       await client.query(
         `UPDATE payment SET 
-          status = 'paid', 
+          status = $3, 
           approved_by = $1, 
           approved_at = NOW(),
           updated_at = NOW()
-         WHERE id = $2`,
-        [req.userId, id],
+        WHERE id = $2`,
+        [req.userId, id, newPaymentStatus],
       );
 
       await client.query(
@@ -1735,7 +1893,7 @@ router.put("/:id/approve", requireAuth, requireLandlord, async (req, res) => {
         "payment",
         id,
         { status: payment.status, amount: payment.amount_paid },
-        { status: "paid", invoice_status: newInvoiceStatus },
+        { status: newPaymentStatus, invoice_status: newInvoiceStatus },
         req,
       );
 
@@ -1782,10 +1940,39 @@ router.put("/:id/reject", requireAuth, requireLandlord, async (req, res) => {
 
     const payment = paymentCheck.rows[0];
 
+    const instRes = await pool.query(
+      `SELECT ri.*, rp.tenant_id, rp.landlord_id, rp.id AS plan_id
+        FROM repayment_instalment ri
+        JOIN repayment_plan rp ON rp.id = ri.repayment_plan_id
+        WHERE ri.payment_id = $1`,
+      [id],
+    );
+    const linkedInstalment = instRes.rows[0] || null;
+
     if (payment.status !== "pending" && payment.status !== "pending_approval") {
       return res
         .status(400)
         .json({ error: "Only pending payments can be rejected" });
+    }
+
+    if (linkedInstalment) {
+      await pool.query(
+        `UPDATE payment SET status = 'rejected', rejection_reason = $1, updated_at = NOW() WHERE id = $2`,
+        [reason, id],
+      );
+      await pool.query(
+        `UPDATE repayment_instalment SET status = 'pending', payment_id = NULL, updated_at = NOW() WHERE id = $1`,
+        [linkedInstalment.id],
+      );
+      await createNotification(
+        linkedInstalment.tenant_id,
+        "payment_rejected",
+        "Instalment Payment Rejected",
+        `Your payment for instalment #${linkedInstalment.instalment_number} was rejected: ${reason}`,
+        linkedInstalment.id,
+        "repayment_instalment",
+      );
+      return res.json({ message: "Instalment payment rejected" });
     }
 
     const client = await pool.connect();
@@ -1959,6 +2146,14 @@ router.put(
           "UPDATE tenant SET updated_at = NOW() WHERE id = $1",
           [payment.tenant_id],
         );
+
+        await client.query(`SELECT public.recalculate_payment_history($1)`, [
+          payment.tenant_id,
+        ]);
+        await client.query(`SELECT public.recalculate_tenant_score($1, $2)`, [
+          payment.tenant_id,
+          req.userId,
+        ]);
 
         await client.query("COMMIT");
 

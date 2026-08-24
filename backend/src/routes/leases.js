@@ -6,14 +6,17 @@ const { requireLandlord } = require("../middleware/roleCheck");
 const { sendLeaseCreatedEmail } = require("../utils/email");
 
 async function getLandlordId(userId) {
-  const result = await pool.query("SELECT id FROM landlord WHERE user_id = $1", [userId]);
+  const result = await pool.query(
+    "SELECT id FROM landlord WHERE user_id = $1",
+    [userId],
+  );
   return result.rows[0]?.id || null;
 }
 
 function getFirstDueDate(leaseStartDate, frequency, dueDay) {
   const start = new Date(leaseStartDate);
 
-  if (frequency === 'weekly') {
+  if (frequency === "weekly") {
     const due = new Date(start);
     due.setDate(due.getDate() + 7);
     return due;
@@ -27,11 +30,15 @@ function getFirstDueDate(leaseStartDate, frequency, dueDay) {
   if (due < start) {
     due = new Date(year, month + 1, day);
     if (due.getMonth() !== (month + 1) % 12) {
-      due = new Date(year, month + 2, 0); 
+      due = new Date(year, month + 2, 0);
     }
   }
 
-  const lastDayOfTargetMonth = new Date(due.getFullYear(), due.getMonth() + 1, 0).getDate();
+  const lastDayOfTargetMonth = new Date(
+    due.getFullYear(),
+    due.getMonth() + 1,
+    0,
+  ).getDate();
   if (due.getDate() > lastDayOfTargetMonth) {
     due.setDate(lastDayOfTargetMonth);
   }
@@ -39,12 +46,12 @@ function getFirstDueDate(leaseStartDate, frequency, dueDay) {
   return due;
 }
 
-
 // GET /leases - Get all leases for landlord
 router.get("/", requireAuth, requireLandlord, async (req, res) => {
   try {
     const landlordId = await getLandlordId(req.userId);
-    if (!landlordId) return res.status(404).json({ error: "Landlord not found" });
+    if (!landlordId)
+      return res.status(404).json({ error: "Landlord not found" });
 
     const result = await pool.query(
       `SELECT l.*, 
@@ -70,7 +77,7 @@ router.get("/", requireAuth, requireLandlord, async (req, res) => {
        JOIN property p ON p.id = un.property_id
        WHERE l.landlord_id = $1
        ORDER BY l.status IN ('expired') ASC, l.created_at DESC`,
-      [landlordId]
+      [landlordId],
     );
 
     res.json({ leases: result.rows });
@@ -84,14 +91,25 @@ router.get("/", requireAuth, requireLandlord, async (req, res) => {
 router.get("/:id", requireAuth, requireLandlord, async (req, res) => {
   try {
     const landlordId = await getLandlordId(req.userId);
-    if (!landlordId) return res.status(404).json({ error: "Landlord not found" });
-    
+    if (!landlordId)
+      return res.status(404).json({ error: "Landlord not found" });
+
     const result = await pool.query(
       `SELECT l.*, 
               usr.full_name AS tenant_name,
               usr.phone AS tenant_phone,
               usr.email AS tenant_email,
               t.emergency_name, t.emergency_phone,
+              t.reliability_score,
+              t.reliability_score_value,
+              t.standing,
+              t.standing_reason,
+              t.total_warnings,
+              t.total_fines,
+              COALESCE(ph.on_time_payments, 0) AS on_time_payments,
+              COALESCE(ph.late_payments, 0) AS late_payments,
+              COALESCE(ph.missed_payments, 0) AS missed_payments,
+              COALESCE(ph.partial_payments, 0) AS partial_payments,
               u.unit_number, u.unit_type, u.floor_number, u.square_meters,
               u.bedrooms, u.bathrooms, u.furnished, u.parking_bay,
               p.name AS property_name, p.address_line1 AS property_address,
@@ -119,15 +137,17 @@ router.get("/:id", requireAuth, requireLandlord, async (req, res) => {
                 '[]'::json
               ) AS payments
        FROM lease l
-       JOIN tenant t ON t.id = l.tenant_id
-       JOIN users usr ON usr.id = t.user_id
-       JOIN unit u ON u.id = l.unit_id
-       JOIN property p ON p.id = u.property_id
-       WHERE l.id = $1 AND l.landlord_id = $2`,
-      [req.params.id, landlordId]
+      JOIN tenant t ON t.id = l.tenant_id
+      JOIN users usr ON usr.id = t.user_id
+      LEFT JOIN tenant_payment_history ph ON ph.tenant_id = t.id
+      JOIN unit u ON u.id = l.unit_id
+      JOIN property p ON p.id = u.property_id
+      WHERE l.id = $1 AND l.landlord_id = $2`,
+      [req.params.id, landlordId],
     );
 
-    if (!result.rows.length) return res.status(404).json({ error: "Lease not found" });
+    if (!result.rows.length)
+      return res.status(404).json({ error: "Lease not found" });
 
     res.json({ lease: result.rows[0] });
   } catch (err) {
@@ -157,24 +177,34 @@ router.post("/", requireAuth, requireLandlord, async (req, res) => {
       rent_amount,
       deposit_amount = 0,
       payment_frequency = "monthly",
-      payment_due_day = 1,              
+      payment_due_day = 1,
       water_included = false,
       electricity_included = false,
       internet_included = false,
       notes = "",
     } = req.body;
 
-    if (!tenant_id || !unit_id || !lease_start_date || !lease_end_date || !rent_amount) {
+    if (
+      !tenant_id ||
+      !unit_id ||
+      !lease_start_date ||
+      !lease_end_date ||
+      !rent_amount
+    ) {
       await client.query("ROLLBACK");
       return res.status(400).json({ error: "Missing required fields" });
     }
     if (new Date(lease_end_date) <= new Date(lease_start_date)) {
       await client.query("ROLLBACK");
-      return res.status(400).json({ error: "Lease end date must be after start date" });
+      return res
+        .status(400)
+        .json({ error: "Lease end date must be after start date" });
     }
     if (Number(rent_amount) <= 0) {
       await client.query("ROLLBACK");
-      return res.status(400).json({ error: "Rent amount must be greater than 0" });
+      return res
+        .status(400)
+        .json({ error: "Rent amount must be greater than 0" });
     }
 
     const allowedFrequencies = ["weekly", "monthly", "quarterly", "annually"];
@@ -183,9 +213,14 @@ router.post("/", requireAuth, requireLandlord, async (req, res) => {
       return res.status(400).json({ error: "Invalid payment_frequency" });
     }
 
-    if (payment_frequency !== "weekly" && (payment_due_day < 1 || payment_due_day > 31)) {
+    if (
+      payment_frequency !== "weekly" &&
+      (payment_due_day < 1 || payment_due_day > 31)
+    ) {
       await client.query("ROLLBACK");
-      return res.status(400).json({ error: "Payment due day must be between 1 and 31" });
+      return res
+        .status(400)
+        .json({ error: "Payment due day must be between 1 and 31" });
     }
 
     const leaseRes = await client.query(
@@ -226,13 +261,13 @@ router.post("/", requireAuth, requireLandlord, async (req, res) => {
         electricity_included,
         internet_included,
         req.userId,
-      ]
+      ],
     );
     const lease = leaseRes.rows[0];
 
     await client.query(
       `UPDATE unit SET status = 'occupied', updated_at = NOW() WHERE id = $1`,
-      [unit_id]
+      [unit_id],
     );
 
     const billingPeriodStart = lease_start_date;
@@ -240,27 +275,56 @@ router.post("/", requireAuth, requireLandlord, async (req, res) => {
     let billingPeriodEnd;
     switch (payment_frequency) {
       case "weekly":
-        billingPeriodEnd = new Date(new Date(lease_start_date).setDate(new Date(lease_start_date).getDate() + 7))
-          .toISOString().slice(0, 10);
+        billingPeriodEnd = new Date(
+          new Date(lease_start_date).setDate(
+            new Date(lease_start_date).getDate() + 7,
+          ),
+        )
+          .toISOString()
+          .slice(0, 10);
         break;
       case "monthly":
-        billingPeriodEnd = new Date(new Date(lease_start_date).setMonth(new Date(lease_start_date).getMonth() + 1))
-          .toISOString().slice(0, 10);
+        billingPeriodEnd = new Date(
+          new Date(lease_start_date).setMonth(
+            new Date(lease_start_date).getMonth() + 1,
+          ),
+        )
+          .toISOString()
+          .slice(0, 10);
         break;
       case "quarterly":
-        billingPeriodEnd = new Date(new Date(lease_start_date).setMonth(new Date(lease_start_date).getMonth() + 3))
-          .toISOString().slice(0, 10);
+        billingPeriodEnd = new Date(
+          new Date(lease_start_date).setMonth(
+            new Date(lease_start_date).getMonth() + 3,
+          ),
+        )
+          .toISOString()
+          .slice(0, 10);
         break;
       case "annually":
-        billingPeriodEnd = new Date(new Date(lease_start_date).setFullYear(new Date(lease_start_date).getFullYear() + 1))
-          .toISOString().slice(0, 10);
+        billingPeriodEnd = new Date(
+          new Date(lease_start_date).setFullYear(
+            new Date(lease_start_date).getFullYear() + 1,
+          ),
+        )
+          .toISOString()
+          .slice(0, 10);
         break;
       default:
-        billingPeriodEnd = new Date(new Date(lease_start_date).setMonth(new Date(lease_start_date).getMonth() + 1))
-          .toISOString().slice(0, 10);
+        billingPeriodEnd = new Date(
+          new Date(lease_start_date).setMonth(
+            new Date(lease_start_date).getMonth() + 1,
+          ),
+        )
+          .toISOString()
+          .slice(0, 10);
     }
 
-    const rentInvoiceDueDate = getFirstDueDate(lease_start_date, payment_frequency, payment_due_day);
+    const rentInvoiceDueDate = getFirstDueDate(
+      lease_start_date,
+      payment_frequency,
+      payment_due_day,
+    );
     const rentInvoiceDueDateStr = rentInvoiceDueDate.toISOString().slice(0, 10);
 
     const rentInvoiceNumber = `INV-${Date.now()}-R`;
@@ -303,7 +367,7 @@ router.post("/", requireAuth, requireLandlord, async (req, res) => {
         billingPeriodEnd,
         rentInvoiceDueDateStr,
         notes || "First rent invoice",
-      ]
+      ],
     );
 
     let deposit = null;
@@ -321,13 +385,15 @@ router.post("/", requireAuth, requireLandlord, async (req, res) => {
           updated_at
         ) VALUES ($1, $2, $3, 0, 'unpaid', 'South Africa', NOW(), NOW())
         RETURNING *`,
-        [lease.id, tenant_id, deposit_amount]
+        [lease.id, tenant_id, deposit_amount],
       );
       deposit = depositRes.rows[0];
 
       depositInvoiceDueDate = new Date(lease_start_date);
       depositInvoiceDueDate.setDate(depositInvoiceDueDate.getDate() + 7);
-      const depositInvoiceDueDateStr = depositInvoiceDueDate.toISOString().slice(0, 10);
+      const depositInvoiceDueDateStr = depositInvoiceDueDate
+        .toISOString()
+        .slice(0, 10);
 
       const depositInvoiceNumber = `INV-${Date.now()}-D`;
       await client.query(
@@ -369,7 +435,7 @@ router.post("/", requireAuth, requireLandlord, async (req, res) => {
           lease_start_date,
           depositInvoiceDueDateStr,
           notes || "Deposit invoice",
-        ]
+        ],
       );
     }
 
@@ -382,7 +448,7 @@ router.post("/", requireAuth, requireLandlord, async (req, res) => {
        FROM tenant t
        JOIN users u ON u.id = t.user_id
        WHERE t.id = $1`,
-      [tenant_id]
+      [tenant_id],
     );
     if (tenantInfoRes.rows.length > 0) {
       tenantEmail = tenantInfoRes.rows[0].email;
@@ -401,7 +467,9 @@ router.post("/", requireAuth, requireLandlord, async (req, res) => {
           paymentDueDay: payment_due_day,
           rentInvoiceDueDate: rentInvoiceDueDateStr,
           depositAmount: deposit ? deposit_amount : null,
-          depositInvoiceDueDate: depositInvoiceDueDate ? depositInvoiceDueDate.toISOString().slice(0, 10) : null,
+          depositInvoiceDueDate: depositInvoiceDueDate
+            ? depositInvoiceDueDate.toISOString().slice(0, 10)
+            : null,
         });
       } catch (emailErr) {
         console.error("Failed to send lease creation email:", emailErr);
@@ -413,13 +481,16 @@ router.post("/", requireAuth, requireLandlord, async (req, res) => {
       "lease_created",
       "New Lease Created",
       `Your lease has been created. First rent invoice of R${rent_amount} is due on ${rentInvoiceDueDate.toDateString()}.` +
-      (deposit ? ` Deposit of R${deposit_amount} is due on ${depositInvoiceDueDate.toDateString()}.` : ""),
+        (deposit
+          ? ` Deposit of R${deposit_amount} is due on ${depositInvoiceDueDate.toDateString()}.`
+          : ""),
       lease.id,
-      "lease"
+      "lease",
     );
 
     res.status(201).json({
-      message: "Lease created successfully. Invoices generated and notifications sent.",
+      message:
+        "Lease created successfully. Invoices generated and notifications sent.",
       lease,
       deposit,
       rent_invoice_generated: true,
@@ -438,17 +509,30 @@ router.post("/", requireAuth, requireLandlord, async (req, res) => {
 router.put("/:id", requireAuth, requireLandlord, async (req, res) => {
   try {
     const landlordId = await getLandlordId(req.userId);
-    if (!landlordId) return res.status(404).json({ error: "Landlord not found" });
+    if (!landlordId)
+      return res.status(404).json({ error: "Landlord not found" });
 
     const { id } = req.params;
     const allowedFields = [
-      'lease_start_date', 'lease_end_date', 'rent_amount', 'deposit_amount',
-      'payment_frequency', 'payment_due_day', 'late_fee_amount', 'late_fee_after_days',
-      'grace_period_days', 'auto_renew', 'renewal_notice_days',
-      'water_included', 'electricity_included', 'internet_included', 'status'
+      "lease_start_date",
+      "lease_end_date",
+      "rent_amount",
+      "deposit_amount",
+      "payment_frequency",
+      "payment_due_day",
+      "late_fee_amount",
+      "late_fee_after_days",
+      "grace_period_days",
+      "auto_renew",
+      "renewal_notice_days",
+      "water_included",
+      "electricity_included",
+      "internet_included",
+      "status",
     ];
 
-    const updates = [], values = [];
+    const updates = [],
+      values = [];
     let idx = 1;
     for (const field of allowedFields) {
       if (req.body[field] !== undefined) {
@@ -458,14 +542,15 @@ router.put("/:id", requireAuth, requireLandlord, async (req, res) => {
       }
     }
 
-    if (!updates.length) return res.status(400).json({ error: "No fields to update" });
+    if (!updates.length)
+      return res.status(400).json({ error: "No fields to update" });
 
     updates.push("updated_at = NOW()");
     values.push(id);
 
     await pool.query(
       `UPDATE lease SET ${updates.join(", ")} WHERE id = $${idx} AND landlord_id = $${idx + 1}`,
-      [...values, landlordId]
+      [...values, landlordId],
     );
 
     const result = await pool.query(
@@ -477,10 +562,11 @@ router.put("/:id", requireAuth, requireLandlord, async (req, res) => {
        JOIN unit u ON u.id = l.unit_id
        JOIN property p ON p.id = u.property_id
        WHERE l.id = $1`,
-      [id]
+      [id],
     );
 
-    if (!result.rows.length) return res.status(404).json({ error: "Lease not found" });
+    if (!result.rows.length)
+      return res.status(404).json({ error: "Lease not found" });
 
     res.json({ message: "Lease updated", lease: result.rows[0] });
   } catch (err) {
@@ -493,13 +579,21 @@ router.put("/:id", requireAuth, requireLandlord, async (req, res) => {
 router.put("/:id/terminate", requireAuth, requireLandlord, async (req, res) => {
   try {
     const landlordId = await getLandlordId(req.userId);
-    if (!landlordId) return res.status(404).json({ error: "Landlord not found" });
+    if (!landlordId)
+      return res.status(404).json({ error: "Landlord not found" });
 
     const { id } = req.params;
-    const { termination_reason, termination_date, termination_notes, vacate_date } = req.body;
+    const {
+      termination_reason,
+      termination_date,
+      termination_notes,
+      vacate_date,
+    } = req.body;
 
     if (!termination_reason || !termination_date) {
-      return res.status(400).json({ error: "Termination reason and date are required" });
+      return res
+        .status(400)
+        .json({ error: "Termination reason and date are required" });
     }
 
     const client = await pool.connect();
@@ -508,9 +602,12 @@ router.put("/:id/terminate", requireAuth, requireLandlord, async (req, res) => {
 
       const leaseCheck = await client.query(
         "SELECT * FROM lease WHERE id = $1 AND landlord_id = $2",
-        [id, landlordId]
+        [id, landlordId],
       );
-      if (!leaseCheck.rows.length) { await client.query("ROLLBACK"); return res.status(404).json({ error: "Lease not found" }); }
+      if (!leaseCheck.rows.length) {
+        await client.query("ROLLBACK");
+        return res.status(404).json({ error: "Lease not found" });
+      }
 
       const lease = leaseCheck.rows[0];
 
@@ -518,7 +615,13 @@ router.put("/:id/terminate", requireAuth, requireLandlord, async (req, res) => {
         `UPDATE lease SET status = 'terminated', termination_reason = $1, 
          termination_date = $2, termination_notes = $3, vacate_date = $4, updated_at = NOW()
          WHERE id = $5`,
-        [termination_reason, termination_date, termination_notes || null, vacate_date || null, id]
+        [
+          termination_reason,
+          termination_date,
+          termination_notes || null,
+          vacate_date || null,
+          id,
+        ],
       );
 
       const tenantCheck = await client.query(
@@ -527,20 +630,32 @@ router.put("/:id/terminate", requireAuth, requireLandlord, async (req, res) => {
          FROM lease l 
          JOIN tenant t ON t.id = l.tenant_id 
          WHERE l.id = $1`,
-        [id]
-      )
+        [id],
+      );
 
-      const userId = tenantCheck.rows[0].id;
+      const tenantId = tenantCheck.rows[0].tenant_id;
+      const userId = tenantCheck.rows[0].user_id;
 
       await client.query(
         "UPDATE unit SET status = 'vacant', current_tenant_id = NULL, updated_at = NOW() WHERE id = $1",
-        [lease.unit_id]
+        [lease.unit_id],
       );
 
       await client.query(
         "UPDATE users SET status = 'inactive', updated_at = NOW() WHERE id = $1",
-        [userId]
-      )
+        [userId],
+      );
+
+      if (
+        ["non_payment", "breach_of_contract", "property_damage"].includes(
+          termination_reason,
+        )
+      ) {
+        await client.query(`SELECT public.recalculate_tenant_score($1, $2)`, [
+          tenantId,
+          req.userId,
+        ]);
+      }
 
       await client.query("COMMIT");
 
@@ -561,7 +676,8 @@ router.put("/:id/terminate", requireAuth, requireLandlord, async (req, res) => {
 router.put("/:id/renew", requireAuth, requireLandlord, async (req, res) => {
   try {
     const landlordId = await getLandlordId(req.userId);
-    if (!landlordId) return res.status(404).json({ error: "Landlord not found" });
+    if (!landlordId)
+      return res.status(404).json({ error: "Landlord not found" });
 
     const { id } = req.params;
     const { new_end_date, new_rent_amount } = req.body;
@@ -578,13 +694,13 @@ router.put("/:id/renew", requireAuth, requireLandlord, async (req, res) => {
         `INSERT INTO lease_history (lease_id, tenant_id, unit_id, action, reason, performed_by, created_at)
          SELECT id, tenant_id, unit_id, 'renewed', 'Lease renewed', $1, NOW()
          FROM lease WHERE id = $2 AND landlord_id = $3`,
-        [req.userId, id, landlordId]
+        [req.userId, id, landlordId],
       );
 
       await client.query(
         `UPDATE lease SET lease_end_date = $1, rent_amount = $2, status = 'active', 
          updated_at = NOW() WHERE id = $3 AND landlord_id = $4`,
-        [new_end_date, new_rent_amount || null, id, landlordId]
+        [new_end_date, new_rent_amount || null, id, landlordId],
       );
 
       await client.query("COMMIT");
@@ -606,7 +722,8 @@ router.put("/:id/renew", requireAuth, requireLandlord, async (req, res) => {
 router.get("/expiring", requireAuth, requireLandlord, async (req, res) => {
   try {
     const landlordId = await getLandlordId(req.userId);
-    if (!landlordId) return res.status(404).json({ error: "Landlord not found" });
+    if (!landlordId)
+      return res.status(404).json({ error: "Landlord not found" });
 
     const days = req.query.days || 30;
 
@@ -623,7 +740,7 @@ router.get("/expiring", requireAuth, requireLandlord, async (req, res) => {
        WHERE l.landlord_id = $1 AND l.status = 'active'
          AND l.lease_end_date BETWEEN CURRENT_DATE AND CURRENT_DATE + $2
        ORDER BY l.lease_end_date ASC`,
-      [landlordId, days]
+      [landlordId, days],
     );
 
     res.json({ expiring: result.rows, count: result.rows.length });

@@ -1,8 +1,6 @@
 
-// CSV EXPORT FUNCTION FOR PAYMENT REPORTS
 
 export function exportToCSV(data, filename = 'report.csv') {
-  // CONVERT DATA INTO CSV FORMAT
   const headers = [
     'Tenant',
     'Unit',
@@ -27,13 +25,11 @@ export function exportToCSV(data, filename = 'report.csv') {
     payment.rejectionReason || ''
   ]);
 
-  // COMBINE HEADERS AND ROWS INTO CSV STRING
   const csvContent = [
     headers.join(','),
     ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
   ].join('\n');
 
-  // CREATE AND DOWNLOAD CSV FILE
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
   const url = URL.createObjectURL(blob);
@@ -49,7 +45,6 @@ export function exportToCSV(data, filename = 'report.csv') {
   URL.revokeObjectURL(url);
 }
 
-// GENERATE SUMMARY DATA FOR PAYMENT REPORTS
 export function generatePaymentSummary(payments) {
   const totalExpected = payments.reduce((sum, p) => sum + p.amount, 0);
   const totalCollected = payments

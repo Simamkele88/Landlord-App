@@ -17,7 +17,7 @@ import { FaInfoCircle, FaPlus, FaTrashAlt, FaShoppingCart, FaHome } from "react-
 import { IoMdCash, IoIosStats } from "react-icons/io";
 import { RiCommunityFill } from "react-icons/ri";
 import { MdEditDocument } from "react-icons/md";
-import { c as COLORS } from "../../../styles/theme";
+import useDocumentTitle from "../../../hooks/useDocumentTitle";
 
 const API = "http://localhost:4000";
 const FONT = '"Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif';
@@ -179,6 +179,8 @@ function StatusBadge({ status }) {
 }
 
 export default function PropertySummaryPage() {
+    useDocumentTitle("Property Details");
+
     const { id } = useParams();
     const navigate = useNavigate();
     const toast = useToast();

@@ -16,32 +16,36 @@ async function checkInvoiceNotCoveredByPlan(invoiceId, tenantId) {
        AND rp.status = 'active'
      ORDER BY rp.created_at DESC
      LIMIT 1`,
-    [tenantId]
+    [tenantId],
   );
- 
-  if (!plan.rows.length) return null; 
+
+  if (!plan.rows.length) return null;
 
   if (invoiceId) {
     const inv = await pool.query(
       `SELECT id, status, remaining_balance FROM invoice WHERE id = $1`,
-      [invoiceId]
+      [invoiceId],
     );
-    if (inv.rows.length && ["sent","unpaid","overdue","partial"].includes(inv.rows[0].status)) {
+    if (
+      inv.rows.length &&
+      ["sent", "unpaid", "overdue", "partial"].includes(inv.rows[0].status)
+    ) {
       return {
         blocked: true,
         repayment_plan_id: plan.rows[0].id,
-        message: "This invoice is covered by an active repayment plan. Please make payments through your repayment plan schedule.",
+        message:
+          "This invoice is covered by an active repayment plan. Please make payments through your repayment plan schedule.",
       };
     }
   }
- 
+
   return null;
 }
 
 function getFirstDueDate(leaseStartDate, frequency, dueDay) {
   const start = new Date(leaseStartDate);
 
-  if (frequency === 'weekly') {
+  if (frequency === "weekly") {
     const due = new Date(start);
     due.setDate(due.getDate() + 7);
     return due;
@@ -59,7 +63,11 @@ function getFirstDueDate(leaseStartDate, frequency, dueDay) {
     }
   }
 
-  const lastDayOfTargetMonth = new Date(due.getFullYear(), due.getMonth() + 1, 0).getDate();
+  const lastDayOfTargetMonth = new Date(
+    due.getFullYear(),
+    due.getMonth() + 1,
+    0,
+  ).getDate();
   if (due.getDate() > lastDayOfTargetMonth) {
     due.setDate(lastDayOfTargetMonth);
   }
@@ -67,38 +75,69 @@ function getFirstDueDate(leaseStartDate, frequency, dueDay) {
   return due;
 }
 
-// POST /tenants/register - Landlord registers a new tenant 
+// POST /tenants/register - Landlord registers a new tenant
 router.post("/register", requireAuth, requireLandlord, async (req, res) => {
   const {
-    first_name, last_name, email, phone,
-    unit_id, rent_amount, deposit_amount,
-    payment_frequency, payment_due_day,
-    lease_start_date, lease_end_date, special_note,
+    first_name,
+    last_name,
+    email,
+    phone,
+    unit_id,
+    rent_amount,
+    deposit_amount,
+    payment_frequency,
+    payment_due_day,
+    lease_start_date,
+    lease_end_date,
+    special_note,
   } = req.body;
 
-  if (!first_name || !last_name || !email || !unit_id || !rent_amount || !lease_start_date || !lease_end_date) {
-    return res.status(400).json({ error: "Name, email, unit, rent amount, and lease dates are required" });
+  if (
+    !first_name ||
+    !last_name ||
+    !email ||
+    !unit_id ||
+    !rent_amount ||
+    !lease_start_date ||
+    !lease_end_date
+  ) {
+    return res.status(400).json({
+      error: "Name, email, unit, rent amount, and lease dates are required",
+    });
   }
 
   const allowedFrequencies = ["weekly", "monthly", "quarterly", "annually"];
   if (payment_frequency && !allowedFrequencies.includes(payment_frequency)) {
     return res.status(400).json({ error: "Invalid payment_frequency" });
   }
-  if (payment_frequency && payment_frequency !== "weekly" && (payment_due_day < 1 || payment_due_day > 31)) {
-    return res.status(400).json({ error: "Payment due day must be between 1 and 31" });
+  if (
+    payment_frequency &&
+    payment_frequency !== "weekly" &&
+    (payment_due_day < 1 || payment_due_day > 31)
+  ) {
+    return res
+      .status(400)
+      .json({ error: "Payment due day must be between 1 and 31" });
   }
 
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
 
-    const existing = await client.query("SELECT id FROM users WHERE email=$1", [email.trim().toLowerCase()]);
+    const existing = await client.query("SELECT id FROM users WHERE email=$1", [
+      email.trim().toLowerCase(),
+    ]);
     if (existing.rows.length) {
       await client.query("ROLLBACK");
-      return res.status(409).json({ error: "A user with this email already exists" });
+      return res
+        .status(409)
+        .json({ error: "A user with this email already exists" });
     }
 
-    const unitCheck = await client.query("SELECT id, property_id, status FROM unit WHERE id=$1", [unit_id]);
+    const unitCheck = await client.query(
+      "SELECT id, property_id, status FROM unit WHERE id=$1",
+      [unit_id],
+    );
     if (!unitCheck.rows.length) {
       await client.query("ROLLBACK");
       return res.status(404).json({ error: "Unit not found" });
@@ -108,7 +147,10 @@ router.post("/register", requireAuth, requireLandlord, async (req, res) => {
       return res.status(409).json({ error: "Unit is not vacant" });
     }
 
-    const landlordRes = await client.query("SELECT id FROM landlord WHERE user_id=$1", [req.userId]);
+    const landlordRes = await client.query(
+      "SELECT id FROM landlord WHERE user_id=$1",
+      [req.userId],
+    );
     if (!landlordRes.rows.length) {
       await client.query("ROLLBACK");
       return res.status(404).json({ error: "Landlord record not found" });
@@ -121,21 +163,27 @@ router.post("/register", requireAuth, requireLandlord, async (req, res) => {
     const userRes = await client.query(
       `INSERT INTO users (email, phone, password_hash, role, first_name, last_name, must_change_password, status, created_at, updated_at)
        VALUES ($1,$2,$3,'tenant',$4,$5,true,'active',NOW(),NOW()) RETURNING id`,
-      [email.trim().toLowerCase(), phone || null, hashed, first_name, last_name]
+      [
+        email.trim().toLowerCase(),
+        phone || null,
+        hashed,
+        first_name,
+        last_name,
+      ],
     );
     const userId = userRes.rows[0].id;
 
     const tenantRes = await client.query(
       `INSERT INTO tenant (user_id, landlord_id, special_note, profile_completed, created_by, created_at, updated_at)
        VALUES ($1,$2,$3,false,$4,NOW(),NOW()) RETURNING id`,
-      [userId, landlordId, special_note || null, req.userId]
+      [userId, landlordId, special_note || null, req.userId],
     );
     const tenantId = tenantRes.rows[0].id;
 
     await client.query(
       `INSERT INTO temp_password (user_id, password_hash, expires_at, created_at)
        VALUES ($1,$2, NOW() + INTERVAL '7 days', NOW())`,
-      [userId, hashed]
+      [userId, hashed],
     );
 
     const leaseRes = await client.query(
@@ -149,25 +197,35 @@ router.post("/register", requireAuth, requireLandlord, async (req, res) => {
       )
       RETURNING *`,
       [
-        tenantId, unit_id, landlordId,
-        lease_start_date, lease_end_date,
-        rent_amount, deposit_amount || 0,
-        payment_frequency || "monthly", payment_due_day || 1,
+        tenantId,
+        unit_id,
+        landlordId,
+        lease_start_date,
+        lease_end_date,
+        rent_amount,
+        deposit_amount || 0,
+        payment_frequency || "monthly",
+        payment_due_day || 1,
         req.userId,
-      ]
+      ],
     );
     const lease = leaseRes.rows[0];
 
     await client.query(
       "UPDATE unit SET status='occupied', current_tenant_id=$1, updated_at=NOW() WHERE id=$2",
-      [tenantId, unit_id]
+      [tenantId, unit_id],
     );
 
     await client.query(
       `INSERT INTO tenant_payment_history (tenant_id, on_time_payments, late_payments, missed_payments, partial_payments, last_calculated)
        VALUES ($1,0,0,0,0,NOW())`,
-      [tenantId]
+      [tenantId],
     );
+
+    await client.query(`SELECT public.recalculate_tenant_score($1, $2)`, [
+      tenantId,
+      req.userId,
+    ]);
 
     const freq = payment_frequency || "monthly";
     const dueDay = payment_due_day || 1;
@@ -176,24 +234,49 @@ router.post("/register", requireAuth, requireLandlord, async (req, res) => {
     let billingPeriodEnd;
     switch (freq) {
       case "weekly":
-        billingPeriodEnd = new Date(new Date(lease_start_date).setDate(new Date(lease_start_date).getDate() + 7))
-          .toISOString().slice(0, 10);
+        billingPeriodEnd = new Date(
+          new Date(lease_start_date).setDate(
+            new Date(lease_start_date).getDate() + 7,
+          ),
+        )
+          .toISOString()
+          .slice(0, 10);
         break;
       case "monthly":
-        billingPeriodEnd = new Date(new Date(lease_start_date).setMonth(new Date(lease_start_date).getMonth() + 1))
-          .toISOString().slice(0, 10);
+        billingPeriodEnd = new Date(
+          new Date(lease_start_date).setMonth(
+            new Date(lease_start_date).getMonth() + 1,
+          ),
+        )
+          .toISOString()
+          .slice(0, 10);
         break;
       case "quarterly":
-        billingPeriodEnd = new Date(new Date(lease_start_date).setMonth(new Date(lease_start_date).getMonth() + 3))
-          .toISOString().slice(0, 10);
+        billingPeriodEnd = new Date(
+          new Date(lease_start_date).setMonth(
+            new Date(lease_start_date).getMonth() + 3,
+          ),
+        )
+          .toISOString()
+          .slice(0, 10);
         break;
       case "annually":
-        billingPeriodEnd = new Date(new Date(lease_start_date).setFullYear(new Date(lease_start_date).getFullYear() + 1))
-          .toISOString().slice(0, 10);
+        billingPeriodEnd = new Date(
+          new Date(lease_start_date).setFullYear(
+            new Date(lease_start_date).getFullYear() + 1,
+          ),
+        )
+          .toISOString()
+          .slice(0, 10);
         break;
       default:
-        billingPeriodEnd = new Date(new Date(lease_start_date).setMonth(new Date(lease_start_date).getMonth() + 1))
-          .toISOString().slice(0, 10);
+        billingPeriodEnd = new Date(
+          new Date(lease_start_date).setMonth(
+            new Date(lease_start_date).getMonth() + 1,
+          ),
+        )
+          .toISOString()
+          .slice(0, 10);
     }
 
     const rentInvoiceDueDate = getFirstDueDate(lease_start_date, freq, dueDay);
@@ -215,12 +298,17 @@ router.post("/register", requireAuth, requireLandlord, async (req, res) => {
         'sent', 0, 'rent', $10
       )`,
       [
-        lease.id, tenantId, unit_id, landlordId,
-        rentInvoiceNumber, rent_amount,
-        billingPeriodStart, billingPeriodEnd,
+        lease.id,
+        tenantId,
+        unit_id,
+        landlordId,
+        rentInvoiceNumber,
+        rent_amount,
+        billingPeriodStart,
+        billingPeriodEnd,
         rentInvoiceDueDateStr,
         "First rent invoice",
-      ]
+      ],
     );
 
     let deposit = null;
@@ -233,13 +321,15 @@ router.post("/register", requireAuth, requireLandlord, async (req, res) => {
           amount_paid, status, country, created_at, updated_at
         ) VALUES ($1, $2, $3, 0, 'unpaid', 'South Africa', NOW(), NOW())
         RETURNING *`,
-        [lease.id, tenantId, depositAmt]
+        [lease.id, tenantId, depositAmt],
       );
       deposit = depositRes.rows[0];
 
       depositInvoiceDueDate = new Date(lease_start_date);
       depositInvoiceDueDate.setDate(depositInvoiceDueDate.getDate() + 7);
-      const depositInvoiceDueDateStr = depositInvoiceDueDate.toISOString().slice(0, 10);
+      const depositInvoiceDueDateStr = depositInvoiceDueDate
+        .toISOString()
+        .slice(0, 10);
 
       const depositInvoiceNumber = `INV-${Date.now()}-D`;
       await client.query(
@@ -257,18 +347,28 @@ router.post("/register", requireAuth, requireLandlord, async (req, res) => {
           'sent', 0, 'deposit', $10
         )`,
         [
-          lease.id, tenantId, unit_id, landlordId,
-          depositInvoiceNumber, depositAmt,
-          lease_start_date, lease_start_date,
+          lease.id,
+          tenantId,
+          unit_id,
+          landlordId,
+          depositInvoiceNumber,
+          depositAmt,
+          lease_start_date,
+          lease_start_date,
           depositInvoiceDueDateStr,
           "Deposit invoice",
-        ]
+        ],
       );
     }
 
     await client.query("COMMIT");
 
-    await sendWelcomeEmail(email, `${first_name} ${last_name}`, tempPassword, "tenant");
+    await sendWelcomeEmail(
+      email,
+      `${first_name} ${last_name}`,
+      tempPassword,
+      "tenant",
+    );
 
     try {
       await sendLeaseCreatedEmail({
@@ -281,7 +381,9 @@ router.post("/register", requireAuth, requireLandlord, async (req, res) => {
         paymentDueDay: dueDay,
         rentInvoiceDueDate: rentInvoiceDueDateStr,
         depositAmount: deposit ? depositAmt : null,
-        depositInvoiceDueDate: depositInvoiceDueDate ? depositInvoiceDueDate.toISOString().slice(0, 10) : null,
+        depositInvoiceDueDate: depositInvoiceDueDate
+          ? depositInvoiceDueDate.toISOString().slice(0, 10)
+          : null,
       });
     } catch (emailErr) {
       console.error("Failed to send lease details email:", emailErr);
@@ -292,20 +394,31 @@ router.post("/register", requireAuth, requireLandlord, async (req, res) => {
       "lease_created",
       "New Lease Created",
       `Your lease has been created. First rent invoice of R${rent_amount} is due on ${rentInvoiceDueDate.toDateString()}.` +
-      (deposit ? ` Deposit of R${depositAmt} is due on ${depositInvoiceDueDate.toDateString()}.` : ""),
+        (deposit
+          ? ` Deposit of R${depositAmt} is due on ${depositInvoiceDueDate.toDateString()}.`
+          : ""),
       lease.id,
-      "lease"
+      "lease",
     );
 
-    await auditLog(req.userId, "CREATE", "tenant", tenantId, null, { first_name, last_name, email, unit_id }, req);
+    await auditLog(
+      req.userId,
+      "CREATE",
+      "tenant",
+      tenantId,
+      null,
+      { first_name, last_name, email, unit_id },
+      req,
+    );
 
     res.status(201).json({
-      message:       "Tenant registered successfully",
-      tenant_id:     tenantId,
-      user_id:       userId,
-      lease_id:      lease.id,
-      deposit_id:    deposit ? deposit.id : null,
-      temp_password: process.env.NODE_ENV === "development" ? tempPassword : undefined,
+      message: "Tenant registered successfully",
+      tenant_id: tenantId,
+      user_id: userId,
+      lease_id: lease.id,
+      deposit_id: deposit ? deposit.id : null,
+      temp_password:
+        process.env.NODE_ENV === "development" ? tempPassword : undefined,
     });
   } catch (err) {
     await client.query("ROLLBACK");
@@ -336,9 +449,10 @@ router.get("/me", requireAuth, requireTenant, async (req, res) => {
        LEFT JOIN property p ON p.id = un.property_id
        LEFT JOIN tenant_payment_history ph ON ph.tenant_id = t.id
        WHERE u.id = $1`,
-      [req.userId]
+      [req.userId],
     );
-    if (!result.rows.length) return res.status(404).json({ error: "Tenant not found" });
+    if (!result.rows.length)
+      return res.status(404).json({ error: "Tenant not found" });
     res.json({ tenant: result.rows[0] });
   } catch (err) {
     console.error("Get tenant me:", err);
@@ -349,20 +463,56 @@ router.get("/me", requireAuth, requireTenant, async (req, res) => {
 // PATCH /tenants/me/profile - Tenant completes/updates their profile
 router.patch("/me/profile", requireAuth, requireTenant, async (req, res) => {
   const {
-    date_of_birth, gender, nationality, marital_status,
-    id_document_type, id_number, passport_number,
-    home_address_line1, home_address_line2, home_city, home_postal_code, home_province, home_country,
-    employment_status, employer_company, employer_contact, employer_official_email, job_title, monthly_income,
-    emergency_name, emergency_relationship, emergency_phone, emergency_email, emergency_address,
-    number_of_occupants, has_pets, pet_details,
+    date_of_birth,
+    gender,
+    nationality,
+    marital_status,
+    id_document_type,
+    id_number,
+    passport_number,
+    home_address_line1,
+    home_address_line2,
+    home_city,
+    home_postal_code,
+    home_province,
+    home_country,
+    employment_status,
+    employer_company,
+    employer_contact,
+    employer_official_email,
+    job_title,
+    monthly_income,
+    emergency_name,
+    emergency_relationship,
+    emergency_phone,
+    emergency_email,
+    emergency_address,
+    number_of_occupants,
+    has_pets,
+    pet_details,
   } = req.body;
 
-  if (!date_of_birth || !gender || !nationality || !id_document_type || !employment_status || !emergency_name || !emergency_phone) {
-    return res.status(400).json({ error: "Date of birth, gender, nationality, ID type, employment status, and emergency contact are required" });
+  if (
+    !date_of_birth ||
+    !gender ||
+    !nationality ||
+    !id_document_type ||
+    !employment_status ||
+    !emergency_name ||
+    !emergency_phone
+  ) {
+    return res.status(400).json({
+      error:
+        "Date of birth, gender, nationality, ID type, employment status, and emergency contact are required",
+    });
   }
   try {
-    const tenantRes = await pool.query("SELECT id FROM tenant WHERE user_id=$1", [req.userId]);
-    if (!tenantRes.rows.length) return res.status(404).json({ error: "Tenant record not found" });
+    const tenantRes = await pool.query(
+      "SELECT id FROM tenant WHERE user_id=$1",
+      [req.userId],
+    );
+    if (!tenantRes.rows.length)
+      return res.status(404).json({ error: "Tenant record not found" });
     const tenantId = tenantRes.rows[0].id;
 
     await pool.query(
@@ -379,19 +529,41 @@ router.patch("/me/profile", requireAuth, requireTenant, async (req, res) => {
          profile_completed=true, updated_by=$28, updated_at=NOW()
        WHERE id=$29`,
       [
-        date_of_birth, gender.toLowerCase(), nationality, marital_status.toLowerCase() || null,
-        id_document_type, id_number || null, passport_number || null,
-        home_address_line1 || null, home_address_line2 || null, home_city || null,
-        home_postal_code || null, home_province || null, home_country || null,
-        employment_status.toLowerCase(), employer_company || null, employer_contact || null,
-        employer_official_email || null, job_title || null, monthly_income || null,
-        emergency_name, emergency_relationship || null, emergency_phone,
-        emergency_email || null, emergency_address || null,
-        number_of_occupants || 1, has_pets || false, has_pets ? pet_details || null : null,
-        req.userId, tenantId,
-      ]
+        date_of_birth,
+        gender.toLowerCase(),
+        nationality,
+        marital_status.toLowerCase() || null,
+        id_document_type,
+        id_number || null,
+        passport_number || null,
+        home_address_line1 || null,
+        home_address_line2 || null,
+        home_city || null,
+        home_postal_code || null,
+        home_province || null,
+        home_country || null,
+        employment_status.toLowerCase(),
+        employer_company || null,
+        employer_contact || null,
+        employer_official_email || null,
+        job_title || null,
+        monthly_income || null,
+        emergency_name,
+        emergency_relationship || null,
+        emergency_phone,
+        emergency_email || null,
+        emergency_address || null,
+        number_of_occupants || 1,
+        has_pets || false,
+        has_pets ? pet_details || null : null,
+        req.userId,
+        tenantId,
+      ],
     );
-    res.json({ message: "Profile completed successfully", profile_completed: true });
+    res.json({
+      message: "Profile completed successfully",
+      profile_completed: true,
+    });
   } catch (err) {
     console.error("Complete profile:", err);
     res.status(500).json({ error: "Server error" });
@@ -401,8 +573,12 @@ router.patch("/me/profile", requireAuth, requireTenant, async (req, res) => {
 // GET /tenants/me/invoices - Get tenant's invoices with payment summary
 router.get("/me/invoices", requireAuth, requireTenant, async (req, res) => {
   try {
-    const tenantRes = await pool.query("SELECT id FROM tenant WHERE user_id=$1", [req.userId]);
-    if (!tenantRes.rows.length) return res.status(404).json({ error: "Tenant not found" });
+    const tenantRes = await pool.query(
+      "SELECT id FROM tenant WHERE user_id=$1",
+      [req.userId],
+    );
+    if (!tenantRes.rows.length)
+      return res.status(404).json({ error: "Tenant not found" });
     const tenantId = tenantRes.rows[0].id;
 
     const result = await pool.query(
@@ -427,23 +603,31 @@ router.get("/me/invoices", requireAuth, requireTenant, async (req, res) => {
        WHERE i.tenant_id = $1
        ORDER BY i.due_date DESC
        LIMIT 24`,
-      [tenantId]
+      [tenantId],
     );
 
     const invoices = result.rows;
     const summary = {
       total: invoices.length,
-      paid: invoices.filter(i => i.status === 'paid').length,
-      partial: invoices.filter(i => i.status === 'partial').length,
-      overdue: invoices.filter(i => i.status === 'overdue').length,
-      unpaid: invoices.filter(i => i.status === 'sent' || i.status === 'unpaid').length,
-      total_remaining: invoices.reduce((sum, i) => sum + Number(i.remaining_balance || 0), 0),
-      total_pending_payments: invoices.reduce((sum, i) => sum + Number(i.pending_amount || 0), 0)
+      paid: invoices.filter((i) => i.status === "paid").length,
+      partial: invoices.filter((i) => i.status === "partial").length,
+      overdue: invoices.filter((i) => i.status === "overdue").length,
+      unpaid: invoices.filter(
+        (i) => i.status === "sent" || i.status === "unpaid",
+      ).length,
+      total_remaining: invoices.reduce(
+        (sum, i) => sum + Number(i.remaining_balance || 0),
+        0,
+      ),
+      total_pending_payments: invoices.reduce(
+        (sum, i) => sum + Number(i.pending_amount || 0),
+        0,
+      ),
     };
 
-    res.json({ 
+    res.json({
       invoices: result.rows,
-      summary
+      summary,
     });
   } catch (err) {
     console.error("Get tenant invoices:", err);
@@ -454,8 +638,12 @@ router.get("/me/invoices", requireAuth, requireTenant, async (req, res) => {
 // GET /tenants/me/payments - Get payment history with invoice_payments data
 router.get("/me/payments", requireAuth, requireTenant, async (req, res) => {
   try {
-    const tenantRes = await pool.query("SELECT id FROM tenant WHERE user_id=$1", [req.userId]);
-    if (!tenantRes.rows.length) return res.status(404).json({ error: "Tenant not found" });
+    const tenantRes = await pool.query(
+      "SELECT id FROM tenant WHERE user_id=$1",
+      [req.userId],
+    );
+    if (!tenantRes.rows.length)
+      return res.status(404).json({ error: "Tenant not found" });
     const tenantId = tenantRes.rows[0].id;
 
     const result = await pool.query(
@@ -480,24 +668,31 @@ router.get("/me/payments", requireAuth, requireTenant, async (req, res) => {
        WHERE pay.tenant_id = $1
        ORDER BY pay.created_at DESC
        LIMIT 50`,
-      [tenantId]
+      [tenantId],
     );
 
     const payments = result.rows;
     const summary = {
       total_paid: payments
-        .filter(p => p.status === 'paid' || p.status === 'late')
+        .filter((p) => p.status === "paid" || p.status === "late")
         .reduce((sum, p) => sum + Number(p.amount_paid), 0),
-      pending: payments.filter(p => p.status === 'pending' || p.status === 'pending_approval').length,
-      approved: payments.filter(p => p.status === 'paid' || p.status === 'late').length,
-      rejected: payments.filter(p => p.status === 'rejected').length,
-      partial_payments: payments.filter(p => p.payment_approval_status === 'approved' && 
-        p.invoice_status === 'partial').length
+      pending: payments.filter(
+        (p) => p.status === "pending" || p.status === "pending_approval",
+      ).length,
+      approved: payments.filter(
+        (p) => p.status === "paid" || p.status === "late",
+      ).length,
+      rejected: payments.filter((p) => p.status === "rejected").length,
+      partial_payments: payments.filter(
+        (p) =>
+          p.payment_approval_status === "approved" &&
+          p.invoice_status === "partial",
+      ).length,
     };
 
-    res.json({ 
+    res.json({
       payments: result.rows,
-      summary
+      summary,
     });
   } catch (err) {
     console.error("Get tenant payments:", err);
@@ -508,45 +703,101 @@ router.get("/me/payments", requireAuth, requireTenant, async (req, res) => {
 // POST /tenants/me/payments - Submit payment with proof
 router.post("/me/payments", requireAuth, requireTenant, async (req, res) => {
   try {
-    const tenantRes = await pool.query("SELECT id FROM tenant WHERE user_id=$1", [req.userId]);
-    if (!tenantRes.rows.length) return res.status(404).json({ error: "Tenant not found" });
+    const tenantRes = await pool.query(
+      "SELECT id FROM tenant WHERE user_id=$1",
+      [req.userId],
+    );
+    if (!tenantRes.rows.length)
+      return res.status(404).json({ error: "Tenant not found" });
     const tenantId = tenantRes.rows[0].id;
 
-    const { 
-      invoice_id, 
-      amount_paid, 
-      payment_method, 
-      bank_reference, 
-      proof_of_payment_url, 
+    const {
+      invoice_id,
+      amount_paid,
+      payment_method,
+      bank_reference,
+      proof_of_payment_url,
       auto_approve,
       allocated_rent,
       allocated_utilities,
-      allocated_late_fees
+      allocated_late_fees,
     } = req.body;
 
     if (!invoice_id || !amount_paid) {
-      return res.status(400).json({ error: "Invoice ID and amount are required" });
+      return res
+        .status(400)
+        .json({ error: "Invoice ID and amount are required" });
     }
 
     const invCheck = await pool.query(
       "SELECT id, landlord_id, lease_id, amount_due, paid_amount, remaining_balance, status FROM invoice WHERE id = $1 AND tenant_id = $2",
-      [invoice_id, tenantId]
+      [invoice_id, tenantId],
     );
     if (!invCheck.rows.length) {
       return res.status(404).json({ error: "Invoice not found" });
     }
 
     const invoice = invCheck.rows[0];
-    
-    if (invoice.status === 'paid') {
-      return res.status(400).json({ error: "This invoice has already been paid in full" });
+
+    if (invoice.status === "paid") {
+      return res
+        .status(400)
+        .json({ error: "This invoice has already been paid in full" });
     }
-    
+
     const remaining = Number(invoice.remaining_balance);
     if (amount_paid > remaining && remaining > 0) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: `Amount exceeds remaining balance. Remaining: R${remaining.toFixed(2)}`,
-        remaining_balance: remaining
+        remaining_balance: remaining,
+      });
+    }
+
+    const riskRes = await pool.query(
+      `SELECT reliability_score, standing FROM tenant WHERE id = $1`,
+      [tenantId]
+    );
+    const tenantRisk = riskRes.rows[0] || {};
+
+    const fullPaymentRequired =
+      tenantRisk.reliability_score === "high_risk" ||
+      ["final_warning", "eviction_notice", "evicted"].includes(
+        tenantRisk.standing
+      );
+
+    if (
+      fullPaymentRequired &&
+      Number(amount_paid) < remaining
+    ) {
+      return res.status(400).json({
+        error:
+          "Your account does not allow partial payments. You must pay the full outstanding balance.",
+        required_full_amount: remaining,
+      });
+    }
+
+    if (
+      tenantRisk.reliability_score === "moderate_risk" &&
+      Number(amount_paid) < remaining &&
+      Number(amount_paid) < Number(invoice.amount_due) * 0.5
+    ) {
+      return res.status(400).json({
+        error: "Partial payment must be at least 50% of the invoice amount.",
+        minimum_partial_amount: Number(invoice.amount_due) * 0.5,
+      });
+    }
+
+    const collectionsRes = await pool.query(
+      `SELECT id FROM collection
+       WHERE tenant_id = $1
+         AND status IN ('active','flagged','repayment_agreed','partial_collection')
+       LIMIT 1`,
+      [tenantId]
+    );
+    if (collectionsRes.rows.length > 0) {
+      return res.status(400).json({
+        error:
+          "Your account is in collections. Please request or use a repayment plan instead.",
       });
     }
 
@@ -554,7 +805,10 @@ router.post("/me/payments", requireAuth, requireTenant, async (req, res) => {
     try {
       await client.query("BEGIN");
 
-      const planBlock = await checkInvoiceNotCoveredByPlan(invoice_id, tenantId);
+      const planBlock = await checkInvoiceNotCoveredByPlan(
+        invoice_id,
+        tenantId,
+      );
       if (planBlock?.blocked) {
         await client.query("ROLLBACK");
         return res.status(400).json({
@@ -563,18 +817,18 @@ router.post("/me/payments", requireAuth, requireTenant, async (req, res) => {
         });
       }
 
-      const status = auto_approve ? 'paid' : 'pending';
-      
+      const status = auto_approve ? "paid" : "pending";
+
       let allocRent = allocated_rent || amount_paid;
       let allocUtilities = allocated_utilities || 0;
       let allocLateFees = allocated_late_fees || 0;
-      
+
       if (allocRent + allocUtilities + allocLateFees !== amount_paid) {
         allocRent = amount_paid;
         allocUtilities = 0;
         allocLateFees = 0;
       }
-      
+
       const paymentResult = await client.query(
         `INSERT INTO payment (invoice_id, tenant_id, lease_id, landlord_id, amount_paid, 
           payment_method, bank_reference, proof_of_payment_url, status,
@@ -583,13 +837,21 @@ router.post("/me/payments", requireAuth, requireTenant, async (req, res) => {
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), NOW())
          RETURNING *`,
         [
-          invoice_id, tenantId, invoice.lease_id, invoice.landlord_id, 
-          amount_paid, payment_method || 'bank_transfer', bank_reference || null, 
-          proof_of_payment_url || null, status,
-          allocRent, allocUtilities, allocLateFees,
+          invoice_id,
+          tenantId,
+          invoice.lease_id,
+          invoice.landlord_id,
+          amount_paid,
+          payment_method || "bank_transfer",
+          bank_reference || null,
+          proof_of_payment_url || null,
+          status,
+          allocRent,
+          allocUtilities,
+          allocLateFees,
           auto_approve ? req.userId : null,
-          auto_approve ? new Date().toISOString() : null
-        ]
+          auto_approve ? new Date().toISOString() : null,
+        ],
       );
 
       const payment = paymentResult.rows[0];
@@ -604,25 +866,27 @@ router.post("/me/payments", requireAuth, requireTenant, async (req, res) => {
            AND id != $3
            AND status IN ('pending', 'pending_approval')
          RETURNING id, amount_paid`,
-        [invoice_id, tenantId, payment.id]
+        [invoice_id, tenantId, payment.id],
       );
 
       if (rejectResult.rows.length > 0) {
-        const rejectedIds = rejectResult.rows.map(r => r.id);
+        const rejectedIds = rejectResult.rows.map((r) => r.id);
         await client.query(
           `UPDATE public.invoice_payments 
            SET status = 'rejected', updated_at = NOW()
            WHERE payment_id = ANY($1)`,
-          [rejectedIds]
+          [rejectedIds],
         );
 
         for (const rejected of rejectResult.rows) {
           await client.query(
             `INSERT INTO notification (user_id, type, title, body, related_entity_id, related_entity_type, created_at)
              VALUES ($1, 'payment_rejected', 'Previous Payment Auto-Cancelled', $2, $3, 'payment', NOW())`,
-            [req.userId,
-             `Your previous payment of R${Number(rejected.amount_paid).toFixed(2)} for this invoice was automatically cancelled because you submitted a new payment.`,
-             rejected.id]
+            [
+              req.userId,
+              `Your previous payment of R${Number(rejected.amount_paid).toFixed(2)} for this invoice was automatically cancelled because you submitted a new payment.`,
+              rejected.id,
+            ],
           );
         }
       }
@@ -639,14 +903,14 @@ router.post("/me/payments", requireAuth, requireTenant, async (req, res) => {
           payment.id,
           amount_paid,
           payment.payment_date,
-          payment_method || 'bank_transfer',
+          payment_method || "bank_transfer",
           bank_reference || null,
-          status === 'paid' ? 'approved' : 'pending',
+          status === "paid" ? "approved" : "pending",
           allocRent,
           allocUtilities,
           allocLateFees,
-          null
-        ]
+          null,
+        ],
       );
 
       let receiptNo = null;
@@ -656,11 +920,11 @@ router.post("/me/payments", requireAuth, requireTenant, async (req, res) => {
       if (auto_approve) {
         const invStatusResult = await client.query(
           `SELECT public.recalculate_invoice_status($1) AS new_status`,
-          [invoice_id]
+          [invoice_id],
         );
         const invBalance = await client.query(
           `SELECT remaining_balance FROM invoice WHERE id = $1`,
-          [invoice_id]
+          [invoice_id],
         );
         newInvoiceStatus = invStatusResult.rows[0].new_status;
         remainingBalance = Number(invBalance.rows[0].remaining_balance);
@@ -669,78 +933,104 @@ router.post("/me/payments", requireAuth, requireTenant, async (req, res) => {
         await client.query(
           `INSERT INTO receipt (payment_id, tenant_id, receipt_number, receipt_url, issued_by, issued_at)
            VALUES ($1, $2, $3, $4, $5, NOW())`,
-          [payment.id, tenantId, receiptNo, `/uploads/receipts/${receiptNo}.pdf`, req.userId]
+          [
+            payment.id,
+            tenantId,
+            receiptNo,
+            `/uploads/receipts/${receiptNo}.pdf`,
+            req.userId,
+          ],
         );
 
-        await client.query(`SELECT public.recalculate_payment_history($1)`, [tenantId]);
-        await client.query(`SELECT public.recalculate_tenant_score($1, NULL)`, [tenantId]);
+        await client.query(`SELECT public.recalculate_payment_history($1)`, [
+          tenantId,
+        ]);
+        await client.query(`SELECT public.recalculate_tenant_score($1, NULL)`, [
+          tenantId,
+        ]);
 
         const landlordUser = await pool.query(
           "SELECT user_id FROM landlord WHERE id = $1",
-          [invoice.landlord_id]
+          [invoice.landlord_id],
         );
 
-        const landlordMsg = newInvoiceStatus === 'partial'
-          ? `Partial in-app card payment of R${amount_paid} received. Balance remaining: R${remainingBalance.toFixed(2)}. Receipt: ${receiptNo}`
-          : `In-app card payment of R${amount_paid} received and auto-approved. Receipt: ${receiptNo}`;
-        const tenantMsg = newInvoiceStatus === 'partial'
-          ? `Your in-app payment of R${amount_paid} was received. R${remainingBalance.toFixed(2)} still outstanding on this invoice. Receipt: ${receiptNo}`
-          : `Your in-app payment of R${amount_paid} has been approved. Receipt: ${receiptNo}`;
+        const landlordMsg =
+          newInvoiceStatus === "partial"
+            ? `Partial in-app card payment of R${amount_paid} received. Balance remaining: R${remainingBalance.toFixed(2)}. Receipt: ${receiptNo}`
+            : `In-app card payment of R${amount_paid} received and auto-approved. Receipt: ${receiptNo}`;
+        const tenantMsg =
+          newInvoiceStatus === "partial"
+            ? `Your in-app payment of R${amount_paid} was received. R${remainingBalance.toFixed(2)} still outstanding on this invoice. Receipt: ${receiptNo}`
+            : `Your in-app payment of R${amount_paid} has been approved. Receipt: ${receiptNo}`;
 
         if (landlordUser.rows.length) {
           await client.query(
             `INSERT INTO notification (user_id, type, title, body, related_entity_id, related_entity_type, created_at)
              VALUES ($1, 'payment_received', $2, $3, $4, 'payment', NOW())`,
-            [landlordUser.rows[0].user_id,
-             newInvoiceStatus === 'partial' ? 'Partial Payment Received' : 'Payment Received',
-             landlordMsg,
-             payment.id]
+            [
+              landlordUser.rows[0].user_id,
+              newInvoiceStatus === "partial"
+                ? "Partial Payment Received"
+                : "Payment Received",
+              landlordMsg,
+              payment.id,
+            ],
           );
         }
 
         await client.query(
           `INSERT INTO notification (user_id, type, title, body, related_entity_id, related_entity_type, created_at)
            VALUES ($1, 'payment_approved', $2, $3, $4, 'payment', NOW())`,
-          [req.userId,
-           newInvoiceStatus === 'partial' ? 'Partial Payment Received' : 'Payment Approved',
-           tenantMsg,
-           payment.id]
+          [
+            req.userId,
+            newInvoiceStatus === "partial"
+              ? "Partial Payment Received"
+              : "Payment Approved",
+            tenantMsg,
+            payment.id,
+          ],
         );
       } else {
         const landlordUser = await pool.query(
           "SELECT user_id FROM landlord WHERE id = $1",
-          [invoice.landlord_id]
+          [invoice.landlord_id],
         );
         if (landlordUser.rows.length) {
           await client.query(
             `INSERT INTO notification (user_id, type, title, body, related_entity_id, related_entity_type, created_at)
              VALUES ($1, 'payment_received', 'Payment Needs Review', $2, $3, 'payment', NOW())`,
-            [landlordUser.rows[0].user_id, 
-             `Payment of R${amount_paid} submitted and requires your approval.${rejectResult.rows.length > 0 ? ` ${rejectResult.rows.length} previous pending payment(s) were auto-cancelled.` : ''}`,
-             payment.id]
+            [
+              landlordUser.rows[0].user_id,
+              `Payment of R${amount_paid} submitted and requires your approval.${rejectResult.rows.length > 0 ? ` ${rejectResult.rows.length} previous pending payment(s) were auto-cancelled.` : ""}`,
+              payment.id,
+            ],
           );
         }
 
         await client.query(
           `INSERT INTO notification (user_id, type, title, body, related_entity_id, related_entity_type, created_at)
            VALUES ($1, 'payment_received', 'Payment Submitted', $2, $3, 'payment', NOW())`,
-          [req.userId, 
-           `Your payment of R${amount_paid} has been submitted and is pending landlord approval.${rejectResult.rows.length > 0 ? ` Your ${rejectResult.rows.length} previous pending payment(s) were auto-cancelled.` : ''}`,
-           payment.id]
+          [
+            req.userId,
+            `Your payment of R${amount_paid} has been submitted and is pending landlord approval.${rejectResult.rows.length > 0 ? ` Your ${rejectResult.rows.length} previous pending payment(s) were auto-cancelled.` : ""}`,
+            payment.id,
+          ],
         );
       }
 
       await client.query("COMMIT");
 
-      res.status(201).json({ 
-        message: auto_approve ? "Payment approved" : "Payment submitted for approval", 
+      res.status(201).json({
+        message: auto_approve
+          ? "Payment approved"
+          : "Payment submitted for approval",
         payment: {
           ...payment,
           receipt_no: receiptNo,
         },
         auto_cancelled_count: rejectResult.rows.length,
         invoice_status: newInvoiceStatus,
-        remaining_balance: remainingBalance
+        remaining_balance: remainingBalance,
       });
     } catch (err) {
       await client.query("ROLLBACK");
@@ -757,11 +1047,23 @@ router.post("/me/payments", requireAuth, requireTenant, async (req, res) => {
 // GET /tenants/me/dashboard - Tenant dashboard summary
 router.get("/me/dashboard", requireAuth, requireTenant, async (req, res) => {
   try {
-    const tenantRes = await pool.query("SELECT id FROM tenant WHERE user_id=$1", [req.userId]);
-    if (!tenantRes.rows.length) return res.status(404).json({ error: "Tenant not found" });
+    const tenantRes = await pool.query(
+      "SELECT id FROM tenant WHERE user_id=$1",
+      [req.userId],
+    );
+    if (!tenantRes.rows.length)
+      return res.status(404).json({ error: "Tenant not found" });
     const tenantId = tenantRes.rows[0].id;
 
-    const [currentInvoice, lease, maintenanceCount, complaintCount, unreadMessages, paymentStats, tenantInfo] = await Promise.all([
+    const [
+      currentInvoice,
+      lease,
+      maintenanceCount,
+      complaintCount,
+      unreadMessages,
+      paymentStats,
+      tenantInfo,
+    ] = await Promise.all([
       pool.query(
         `SELECT 
           i.*,
@@ -772,7 +1074,7 @@ router.get("/me/dashboard", requireAuth, requireTenant, async (req, res) => {
          LEFT JOIN public.invoice_payment_summary ips ON ips.invoice_id = i.id
          WHERE i.tenant_id = $1 AND i.status IN ('sent', 'overdue', 'partial')
          ORDER BY i.due_date ASC LIMIT 1`,
-        [tenantId]
+        [tenantId],
       ),
       pool.query(
         `SELECT l.*, u.unit_number, p.name AS property_name
@@ -781,22 +1083,22 @@ router.get("/me/dashboard", requireAuth, requireTenant, async (req, res) => {
          JOIN property p ON p.id = u.property_id
          WHERE l.tenant_id = $1 AND l.status = 'active'
          LIMIT 1`,
-        [tenantId]
+        [tenantId],
       ),
       pool.query(
         `SELECT COUNT(*) FROM maintenance_request 
          WHERE tenant_id = $1 AND status NOT IN ('completed', 'closed', 'cancelled')`,
-        [tenantId]
+        [tenantId],
       ),
       pool.query(
         `SELECT COUNT(*) FROM complaint 
          WHERE filed_by_tenant_id = $1 AND status NOT IN ('resolved', 'dismissed', 'rejected')`,
-        [tenantId]
+        [tenantId],
       ),
       pool.query(
         `SELECT COUNT(*) FROM message 
          WHERE recipient_id = $1 AND is_read = false`,
-        [req.userId]
+        [req.userId],
       ),
       pool.query(
         `SELECT 
@@ -804,15 +1106,30 @@ router.get("/me/dashboard", requireAuth, requireTenant, async (req, res) => {
           COALESCE(SUM(remaining_balance), 0) AS total_outstanding
          FROM invoice
          WHERE tenant_id = $1 AND status IN ('sent', 'overdue', 'partial')`,
-        [tenantId]
+        [tenantId],
       ),
       pool.query(
-        `SELECT t.reliability_score, t.standing, u.first_name, u.last_name,
-                u.email, u.phone
-         FROM tenant t
-         JOIN users u ON u.id = t.user_id
-         WHERE t.id = $1`,
-        [tenantId]
+        `SELECT 
+          t.reliability_score,
+          t.reliability_score_value,
+          t.standing,
+          t.standing_reason,
+          t.total_fines,
+          t.total_warnings,
+          u.first_name,
+          u.last_name,
+          u.email,
+          u.phone,
+          COALESCE(ph.on_time_payments, 0) AS on_time_payments,
+          COALESCE(ph.late_payments, 0) AS late_payments,
+          COALESCE(ph.missed_payments, 0) AS missed_payments,
+          COALESCE(ph.partial_payments, 0) AS partial_payments,
+          COALESCE(ph.average_days_late, 0) AS average_days_late
+        FROM tenant t
+        JOIN users u ON u.id = t.user_id
+        LEFT JOIN tenant_payment_history ph ON ph.tenant_id = t.id
+        WHERE t.id = $1`,
+        [tenantId],
       ),
     ]);
 
@@ -822,7 +1139,11 @@ router.get("/me/dashboard", requireAuth, requireTenant, async (req, res) => {
       open_maintenance: parseInt(maintenanceCount.rows[0].count) || 0,
       open_complaints: parseInt(complaintCount.rows[0].count) || 0,
       unread_messages: parseInt(unreadMessages.rows[0].count) || 0,
-      payment_stats: paymentStats.rows[0] || { pending_payments: 0, partial_invoices: 0, total_outstanding: 0 },
+      payment_stats: paymentStats.rows[0] || {
+        pending_payments: 0,
+        partial_invoices: 0,
+        total_outstanding: 0,
+      },
       tenant: tenantInfo.rows[0] || null,
     });
   } catch (err) {
@@ -834,8 +1155,12 @@ router.get("/me/dashboard", requireAuth, requireTenant, async (req, res) => {
 // GET /tenants/me/invoices/:id - Get single invoice with payment summary
 router.get("/me/invoices/:id", requireAuth, requireTenant, async (req, res) => {
   try {
-    const tenantRes = await pool.query("SELECT id FROM tenant WHERE user_id=$1", [req.userId]);
-    if (!tenantRes.rows.length) return res.status(404).json({ error: "Tenant not found" });
+    const tenantRes = await pool.query(
+      "SELECT id FROM tenant WHERE user_id=$1",
+      [req.userId],
+    );
+    if (!tenantRes.rows.length)
+      return res.status(404).json({ error: "Tenant not found" });
     const tenantId = tenantRes.rows[0].id;
 
     const result = await pool.query(
@@ -858,25 +1183,31 @@ router.get("/me/invoices/:id", requireAuth, requireTenant, async (req, res) => {
        LEFT JOIN property p ON p.id = u.property_id
        LEFT JOIN public.invoice_payment_summary ips ON ips.invoice_id = i.id
        WHERE i.id = $1 AND i.tenant_id = $2`,
-      [req.params.id, tenantId]
+      [req.params.id, tenantId],
     );
 
-    if (!result.rows.length) return res.status(404).json({ error: "Invoice not found" });
-    
-    const invoice = result.rows[0];
-    const can_pay = invoice.status !== 'paid' && 
-                    invoice.remaining_balance > 0 &&
-                    invoice.status !== 'cancelled' &&
-                    invoice.status !== 'void';
+    if (!result.rows.length)
+      return res.status(404).json({ error: "Invoice not found" });
 
-    res.json({ 
+    const invoice = result.rows[0];
+    const can_pay =
+      invoice.status !== "paid" &&
+      invoice.remaining_balance > 0 &&
+      invoice.status !== "cancelled" &&
+      invoice.status !== "void";
+
+    res.json({
       invoice: {
         ...invoice,
         can_make_payment: can_pay,
-        payment_progress: invoice.amount_due > 0 
-          ? Math.round((Number(invoice.approved_amount) / Number(invoice.amount_due)) * 100)
-          : 0
-      }
+        payment_progress:
+          invoice.amount_due > 0
+            ? Math.round(
+                (Number(invoice.approved_amount) / Number(invoice.amount_due)) *
+                  100,
+              )
+            : 0,
+      },
     });
   } catch (err) {
     console.error("Get invoice:", err);
@@ -885,24 +1216,33 @@ router.get("/me/invoices/:id", requireAuth, requireTenant, async (req, res) => {
 });
 
 // GET /tenants/me/invoices/:id/receipt - Get receipt for an invoice
-router.get("/me/invoices/:id/receipt", requireAuth, requireTenant, async (req, res) => {
-  try {
-    const tenantRes = await pool.query("SELECT id FROM tenant WHERE user_id=$1", [req.userId]);
-    if (!tenantRes.rows.length) return res.status(404).json({ error: "Tenant not found" });
-    const tenantId = tenantRes.rows[0].id;
+router.get(
+  "/me/invoices/:id/receipt",
+  requireAuth,
+  requireTenant,
+  async (req, res) => {
+    try {
+      const tenantRes = await pool.query(
+        "SELECT id FROM tenant WHERE user_id=$1",
+        [req.userId],
+      );
+      if (!tenantRes.rows.length)
+        return res.status(404).json({ error: "Tenant not found" });
+      const tenantId = tenantRes.rows[0].id;
 
-    const invoiceRes = await pool.query(
-      `SELECT i.*, p.name AS property_name, u.unit_number
+      const invoiceRes = await pool.query(
+        `SELECT i.*, p.name AS property_name, u.unit_number
        FROM invoice i
        LEFT JOIN unit u ON u.id = i.unit_id
        LEFT JOIN property p ON p.id = u.property_id
        WHERE i.id = $1 AND i.tenant_id = $2`,
-      [req.params.id, tenantId]
-    );
-    if (!invoiceRes.rows.length) return res.status(404).json({ error: "Invoice not found" });
+        [req.params.id, tenantId],
+      );
+      if (!invoiceRes.rows.length)
+        return res.status(404).json({ error: "Invoice not found" });
 
-    const receiptsRes = await pool.query(
-      `SELECT r.*, pay.amount_paid, pay.payment_method, pay.payment_date,
+      const receiptsRes = await pool.query(
+        `SELECT r.*, pay.amount_paid, pay.payment_method, pay.payment_date,
               ip.allocated_rent, ip.allocated_utilities, ip.allocated_late_fees,
               ip.status AS payment_approval_status
        FROM receipt r
@@ -910,29 +1250,39 @@ router.get("/me/invoices/:id/receipt", requireAuth, requireTenant, async (req, r
        LEFT JOIN public.invoice_payments ip ON ip.payment_id = pay.id
        WHERE pay.invoice_id = $1 AND pay.tenant_id = $2
        ORDER BY r.issued_at ASC`,
-      [req.params.id, tenantId]
-    );
+        [req.params.id, tenantId],
+      );
 
-    if (!receiptsRes.rows.length) {
-      return res.status(404).json({ error: "No receipt found for this invoice yet" });
+      if (!receiptsRes.rows.length) {
+        return res
+          .status(404)
+          .json({ error: "No receipt found for this invoice yet" });
+      }
+
+      res.json({
+        invoice: invoiceRes.rows[0],
+        receipts: receiptsRes.rows,
+        total_paid: receiptsRes.rows.reduce(
+          (sum, r) => sum + Number(r.amount_paid),
+          0,
+        ),
+      });
+    } catch (err) {
+      console.error("Get invoice receipt:", err);
+      res.status(500).json({ error: "Server error" });
     }
-
-    res.json({ 
-      invoice: invoiceRes.rows[0], 
-      receipts: receiptsRes.rows,
-      total_paid: receiptsRes.rows.reduce((sum, r) => sum + Number(r.amount_paid), 0)
-    });
-  } catch (err) {
-    console.error("Get invoice receipt:", err);
-    res.status(500).json({ error: "Server error" });
-  }
-});
+  },
+);
 
 // GET /tenants - Get all tenants for a landlord
 router.get("/", requireAuth, requireLandlord, async (req, res) => {
   try {
-    const landlordRes = await pool.query("SELECT id FROM landlord WHERE user_id=$1", [req.userId]);
-    if (!landlordRes.rows.length) return res.status(404).json({ error: "Landlord not found" });
+    const landlordRes = await pool.query(
+      "SELECT id FROM landlord WHERE user_id=$1",
+      [req.userId],
+    );
+    if (!landlordRes.rows.length)
+      return res.status(404).json({ error: "Landlord not found" });
     const landlordId = landlordRes.rows[0].id;
 
     const result = await pool.query(
@@ -963,7 +1313,7 @@ router.get("/", requireAuth, requireLandlord, async (req, res) => {
        LEFT JOIN tenant_payment_history ph ON ph.tenant_id = t.id
        WHERE t.landlord_id = $1
        ORDER BY t.created_at DESC`,
-      [landlordId]
+      [landlordId],
     );
     res.json({ tenants: result.rows });
   } catch (err) {
@@ -978,7 +1328,8 @@ router.get("/:id", requireAuth, requireLandlord, async (req, res) => {
     const { id } = req.params;
 
     const tenantResult = await pool.query(
-      `SELECT 
+      `SELECT
+        l.id as lease_id, 
         t.id,
         t.user_id,
         u.email,
@@ -1019,14 +1370,19 @@ router.get("/:id", requireAuth, requireLandlord, async (req, res) => {
         un.unit_number,
         un.floor_number,
         p.name AS property_name,
-        p.id AS property_id
+        p.id AS property_id,
+        ph.on_time_payments,
+        ph.late_payments,
+        ph.missed_payments,
+        ph.partial_payments
       FROM lease l
       JOIN tenant t ON t.id = l.tenant_id
       JOIN users u ON u.id = t.user_id
       LEFT JOIN unit un ON un.id = l.unit_id
       LEFT JOIN property p ON p.id = un.property_id
+      LEFT JOIN tenant_payment_history ph ON ph.tenant_id = t.id
       WHERE t.id = $1`,
-      [id]
+      [id],
     );
 
     if (!tenantResult.rows.length) {
@@ -1060,7 +1416,7 @@ router.get("/:id", requireAuth, requireLandlord, async (req, res) => {
       LEFT JOIN property p ON p.id = un.property_id
       WHERE l.tenant_id = $1
       ORDER BY l.lease_start_date DESC`,
-      [id]
+      [id],
     );
 
     const complaintsResult = await pool.query(
@@ -1085,7 +1441,7 @@ router.get("/:id", requireAuth, requireLandlord, async (req, res) => {
       LEFT JOIN unit un ON un.id = c.against_unit_id
       WHERE c.filed_by_tenant_id = $1 OR c.against_tenant_id = $1
       ORDER BY c.created_at DESC`,
-      [id]
+      [id],
     );
 
     const maintenanceResult = await pool.query(
@@ -1112,7 +1468,7 @@ router.get("/:id", requireAuth, requireLandlord, async (req, res) => {
       LEFT JOIN property p ON p.id = un.property_id
       WHERE m.tenant_id = $1
       ORDER BY m.created_at DESC`,
-      [id]
+      [id],
     );
 
     const invoicesResult = await pool.query(
@@ -1126,7 +1482,7 @@ router.get("/:id", requireAuth, requireLandlord, async (req, res) => {
       FROM invoice i
       WHERE i.tenant_id = $1
       ORDER BY i.due_date DESC`,
-      [id]
+      [id],
     );
 
     const paymentsResult = await pool.query(
@@ -1140,7 +1496,7 @@ router.get("/:id", requireAuth, requireLandlord, async (req, res) => {
       FROM payment p
       WHERE p.tenant_id = $1
       ORDER BY p.payment_date DESC`,
-      [id]
+      [id],
     );
 
     const balanceResult = await pool.query(
@@ -1149,10 +1505,54 @@ router.get("/:id", requireAuth, requireLandlord, async (req, res) => {
       WHERE tenant_id = $1
         AND status NOT IN ('paid', 'void', 'cancelled')
         AND remaining_balance > 0`,
-      [id]
+      [id],
     );
 
     const outstandingBalance = Number(balanceResult.rows[0].total_remaining);
+
+    const scoreHistoryResult = await pool.query(
+      `SELECT old_score, new_score, old_score_value, new_score_value, reason, created_at
+       FROM tenant_score_history
+       WHERE tenant_id = $1
+       ORDER BY created_at DESC
+       LIMIT 10`,
+      [id],
+    );
+
+    const latestScoreResult = await pool.query(
+      `SELECT new_score, new_score_value, reason, created_at
+       FROM tenant_score_history
+       WHERE tenant_id = $1
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [id],
+    );
+
+    let score_breakdown = null;
+    if (latestScoreResult.rows.length > 0) {
+      try {
+        score_breakdown = JSON.parse(latestScoreResult.rows[0].reason);
+      } catch (e) {
+        score_breakdown = null;
+      }
+    }
+
+    const score_history = scoreHistoryResult.rows.map((row) => {
+      let parsedReason = null;
+      try {
+        parsedReason = row.reason ? JSON.parse(row.reason) : null;
+      } catch (e) {
+        parsedReason = null;
+      }
+      return {
+        old_score: row.old_score,
+        new_score: row.new_score,
+        old_score_value: row.old_score_value,
+        new_score_value: row.new_score_value,
+        reason: parsedReason,
+        created_at: row.created_at,
+      };
+    });
 
     const fullTenant = {
       ...tenant,

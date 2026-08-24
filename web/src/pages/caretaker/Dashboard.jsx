@@ -1,15 +1,15 @@
 /* eslint-disable no-unused-vars */
-// CARETAKER DASHBOARD PAGE — LIGHT THEME
+// CARETAKER DASHBOARD PAGE 
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import useDocumentTitle from "../../hooks/useDocumentTitle";
 import { useToast } from "../../contexts/ToastContext";
 import { Icon } from "../../components/Icon";
+import LoginDigestModal from "../../components/LoginDigestModal";
 
 const API = "http://localhost:4000";
 
-// ---- Local light theme ----
 const C = {
   background: "#f4f5f7",
   card: "#ffffff",
@@ -42,18 +42,18 @@ function timeAgo(dateStr) {
 
 const PRIORITY = {
   urgent: { color: "#ffffff", bg: C.red },
-  high:   { color: TEXT, bg: C.gold },
+  high: { color: TEXT, bg: C.gold },
   medium: { color: "#ffffff", bg: C.blue },
-  low:    { color: SECONDARY_TEXT, bg: C.background },
+  low: { color: SECONDARY_TEXT, bg: C.background },
 };
 
 const STATUS = {
-  'needs_repair':  { color: C.red,       bg: 'rgba(158,58,58,0.06)',  border: '1px solid rgba(158,58,58,0.12)' },
-  'in_progress':   { color: C.gold,      bg: 'rgba(217,158,11,0.06)', border: '1px solid rgba(217,158,11,0.12)' },
-  'assigned':      { color: C.blue,      bg: 'rgba(52,152,219,0.06)', border: '1px solid rgba(52,152,219,0.12)' },
-  'completed':     { color: C.green,     bg: 'rgba(43,122,75,0.06)',  border: '1px solid rgba(43,122,75,0.12)' },
-  'open':          { color: C.red,       bg: 'rgba(158,58,58,0.06)',  border: '1px solid rgba(158,58,58,0.12)' },
-  'under_review':  { color: C.gold,      bg: 'rgba(217,158,11,0.06)', border: '1px solid rgba(217,158,11,0.12)' },
+  'needs_repair': { color: C.red, bg: 'rgba(158,58,58,0.06)', border: '1px solid rgba(158,58,58,0.12)' },
+  'in_progress': { color: C.gold, bg: 'rgba(217,158,11,0.06)', border: '1px solid rgba(217,158,11,0.12)' },
+  'assigned': { color: C.blue, bg: 'rgba(52,152,219,0.06)', border: '1px solid rgba(52,152,219,0.12)' },
+  'completed': { color: C.green, bg: 'rgba(43,122,75,0.06)', border: '1px solid rgba(43,122,75,0.12)' },
+  'open': { color: C.red, bg: 'rgba(158,58,58,0.06)', border: '1px solid rgba(158,58,58,0.12)' },
+  'under_review': { color: C.gold, bg: 'rgba(217,158,11,0.06)', border: '1px solid rgba(217,158,11,0.12)' },
 };
 
 function StatusDot({ status }) {
@@ -95,7 +95,7 @@ function ActivityRow({ type, title, detail, time, status, priority, onClick }) {
     }}
       onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.03)'}
       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-      
+
       {/* Icon */}
       <div style={{ width: 34, height: 34, borderRadius: '6px', background: cfg.bg, border: cfg.border, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
         <Icon name={cfg.icon} size={15} color={cfg.color} />
@@ -145,6 +145,15 @@ export default function CaretakerDashboard() {
 
   const [loading, setLoading] = useState(true);
   const [dashboard, setDashboard] = useState(null);
+
+  const [showDigest, setShowDigest] = useState(() => {
+    return sessionStorage.getItem("digest_shown") !== "true";
+  });
+
+  function closeDigest() {
+    sessionStorage.setItem("digest_shown", "true");
+    setShowDigest(false);
+  }
 
   const fetchDashboard = useCallback(async () => {
     setLoading(true);
@@ -237,7 +246,7 @@ export default function CaretakerDashboard() {
                 background: 'none', border: 'none', cursor: 'pointer',
                 fontFamily: F.mono, letterSpacing: '0.04em',
               }}>
-                View All 
+                View All
               </button>
             </div>
 
@@ -308,6 +317,7 @@ export default function CaretakerDashboard() {
           </div>
         </div>
       )}
+      {showDigest && <LoginDigestModal onClose={closeDigest} />}
     </div>
   );
 }

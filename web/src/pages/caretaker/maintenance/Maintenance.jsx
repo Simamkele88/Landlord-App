@@ -24,21 +24,21 @@ const STATUS_MAP = {
 };
 
 const statusConfig = {
-  "needs_repair":     { color: "#9e3a3a", bg: "#fbeaea", border: "1px solid #e5bdbd", dot: "#9e3a3a", label: "Needs Repair" },
-  "assigned":         { color: "#2c6b9b", bg: "#e8f0f5", border: "1px solid #b0cfe0", dot: "#2c6b9b", label: "Assigned" },
-  "in_progress":      { color: "#8b6e1a", bg: "#faf6ed", border: "1px solid #e5dbb8", dot: "#8b6e1a", label: "In Progress" },
-  "completed":        { color: "#2b7a4b", bg: "#eef5e8", border: "1px solid #c5d9b8", dot: "#2b7a4b", label: "Completed" },
-  "closed":           { color: "#5a5a5a", bg: "#f2f2f2", border: "1px solid #d0d0d0", dot: "#6b6b6b", label: "Closed" },
-  "cancelled":        { color: "#5a5a5a", bg: "#f2f2f2", border: "1px solid #d0d0d0", dot: "#6b6b6b", label: "Cancelled" },
+  "needs_repair": { color: "#9e3a3a", bg: "#fbeaea", border: "1px solid #e5bdbd", dot: "#9e3a3a", label: "Needs Repair" },
+  "assigned": { color: "#2c6b9b", bg: "#e8f0f5", border: "1px solid #b0cfe0", dot: "#2c6b9b", label: "Assigned" },
+  "in_progress": { color: "#8b6e1a", bg: "#faf6ed", border: "1px solid #e5dbb8", dot: "#8b6e1a", label: "In Progress" },
+  "completed": { color: "#2b7a4b", bg: "#eef5e8", border: "1px solid #c5d9b8", dot: "#2b7a4b", label: "Completed" },
+  "closed": { color: "#5a5a5a", bg: "#f2f2f2", border: "1px solid #d0d0d0", dot: "#6b6b6b", label: "Closed" },
+  "cancelled": { color: "#5a5a5a", bg: "#f2f2f2", border: "1px solid #d0d0d0", dot: "#6b6b6b", label: "Cancelled" },
   "pending_approval": { color: "#54326b", bg: "#eee7f3", border: "1px solid #d1c2dc", dot: "#54326b", label: "Pending Approval" },
 };
 
 const priorityConfig = {
   "emergency": { bg: "#9e3a3a", color: "#ffffff" },
-  "urgent":    { bg: "#fbeaea", color: "#9e3a3a" },
-  "high":      { bg: "#faf6ed", color: "#8b6e1a" },
-  "medium":    { bg: "#e8f0f5", color: "#2c6b9b" },
-  "low":       { bg: "#f5f5f5", color: "#555555" },
+  "urgent": { bg: "#fbeaea", color: "#9e3a3a" },
+  "high": { bg: "#faf6ed", color: "#8b6e1a" },
+  "medium": { bg: "#e8f0f5", color: "#2c6b9b" },
+  "low": { bg: "#f5f5f5", color: "#555555" },
 };
 
 const thStyle = {
@@ -98,6 +98,38 @@ function PriorityBadge({ priority }) {
     }}>
       {priority}
     </span>
+  );
+}
+
+function StatChip({ label, value, color, bg, border }) {
+  return (
+    <div style={{
+      padding: "0.7rem 0.9rem",
+      borderRadius: "3px",
+      background: bg || "#f9fafb",
+      border: `1px solid ${border || "#e9ecef"}`,
+      textAlign: "center",
+      flex: "1 1 100px",
+    }}>
+      <div style={{
+        fontSize: "0.68rem",
+        fontWeight: 600,
+        color: "#555",
+        textTransform: "uppercase",
+        letterSpacing: "0.06em",
+        fontFamily: FONT,
+      }}>
+        {label}
+      </div>
+      <div style={{
+        fontSize: "1.3rem",
+        fontWeight: 700,
+        color: color || "#000",
+        marginTop: "2px",
+      }}>
+        {value}
+      </div>
+    </div>
   );
 }
 
@@ -164,6 +196,13 @@ export default function CaretakerMaintenance() {
   const inProgress = requests.filter(r => ["assigned", "in_progress"].includes(r.status)).length;
   const escalatedCount = requests.filter(r => r.escalated).length;
   const propertyName = requests[0]?.property_name || "Your Property";
+  const totalRequests = requests.length;
+  const pendingApproval = requests.filter(r => r.status === "pending_approval").length;
+  const completed = requests.filter(r => r.status === "completed").length;
+  const urgentOpen = requests.filter(
+    r => ["urgent", "emergency"].includes(r.priority) &&
+      ["needs_repair", "assigned", "in_progress", "pending_approval"].includes(r.status)
+  ).length;
 
   const outlineBtnStyle = {
     display: 'flex', alignItems: 'center', gap: '0.35rem',
@@ -205,6 +244,23 @@ export default function CaretakerMaintenance() {
           <h4 style={{ fontSize: '16px', color: '#000', margin: 0, fontFamily: FONT, fontWeight: 500 }}>
             List of Maintenance Requests
           </h4>
+        </div>
+
+        <div style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: "0.6rem",
+          padding: "0.85rem 1.1rem",
+          background: "#f9fafb",
+          borderBottom: "1px solid #dfe3e8",
+        }}>
+          <StatChip label="Total" value={totalRequests} color="#2c3e50" bg="rgba(44,62,80,0.06)" border="rgba(44,62,80,0.15)" />
+          <StatChip label="Needs Repair" value={needsAction} color="#9e3a3a" bg="rgba(158,58,58,0.06)" border="rgba(158,58,58,0.15)" />
+          <StatChip label="In Progress" value={inProgress} color="#8b6e1a" bg="rgba(139,110,26,0.06)" border="rgba(139,110,26,0.15)" />
+          <StatChip label="Pending Approval" value={pendingApproval} color="#54326b" bg="rgba(84,50,107,0.06)" border="rgba(84,50,107,0.15)" />
+          <StatChip label="Urgent Open" value={urgentOpen} color="#9e3a3a" bg="rgba(158,58,58,0.06)" border="rgba(158,58,58,0.15)" />
+          <StatChip label="Escalated" value={escalatedCount} color="#54326b" bg="rgba(84,50,107,0.06)" border="rgba(84,50,107,0.15)" />
+          <StatChip label="Completed" value={completed} color="#2b7a4b" bg="rgba(43,122,75,0.06)" border="rgba(43,122,75,0.15)" />
         </div>
 
         {/* Toolbar */}
@@ -392,7 +448,7 @@ export default function CaretakerMaintenance() {
           </div>
         )}
 
-        {/* Footer with pagination */}
+        {/* Footer */}
         {!loading && !error && paginatedRequests.length > 0 && (
           <div style={{
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',

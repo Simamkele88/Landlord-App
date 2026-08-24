@@ -1,9 +1,8 @@
-// TENANT PAYMENT METHOD PAGE
 import { useState, useEffect } from "react";
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
   StyleSheet, StatusBar,
-  ActivityIndicator, Alert, Linking,
+  ActivityIndicator, Linking, AppState,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
@@ -23,21 +22,12 @@ const $input = {
   fontFamily: F.dm,
 };
 
-const BANKS = [
-  { id: "fnb", name: "FNB", color: "#FF8C00" },
-  { id: "standard", name: "Standard Bank", color: "#0066CC" },
-  { id: "absa", name: "ABSA", color: "#CC0000" },
-  { id: "nedbank", name: "Nedbank", color: "#00A650" },
-  { id: "capitec", name: "Capitec", color: "#00A0DC" },
-  { id: "tyme", name: "TymeBank", color: "#00BFA5" },
-];
-
 const INVOICE_TYPE_CONFIG = {
-  rent:    { label: "Rent",    color: C.blue },
+  rent: { label: "Rent", color: C.blue },
   deposit: { label: "Deposit", color: C.green },
-  damage:  { label: "Damage",  color: C.red },
+  damage: { label: "Damage", color: C.red },
   utility: { label: "Utility", color: C.primary },
-  other:   { label: "Other",   color: C.textMuted },
+  other: { label: "Other", color: C.textMuted },
 };
 
 function invoiceTypeConfig(type) {
@@ -45,20 +35,6 @@ function invoiceTypeConfig(type) {
 }
 
 function fmt(n) { return `R ${Number(n || 0).toLocaleString("en-ZA")}`; }
-function formatCardNumber(raw) { return raw.replace(/\D/g, "").slice(0, 16).replace(/(.{4})/g, "$1 ").trim(); }
-function formatExpiry(raw) { const d = raw.replace(/\D/g, "").slice(0, 4); return d.length > 2 ? `${d.slice(0, 2)}/${d.slice(2)}` : d; }
-
-function luhnCheck(num) {
-  const arr = num.split('').reverse().map(Number);
-  const sum = arr.reduce((acc, digit, idx) => {
-    if (idx % 2 === 1) {
-      let doubled = digit * 2;
-      return acc + (doubled > 9 ? doubled - 9 : doubled);
-    }
-    return acc + digit;
-  }, 0);
-  return sum % 10 === 0;
-}
 
 function formatBillingPeriod(date) {
   if (!date) return "Current";
@@ -69,118 +45,129 @@ function formatBillingPeriod(date) {
 export default function PaymentMethod() {
   const navigation = useNavigation();
   const route = useRoute();
-  const { invoice, tenant } = route.params || {};
+  const { invoice, tenant, paymentPolicy, repayment_instalment_id } = route.params || {};
 
   const [step, setStep] = useState("method");
   const [method, setMethod] = useState(null);
-  const [bank, setBank] = useState(null);
   const [generatedRcpt, setRcpt] = useState(null);
-  const [cardNumber, setCardNumber] = useState("");
-  const [expiry, setExpiry] = useState("");
-  const [cvv, setCvv] = useState("");
-  const [cardName, setCardName] = useState("");
-  const [cardErrors, setCardErrors] = useState({});
-  const [ozowPin, setOzowPin] = useState("");
-  const [ozowError, setOzowError] = useState("");
   const [paymentError, setPaymentError] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const invoiceType = invoice?.invoice_type || "rent";
   const typeCfg = invoiceTypeConfig(invoiceType);
 
-  const paymentAmount = Number(invoice?.remaining_balance || invoice?.amount_due || 0);
+  const remaining = Number(invoice?.remaining_balance || invoice?.amount_due || 0);
+  const canPartial = paymentPolicy?.canPartial ?? false;
+  const minPartial = Math.round(remaining * 0.5 * 100) / 100;
+
+  const [amountInput, setAmountInput] = useState(String(remaining));
+  const numericAmount = Number(amountInput);
+  const amountValid = !isNaN(numericAmount) && numericAmount > 0 && numericAmount <= remaining;
+  const meetsMinimum = canPartial ? numericAmount >= minPartial : true;
+  const payAmount = !canPartial ? remaining : (amountValid ? numericAmount : 0);
 
   function goBack() { navigation.goBack(); }
 
-  async function initiatePayFast(paymentData) {
-    return new Promise((resolve) => setTimeout(() => resolve({ success: true, payment_id: `PF-${Date.now()}`, status: 'paid' }), 1500));
+  useEffect(() => {
+    if (step !== "processing") return;
+
+    const interval = setInterval(() => {
+      checkPaymentStatus();
+    }, 4000);
+
+    const appStateSubscription = AppState.addEventListener("change", (nextAppState) => {
+      if (nextAppState === "active") {
+        checkPaymentStatus();
+      }
+    });
+
+    const linkingSubscription = Linking.addEventListener("url", ({ url }) => {
+      if (url?.includes("payment-cancel")) {
+        setPaymentError("Payment was cancelled.");
+        setStep("failure");
+      } else if (url?.includes("payment-return")) {
+        checkPaymentStatus();
+      }
+    });
+
+    return () => {
+      clearInterval(interval);
+      appStateSubscription.remove();
+      linkingSubscription.remove();
+    };
+  }, [step]);
+
+  async function checkPaymentStatus() {
+    try {
+      const result = repayment_instalment_id
+        ? await api.get(`/repayment-plans/me/instalments/${repayment_instalment_id}`)
+        : await api.getInvoice(invoice.id);
+      const updated = repayment_instalment_id
+        ? result?.instalment
+        : (result?.invoice || result);
+      const status = updated?.status;
+
+      if (status === "paid" || status === "late" || status === "partial") {
+        setRcpt({
+          amount: payAmount,
+          receiptNo: updated?.last_payment_reference || `${invoice.id}-${Date.now()}`,
+          tenant: [tenant?.first_name, tenant?.last_name].filter(Boolean).join(" ") || tenant?.name,
+          unit: tenant?.unit,
+          property: tenant?.property,
+          period: invoice?.billing_period_start,
+          method: method?.id,
+        });
+        setStep("success");
+      } else if (status === "failed" || status === "cancelled") {
+        setPaymentError("Payment was not completed.");
+        setStep("failure");
+      }
+    } catch (err) {
+      setPaymentError(err?.data?.error || "Could not confirm payment status.");
+      setStep("failure");
+    }
   }
 
-  const submitPayment = async (paymentData) => {
-    const payResult = await initiatePayFast(paymentData);
-    if (!payResult.success) {
-      throw new Error(payResult.message || "Payment failed");
-    }
-    return {
-      success: true,
-      receiptNo: `RCP-${Date.now().toString().slice(-6)}`,
-      payment_id: payResult.payment_id,
-      status: payResult.status,
-      amount: paymentData.amount_paid,
-      method: paymentData.payment_method,
-    };
-  };
+  async function startPayFastPayment() {
+    try {
+      const payload = {
+        amount: payAmount,
+        item_name: repayment_instalment_id
+          ? `Repayment instalment ${invoice.invoice_number}`
+          : `Invoice ${invoice.invoice_number || invoice.id}`,
+        ...(repayment_instalment_id
+          ? { repayment_instalment_id }
+          : { invoice_id: invoice.id }),
+      };
 
-  function validateCard() {
-    const errors = {};
-    if (!cardName.trim()) errors.cardName = "Name is required";
-    const digits = cardNumber.replace(/\s/g, "");
-    if (digits.length !== 16) errors.cardNumber = "Enter a valid 16-digit card number";
-    else if (!luhnCheck(digits)) errors.cardNumber = "Invalid card number";
-    const [month, year] = expiry.split('/');
-    const currentYear = new Date().getFullYear() % 100;
-    const currentMonth = new Date().getMonth() + 1;
-    if (!month || !year || month.length !== 2 || year.length !== 2) errors.expiry = "Enter MM/YY";
-    else if (Number(month) < 1 || Number(month) > 12) errors.expiry = "Invalid month";
-    else if (Number(year) < currentYear || (Number(year) === currentYear && Number(month) < currentMonth)) errors.expiry = "Card expired";
-    if (cvv.length < 3) errors.cvv = "Enter 3-digit CVV";
-    setCardErrors(errors);
-    return Object.keys(errors).length === 0;
+      const response = await api.post("/payments/payfast/initiate", payload);
+
+      const { url, data } = response;
+      const params = Object.keys(data)
+        .map((key) => `${encodeURIComponent(key)}=${encodeURIComponent(data[key])}`)
+        .join("&");
+
+      await Linking.openURL(`${url}?${params}`);
+      setStep("processing");
+    } catch (err) {
+      const msg = err?.data?.error || err?.message || "Failed to start payment";
+      setPaymentError(msg);
+      setStep("failure");
+    }
   }
 
   async function handleCardPayment() {
-    if (!validateCard()) return;
     setLoading(true);
-    setStep("processing");
-    try {
-      const result = await submitPayment({
-        invoice_id: invoice.id,
-        amount_paid: paymentAmount,
-        payment_method: "card",
-        card_number: cardNumber.replace(/\s/g, ""),
-        card_expiry: expiry,
-        card_cvv: cvv,
-      });
-      setRcpt({
-        ...result,
-        period: invoice?.billing_period_start,
-        tenant: tenant?.name || "Tenant",
-        unit: tenant?.unit || "—",
-        property: tenant?.property || "—",
-      });
-      setStep("success");
-    } catch (err) {
-      setPaymentError(err.message || "Payment failed. Please try again.");
-      setStep("failure");
-    } finally {
-      setLoading(false);
-    }
+    setPaymentError(null);
+    await startPayFastPayment();
+    setLoading(false);
   }
 
   async function handleEftPayment() {
     setLoading(true);
-    setStep("processing");
-    try {
-      const result = await submitPayment({
-        invoice_id: invoice.id,
-        amount_paid: paymentAmount,
-        payment_method: "eft",
-        bank: bank?.id,
-      });
-      setRcpt({
-        ...result,
-        period: invoice?.billing_period_start,
-        tenant: tenant?.name || "Tenant",
-        unit: tenant?.unit || "—",
-        property: tenant?.property || "—",
-      });
-      setStep("success");
-    } catch (err) {
-      setPaymentError(err.message || "Payment failed. Please try again.");
-      setStep("failure");
-    } finally {
-      setLoading(false);
-    }
+    setPaymentError(null);
+    await startPayFastPayment();
+    setLoading(false);
   }
 
   if (step === "method") {
@@ -193,7 +180,7 @@ export default function PaymentMethod() {
           <View style={{ width: 24 }} />
         </View>
         <ScrollView contentContainerStyle={S.pad}>
-          <Text style={S.title}>Pay {fmt(paymentAmount)}</Text>
+          <Text style={S.title}>Pay {fmt(payAmount)}</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
             <View style={[S.invoiceTypeBadge, { borderColor: typeCfg.color + "40", backgroundColor: typeCfg.color + "15" }]}>
               <Text style={[S.invoiceTypeText, { color: typeCfg.color }]}>{typeCfg.label}</Text>
@@ -205,7 +192,7 @@ export default function PaymentMethod() {
           {invoice?.status === 'partial' && (
             <View style={S.partialBanner}>
               <Ionicons name="time-outline" size={16} color={C.blue} />
-              <Text style={S.partialBannerText}>Partial payment. Remaining: {fmt(paymentAmount)}</Text>
+              <Text style={S.partialBannerText}>Partial payment. Remaining: {fmt(payAmount)}</Text>
             </View>
           )}
 
@@ -228,7 +215,7 @@ export default function PaymentMethod() {
             )}
             <View style={[S.bRow, S.bTotal]}>
               <Text style={S.bTotalLabel}>Total Due</Text>
-              <Text style={S.bTotalValue}>{fmt(paymentAmount)}</Text>
+              <Text style={S.bTotalValue}>{fmt(remaining)}</Text>
             </View>
             {invoice?.status === 'partial' && (
               <View style={[S.bRow, { borderTopWidth: 0, paddingTop: 0 }]}>
@@ -237,6 +224,45 @@ export default function PaymentMethod() {
               </View>
             )}
           </View>
+
+          {canPartial ? (
+            <View style={S.fieldGroup}>
+              <Text style={S.fieldLabel}>AMOUNT TO PAY</Text>
+              <TextInput
+                style={[
+                  $input,
+                  (!amountValid && amountInput !== "") && { borderColor: C.red },
+                  (!meetsMinimum && amountValid) && { borderColor: C.gold },
+                ]}
+                value={amountInput}
+                onChangeText={(v) => {
+                  setAmountInput(v.replace(/[^0-9.]/g, ""));
+                }}
+                placeholder={`Minimum ${fmt(minPartial)}`}
+                placeholderTextColor={C.textMuted}
+                keyboardType="decimal-pad"
+              />
+              <Text style={[S.fieldHint, { color: amountValid ? C.textMuted : C.red }]}>
+                You may pay any amount between {fmt(minPartial)} and {fmt(remaining)}.
+              </Text>
+              {numericAmount > remaining && (
+                <Text style={S.fieldError}>Amount cannot exceed {fmt(remaining)}</Text>
+              )}
+              {numericAmount <= 0 && amountInput !== "" && (
+                <Text style={S.fieldError}>Enter an amount greater than 0</Text>
+              )}
+              {numericAmount > 0 && numericAmount < minPartial && (
+                <Text style={S.fieldError}>Minimum partial payment is {fmt(minPartial)}</Text>
+              )}
+            </View>
+          ) : (
+            <View style={S.lockBanner}>
+              <MaterialIcons name="lock" size={16} color={C.red} />
+              <Text style={S.lockText}>
+                Your account requires full payment of {fmt(remaining)}.
+              </Text>
+            </View>
+          )}
 
           <Text style={S.fieldLabel}>CHOOSE PAYMENT METHOD</Text>
           {[
@@ -261,116 +287,28 @@ export default function PaymentMethod() {
         </ScrollView>
         <View style={S.footer}>
           <TouchableOpacity style={S.btnGhost} onPress={goBack}><Text style={S.btnGhostText}>Cancel</Text></TouchableOpacity>
-          <TouchableOpacity style={!method ? S.btnPrimaryDisabled : S.btnPrimary}
-            onPress={() => method?.id === "card" ? setStep("card_form") : setStep("bank_select")}
-            disabled={!method}>
-            <Text style={S.btnPrimaryText}>Continue</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (step === "card_form") {
-    return (
-      <SafeAreaView style={S.safe}>
-        <StatusBar barStyle="dark-content" backgroundColor={C.surface} />
-        <View style={S.header}>
-          <TouchableOpacity onPress={() => setStep("method")}><Feather name="arrow-left" size={20} color={C.textPrimary} /></TouchableOpacity>
-          <Text style={S.headerTitle}>Card Details</Text>
-          <View style={{ width: 24 }} />
-        </View>
-        <ScrollView contentContainerStyle={S.pad}>
-          <View style={S.paymentSummary}>
-            <Text style={S.paymentSummaryLabel}>AMOUNT TO PAY</Text>
-            <Text style={S.paymentSummaryValue}>{fmt(paymentAmount)}</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 }}>
-              <View style={[S.invoiceTypeBadge, { borderColor: typeCfg.color + "40", backgroundColor: typeCfg.color + "15" }]}>
-                <Text style={[S.invoiceTypeText, { color: typeCfg.color }]}>{typeCfg.label}</Text>
-              </View>
-              <Text style={S.paymentSummarySub}>{invoice?.invoice_number || invoice?.id}</Text>
-            </View>
-            {invoice?.status === 'partial' && <Text style={S.paymentSummarySub}>Partial payment</Text>}
-          </View>
-
-          {[
-            { label: "CARDHOLDER NAME", value: cardName, setter: setCardName, key: "cardName", placeholder: "Name as on card" },
-            { label: "CARD NUMBER", value: cardNumber, setter: (v) => setCardNumber(formatCardNumber(v)), key: "cardNumber", placeholder: "0000 0000 0000 0000", keyboardType: "numeric", maxLength: 19 },
-          ].map(f => (
-            <View key={f.key} style={S.fieldGroup}>
-              <Text style={S.fieldLabel}>{f.label}</Text>
-              <TextInput style={[$input, cardErrors[f.key] && { borderColor: C.red }]} value={f.value}
-                onChangeText={v => { f.setter(v); setCardErrors(e => ({ ...e, [f.key]: undefined })); }}
-                placeholder={f.placeholder} placeholderTextColor={C.textMuted}
-                keyboardType={f.keyboardType} maxLength={f.maxLength} />
-              {cardErrors[f.key] && <Text style={S.fieldError}>{cardErrors[f.key]}</Text>}
-            </View>
-          ))}
-          <View style={{ flexDirection: "row", gap: 10 }}>
-            {[
-              { label: "EXPIRY", value: expiry, setter: (v) => setExpiry(formatExpiry(v)), key: "expiry", placeholder: "MM/YY", maxLength: 5 },
-              { label: "CVV", value: cvv, setter: (v) => setCvv(v.replace(/\D/g, "").slice(0, 3)), key: "cvv", placeholder: "···", maxLength: 3, secureTextEntry: true },
-            ].map(f => (
-              <View key={f.key} style={[S.fieldGroup, { flex: 1 }]}>
-                <Text style={S.fieldLabel}>{f.label}</Text>
-                <TextInput style={[$input, cardErrors[f.key] && { borderColor: C.red }]} value={f.value}
-                  onChangeText={v => { f.setter(v); setCardErrors(e => ({ ...e, [f.key]: undefined })); }}
-                  placeholder={f.placeholder} placeholderTextColor={C.textMuted}
-                  keyboardType="numeric" maxLength={f.maxLength} secureTextEntry={f.secureTextEntry} />
-                {cardErrors[f.key] && <Text style={S.fieldError}>{cardErrors[f.key]}</Text>}
-              </View>
-            ))}
-          </View>
-        </ScrollView>
-        <View style={S.footer}>
-          <TouchableOpacity style={S.btnGhost} onPress={() => setStep("method")}><Text style={S.btnGhostText}>Back</Text></TouchableOpacity>
-          <TouchableOpacity style={S.btnPrimary} onPress={handleCardPayment}>
-            <Text style={S.btnPrimaryText}>Pay {fmt(paymentAmount)}</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (step === "bank_select") {
-    return (
-      <SafeAreaView style={S.safe}>
-        <StatusBar barStyle="dark-content" backgroundColor={C.surface} />
-        <View style={S.header}>
-          <TouchableOpacity onPress={() => setStep("method")}><Feather name="arrow-left" size={20} color={C.textPrimary} /></TouchableOpacity>
-          <Text style={S.headerTitle}>Select Bank</Text>
-          <View style={{ width: 24 }} />
-        </View>
-        <ScrollView contentContainerStyle={S.pad}>
-          <View style={S.paymentSummary}>
-            <Text style={S.paymentSummaryLabel}>AMOUNT TO PAY</Text>
-            <Text style={S.paymentSummaryValue}>{fmt(paymentAmount)}</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 }}>
-              <View style={[S.invoiceTypeBadge, { borderColor: typeCfg.color + "40", backgroundColor: typeCfg.color + "15" }]}>
-                <Text style={[S.invoiceTypeText, { color: typeCfg.color }]}>{typeCfg.label}</Text>
-              </View>
-              <Text style={S.paymentSummarySub}>{invoice?.invoice_number || invoice?.id}</Text>
-            </View>
-            {invoice?.status === 'partial' && <Text style={S.paymentSummarySub}>Partial payment</Text>}
-          </View>
-
-          <Text style={S.sub}>You'll be redirected to your bank's secure page</Text>
-          <View style={S.bankGrid}>
-            {BANKS.map(b => {
-              const active = bank?.id === b.id;
-              return (
-                <TouchableOpacity key={b.id} style={[S.bankCard, active && { borderColor: b.color, backgroundColor: b.color + "12" }]} onPress={() => setBank(b)} activeOpacity={0.75}>
-                  <Text style={[S.bankName, active && { color: C.textPrimary }]}>{b.name}</Text>
-                  {active && <Ionicons name="checkmark-circle" size={16} color={b.color} />}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </ScrollView>
-        <View style={S.footer}>
-          <TouchableOpacity style={S.btnGhost} onPress={() => setStep("method")}><Text style={S.btnGhostText}>Back</Text></TouchableOpacity>
-          <TouchableOpacity style={!bank ? S.btnPrimaryDisabled : S.btnPrimary} onPress={handleEftPayment} disabled={!bank}>
-            <Text style={S.btnPrimaryText}>Pay {fmt(paymentAmount)}</Text>
+          <TouchableOpacity
+            style={
+              !method ||
+              (canPartial && (!amountValid || !meetsMinimum)) ||
+              loading
+                ? S.btnPrimaryDisabled
+                : S.btnPrimary
+            }
+            onPress={() => {
+              if (!method) return;
+              if (method.id === "card") handleCardPayment();
+              else handleEftPayment();
+            }}
+            disabled={
+              !method ||
+              (canPartial && (!amountValid || !meetsMinimum)) ||
+              loading
+            }
+          >
+            <Text style={S.btnPrimaryText}>
+              {loading ? "Opening PayFast..." : "Pay Now"}
+            </Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -405,9 +343,7 @@ export default function PaymentMethod() {
             <Text style={S.successSub}>
               Your payment of {fmt(generatedRcpt.amount)} has been processed.
             </Text>
-            <View style={S.receiptBadge}>
-              <Text style={S.receiptBadgeText}>Receipt: {generatedRcpt.receiptNo}</Text>
-            </View>
+           
           </View>
           <View style={S.receiptCard}>
             <Text style={[S.fieldLabel, { marginBottom: 10 }]}>RECEIPT DETAILS</Text>
@@ -467,12 +403,7 @@ const S = StyleSheet.create({
   sub: { fontSize: 12, color: C.textMuted, fontFamily: F.mono, marginBottom: 18 },
 
   invoiceTypeBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 3, borderWidth: 1, alignSelf: 'flex-start' },
-  invoiceTypeText:  { fontSize: 9, fontWeight: '700', textTransform: 'uppercase', fontFamily: F.mono, letterSpacing: 1 },
-
-  paymentSummary: { backgroundColor: C.card, borderRadius: 4, borderWidth: 1, borderColor: C.border, padding: 14, alignItems: "center", marginBottom: 16 },
-  paymentSummaryLabel: { fontSize: 10, fontWeight: "700", color: "#888888", fontFamily: F.mono, letterSpacing: 1.5, textTransform: "uppercase" },
-  paymentSummaryValue: { fontSize: 28, fontWeight: "700", color: C.textPrimary, fontFamily: F.bebas, letterSpacing: 1, marginTop: 4 },
-  paymentSummarySub: { fontSize: 11, color: C.textMuted, fontFamily: F.mono, marginTop: 4 },
+  invoiceTypeText: { fontSize: 9, fontWeight: '700', textTransform: 'uppercase', fontFamily: F.mono, letterSpacing: 1 },
 
   partialBanner: { flexDirection: "row", alignItems: "center", backgroundColor: "rgba(52,152,219,0.08)", borderWidth: 1, borderColor: "rgba(52,152,219,0.15)", borderRadius: 4, padding: 12, marginBottom: 14 },
   partialBannerText: { flex: 1, fontSize: 12, color: C.blue, fontFamily: F.dm, marginLeft: 8 },
@@ -488,6 +419,7 @@ const S = StyleSheet.create({
   fieldLabel: { fontSize: 10, fontWeight: "700", color: "#888888", fontFamily: F.mono, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 6 },
   fieldGroup: { marginBottom: 14 },
   fieldError: { fontSize: 10, color: C.red, fontFamily: F.mono, marginTop: 3 },
+  fieldHint: { fontSize: 11, fontFamily: F.mono, marginTop: 4 },
 
   optionRow: { flexDirection: "row", alignItems: "center", backgroundColor: C.card, borderRadius: 4, borderWidth: 1, borderColor: C.border, padding: 12, marginBottom: 8 },
   optionIcon: { width: 40, height: 40, borderRadius: 4, backgroundColor: C.surface, alignItems: "center", justifyContent: "center", marginRight: 10 },
@@ -495,10 +427,6 @@ const S = StyleSheet.create({
   optionSub: { fontSize: 10, color: C.textMuted, fontFamily: F.mono, marginTop: 2 },
   radio: { width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: C.border, alignItems: "center", justifyContent: "center" },
   radioDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: C.primary },
-
-  bankGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 14 },
-  bankCard: { width: "48%", flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: C.card, borderRadius: 4, borderWidth: 1, borderColor: C.border, padding: 12 },
-  bankName: { fontSize: 12, fontWeight: "600", color: C.textSecondary, fontFamily: F.dm },
 
   centerBlock: { flex: 1, alignItems: "center", justifyContent: "center", padding: 40 },
   processingTitle: { fontSize: 16, fontWeight: "700", color: C.textPrimary, fontFamily: F.bebas, letterSpacing: 1, marginTop: 14 },
@@ -518,6 +446,25 @@ const S = StyleSheet.create({
 
   failureTitle: { fontSize: 20, fontWeight: "700", color: C.textPrimary, fontFamily: F.bebas, letterSpacing: 1, marginTop: 12 },
   failureSub: { fontSize: 13, color: C.textSecondary, textAlign: "center", marginTop: 6, fontFamily: F.mono },
+
+  lockBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "rgba(158,58,58,0.06)",
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: "rgba(158,58,58,0.18)",
+    padding: 12,
+    marginBottom: 14,
+  },
+  lockText: {
+    flex: 1,
+    fontSize: 12,
+    color: C.red,
+    fontFamily: F.dm,
+    lineHeight: 18,
+  },
 
   footer: { flexDirection: "row", gap: 10, paddingHorizontal: 14, paddingVertical: 14, borderTopWidth: 1, borderTopColor: C.border, backgroundColor: C.surface },
   btnGhost: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: "transparent", borderWidth: 1, borderColor: C.border, borderRadius: 3, paddingVertical: 13, paddingHorizontal: 12 },

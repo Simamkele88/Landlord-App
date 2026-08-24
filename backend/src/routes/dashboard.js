@@ -12,7 +12,253 @@ async function getLandlordId(userId) {
   return result.rows[0]?.id || null;
 }
 
-const num = (v) => Number(v ?? 0);
+function num(v) { return Number(v ?? 0); }
+
+// GET /dashboard/login-digest
+router.get("/login-digest", requireAuth, async (req, res) => {
+  try {
+    const role = req.userRole;
+
+    if (role === "landlord") {
+      const landlordRes = await pool.query(
+        "SELECT id FROM landlord WHERE user_id = $1",
+        [req.userId]
+      );
+      const landlordId = landlordRes.rows[0]?.id;
+      if (!landlordId) return res.status(404).json({ error: "Landlord not found" });
+
+      const [
+        pendingPayments,
+        overdueInvoices,
+        highRiskTenants,
+        maintenance,
+        complaints,
+        leasesExpiring,
+        collections,
+      ] = await Promise.all([
+        pool.query(
+          `SELECT COUNT(*)::int AS count
+           FROM payment p
+           WHERE p.landlord_id = $1
+             AND p.status IN ('pending','pending_approval')`,
+          [landlordId]
+        ),
+        pool.query(
+          `SELECT COUNT(*)::int AS count,
+                  COALESCE(SUM(remaining_balance), 0) AS total
+           FROM invoice
+           WHERE landlord_id = $1
+             AND status = 'overdue'`,
+          [landlordId]
+        ),
+        pool.query(
+          `SELECT COUNT(*)::int AS count
+           FROM tenant
+           WHERE landlord_id = $1
+             AND reliability_score = 'high_risk'`,
+          [landlordId]
+        ),
+        pool.query(
+          `SELECT COUNT(*)::int AS open_count,
+                  COUNT(*) FILTER (WHERE priority IN ('urgent','emergency'))::int AS urgent_count
+           FROM maintenance_request
+           WHERE landlord_id = $1
+             AND status IN ('needs_repair','assigned','in_progress','pending_approval')`,
+          [landlordId]
+        ),
+        pool.query(
+          `SELECT COUNT(*)::int AS open_count,
+                  COUNT(*) FILTER (WHERE status = 'escalated')::int AS escalated_count
+           FROM complaint c
+           JOIN property p ON p.id = c.property_id
+           WHERE p.landlord_id = $1
+             AND c.status IN ('open','under_review','awaiting_clarification','approved','escalated')`,
+          [landlordId]
+        ),
+        pool.query(
+          `SELECT COUNT(*)::int AS count
+           FROM lease
+           WHERE landlord_id = $1
+             AND status = 'active'
+             AND lease_end_date BETWEEN CURRENT_DATE AND CURRENT_DATE + interval '60 days'`,
+          [landlordId]
+        ),
+        pool.query(
+          `SELECT COUNT(*)::int AS count,
+                  COALESCE(SUM(outstanding_balance), 0) AS total
+           FROM collection
+           WHERE landlord_id = $1
+             AND status IN ('active','flagged','repayment_agreed','partial_collection')`,
+          [landlordId]
+        ),
+      ]);
+
+      return res.json({
+        role: "landlord",
+        digest: {
+          pending_payment_approvals: pendingPayments.rows[0].count,
+          overdue_invoices: {
+            count: overdueInvoices.rows[0].count,
+            total: num(overdueInvoices.rows[0].total),
+          },
+          high_risk_tenants: highRiskTenants.rows[0].count,
+          open_maintenance: {
+            total: maintenance.rows[0].open_count,
+            urgent: maintenance.rows[0].urgent_count,
+          },
+          open_complaints: {
+            total: complaints.rows[0].open_count,
+            escalated: complaints.rows[0].escalated_count,
+          },
+          leases_expiring_soon: leasesExpiring.rows[0].count,
+          active_collections: {
+            count: collections.rows[0].count,
+            total: num(collections.rows[0].total),
+          },
+        },
+      });
+    }
+
+    if (role === "caretaker") {
+      const caretakerRes = await pool.query(
+        "SELECT id, assigned_property FROM caretaker WHERE user_id = $1 AND is_active = true",
+        [req.userId]
+      );
+      const caretaker = caretakerRes.rows[0];
+      if (!caretaker) return res.status(404).json({ error: "Caretaker not found" });
+
+      const propertyId = caretaker.assigned_property;
+      if (!propertyId) {
+        return res.json({
+          role: "caretaker",
+          digest: {
+            open_maintenance: 0,
+            complaints_needing_review: 0,
+            pending_verdicts: 0,
+            escalated_complaints: 0,
+            high_risk_tenants: 0,
+          },
+        });
+      }
+
+      const [maintenance, complaints, pendingVerdicts, escalated, highRisk] = await Promise.all([
+        pool.query(
+          `SELECT COUNT(*)::int AS count
+           FROM maintenance_request mr
+           JOIN unit u ON u.id = mr.unit_id
+           WHERE u.property_id = $1
+             AND mr.status IN ('needs_repair','assigned','in_progress','pending_approval')`,
+          [propertyId]
+        ),
+        pool.query(
+          `SELECT COUNT(*)::int AS count
+           FROM complaint
+           WHERE property_id = $1
+             AND status IN ('open','under_review','awaiting_clarification')`,
+          [propertyId]
+        ),
+        pool.query(
+          `SELECT COUNT(*)::int AS count
+           FROM complaint
+           WHERE property_id = $1
+             AND status = 'approved'`,
+          [propertyId]
+        ),
+        pool.query(
+          `SELECT COUNT(*)::int AS count
+           FROM complaint
+           WHERE property_id = $1
+             AND status = 'escalated'`,
+          [propertyId]
+        ),
+        pool.query(
+          `SELECT COUNT(DISTINCT t.id)::int AS count
+           FROM tenant t
+           JOIN lease l ON l.tenant_id = t.id AND l.status = 'active'
+           JOIN unit u ON u.id = l.unit_id
+           WHERE u.property_id = $1
+             AND t.reliability_score = 'high_risk'`,
+          [propertyId]
+        ),
+      ]);
+
+      return res.json({
+        role: "caretaker",
+        digest: {
+          open_maintenance: maintenance.rows[0].count,
+          complaints_needing_review: complaints.rows[0].count,
+          pending_verdicts: pendingVerdicts.rows[0].count,
+          escalated_complaints: escalated.rows[0].count,
+          high_risk_tenants: highRisk.rows[0].count,
+        },
+      });
+    }
+
+    if (role === "tenant") {
+      const tenantRes = await pool.query(
+        "SELECT id FROM tenant WHERE user_id = $1",
+        [req.userId]
+      );
+      const tenantId = tenantRes.rows[0]?.id;
+      if (!tenantId) return res.status(404).json({ error: "Tenant not found" });
+
+      const [currentInvoice, openMaintenance, openComplaints, unreadMessages, pendingPayments] = await Promise.all([
+        pool.query(
+          `SELECT i.id, i.amount_due, i.remaining_balance, i.status, i.due_date
+           FROM invoice i
+           WHERE i.tenant_id = $1
+             AND i.status IN ('sent','overdue','partial')
+           ORDER BY i.due_date ASC
+           LIMIT 1`,
+          [tenantId]
+        ),
+        pool.query(
+          `SELECT COUNT(*)::int AS count
+           FROM maintenance_request
+           WHERE tenant_id = $1
+             AND status NOT IN ('completed','closed','cancelled')`,
+          [tenantId]
+        ),
+        pool.query(
+          `SELECT COUNT(*)::int AS count
+           FROM complaint
+           WHERE filed_by_tenant_id = $1
+             AND status NOT IN ('resolved','dismissed','rejected')`,
+          [tenantId]
+        ),
+        pool.query(
+          `SELECT COUNT(*)::int AS count
+           FROM message
+           WHERE recipient_id = $1 AND is_read = false`,
+          [req.userId]
+        ),
+        pool.query(
+          `SELECT COUNT(*)::int AS count
+           FROM payment
+           WHERE tenant_id = $1
+             AND status IN ('pending','pending_approval')`,
+          [tenantId]
+        ),
+      ]);
+
+      return res.json({
+        role: "tenant",
+        digest: {
+          current_invoice: currentInvoice.rows[0] || null,
+          open_maintenance: openMaintenance.rows[0].count,
+          open_complaints: openComplaints.rows[0].count,
+          unread_messages: unreadMessages.rows[0].count,
+          pending_payments: pendingPayments.rows[0].count,
+        },
+      });
+    }
+
+    return res.status(403).json({ error: "Unknown role" });
+  } catch (err) {
+    console.error("Login digest:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
 
 // GET /landlord/dashboard
 router.get("/", requireAuth, requireLandlord, async (req, res) => {
@@ -34,6 +280,9 @@ router.get("/", requireAuth, requireLandlord, async (req, res) => {
       leasesExpiringRes,
       collectionsRes,
       pendingDocumentsRes,
+      reliabilityBreakdownRes,
+      scoreTrendRes,
+      highRiskTenantsRes,
     ] = await Promise.all([
       pool.query(
         `SELECT
@@ -221,6 +470,46 @@ router.get("/", requireAuth, requireLandlord, async (req, res) => {
          LIMIT 5`,
         [landlordId],
       ),
+
+      pool.query(
+        `SELECT
+           COUNT(*) FILTER (WHERE reliability_score = 'reliable') AS reliable_count,
+           COUNT(*) FILTER (WHERE reliability_score = 'moderate_risk') AS moderate_count,
+           COUNT(*) FILTER (WHERE reliability_score = 'high_risk') AS high_risk_count,
+           ROUND(AVG(reliability_score_value) FILTER (WHERE reliability_score_value IS NOT NULL), 1) AS avg_score
+         FROM tenant
+         WHERE landlord_id = $1`,
+        [landlordId],
+      ),
+
+      pool.query(
+        `SELECT date_trunc('month', h.created_at)::date AS month,
+                ROUND(AVG(h.new_score_value), 1) AS avg_score
+         FROM tenant_score_history h
+         JOIN tenant t ON t.id = h.tenant_id
+         WHERE t.landlord_id = $1
+           AND h.created_at >= now() - interval '6 months'
+         GROUP BY month
+         ORDER BY month ASC`,
+        [landlordId],
+      ),
+
+      pool.query(
+        `SELECT t.id, usr.full_name AS tenant_name,
+                u.unit_number, p.name AS property_name,
+                t.reliability_score_value AS score,
+                COUNT(*) OVER() AS total_count
+         FROM tenant t
+         JOIN users usr ON usr.id = t.user_id
+         LEFT JOIN lease l ON l.tenant_id = t.id AND l.status = 'active'
+         LEFT JOIN unit u ON u.id = l.unit_id
+         LEFT JOIN property p ON p.id = u.property_id
+         WHERE t.landlord_id = $1
+           AND t.reliability_score = 'high_risk'
+         ORDER BY t.reliability_score_value ASC
+         LIMIT 5`,
+        [landlordId],
+      ),
     ]);
 
     const overview = overviewRes.rows[0];
@@ -311,6 +600,20 @@ router.get("/", requireAuth, requireLandlord, async (req, res) => {
 
       revenue_trend: revenueTrend,
 
+      reliability_breakdown: {
+        reliable: num(reliabilityBreakdownRes.rows[0]?.reliable_count),
+        moderate_risk: num(reliabilityBreakdownRes.rows[0]?.moderate_count),
+        high_risk: num(reliabilityBreakdownRes.rows[0]?.high_risk_count),
+        avg_score: reliabilityBreakdownRes.rows[0]?.avg_score === null
+          ? null
+          : Number(reliabilityBreakdownRes.rows[0]?.avg_score),
+      },
+
+      reliability_trend: scoreTrendRes.rows.map(r => ({
+        month: r.month.toISOString().slice(0, 10),
+        avg_score: r.avg_score === null ? null : Number(r.avg_score),
+      })),
+
       action_required: {
         pending_payment_approvals: {
           ...strip(pendingPaymentsRes.rows),
@@ -336,6 +639,10 @@ router.get("/", requireAuth, requireLandlord, async (req, res) => {
           ...strip(pendingDocumentsRes.rows),
           link: "/landlord/documents?status=pending",
         },
+        high_risk_tenants: {
+          ...strip(highRiskTenantsRes.rows),
+          link: "/landlord/tenants?risk=high_risk",
+        },
       },
     });
   } catch (err) {
@@ -343,5 +650,7 @@ router.get("/", requireAuth, requireLandlord, async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
+
+
 
 module.exports = router;

@@ -6,7 +6,10 @@ const { requireAuth } = require("../middleware/auth");
 const { requireLandlord } = require("../middleware/roleCheck");
 
 async function getLandlordId(userId) {
-  const result = await pool.query("SELECT id FROM landlord WHERE user_id = $1", [userId]);
+  const result = await pool.query(
+    "SELECT id FROM landlord WHERE user_id = $1",
+    [userId],
+  );
   return result.rows[0]?.id || null;
 }
 
@@ -14,54 +17,63 @@ async function getLandlordId(userId) {
 router.get("/", requireAuth, requireLandlord, async (req, res) => {
   try {
     const landlordId = await getLandlordId(req.userId);
-    if (!landlordId) return res.status(404).json({ error: "Landlord not found" });
+    if (!landlordId)
+      return res.status(404).json({ error: "Landlord not found" });
 
     const { report, date_from, date_to, tenant_id } = req.query;
     let result;
 
     switch (report) {
-      case 'rent-roll':
+      case "rent-roll":
         result = await pool.query(
           `SELECT 
-            usr.full_name AS tenant,
-            u.unit_number AS unit,
-            p.name AS property,
-            l.rent_amount AS rent,
-            l.payment_frequency AS frequency,
-            l.lease_end_date AS "leaseEnd",
-            COALESCE(i.remaining_balance, 0) AS balance,
-            CASE WHEN l.status = 'active' THEN 'active' ELSE l.status END AS status
-           FROM tenant t
-           JOIN users usr ON usr.id = t.user_id
-           JOIN lease l ON l.tenant_id = t.id AND l.status = 'active'
-           JOIN unit u ON u.id = l.unit_id
-           JOIN property p ON p.id = u.property_id
-           LEFT JOIN LATERAL (
-             SELECT remaining_balance FROM invoice 
-             WHERE tenant_id = t.id AND status IN ('sent', 'overdue') 
-             ORDER BY created_at DESC LIMIT 1
-           ) i ON true
-           WHERE t.landlord_id = $1
-           ORDER BY p.name, u.unit_number`,
-          [landlordId]
+        usr.full_name AS tenant,
+        u.unit_number AS unit,
+        p.name AS property,
+        l.rent_amount AS rent,
+        l.payment_frequency AS frequency,
+        l.lease_end_date AS "leaseEnd",
+        COALESCE((
+          SELECT SUM(i.remaining_balance)
+          FROM invoice i
+          WHERE i.tenant_id = t.id
+            AND i.status IN ('sent', 'overdue', 'partial')
+        ), 0) AS balance,
+        CASE WHEN l.status = 'active' THEN 'Active' ELSE 'Inactive' END AS status
+       FROM tenant t
+       JOIN users usr ON usr.id = t.user_id
+       JOIN lease l ON l.tenant_id = t.id AND l.status = 'active'
+       JOIN unit u ON u.id = l.unit_id
+       JOIN property p ON p.id = u.property_id
+       WHERE t.landlord_id = $1
+       ORDER BY p.name, u.unit_number`,
+          [landlordId],
         );
         return res.json(result.rows);
 
-      case 'collections': {
+      case "collections": {
         let query = `SELECT 
-          usr.full_name AS tenant,
-          u.unit_number AS unit,
-          pay.amount_paid AS amount,
-          inv.due_date AS due,
-          pay.payment_date AS paid,
-          pay.payment_method AS method,
-          pay.status
-         FROM payment pay
-         JOIN tenant t ON t.id = pay.tenant_id
-         JOIN users usr ON usr.id = t.user_id
-         LEFT JOIN invoice inv ON inv.id = pay.invoice_id
-         LEFT JOIN unit u ON u.id = inv.unit_id
-         WHERE pay.landlord_id = $1`;
+      usr.full_name AS tenant,
+      u.unit_number AS unit,
+      pay.amount_paid AS amount,
+      inv.due_date AS due,
+      pay.payment_date AS paid,
+      pay.payment_method AS method,
+      CASE pay.status
+        WHEN 'paid' THEN 'Paid'
+        WHEN 'late' THEN 'Late'
+        WHEN 'pending' THEN 'Pending'
+        WHEN 'pending_approval' THEN 'Pending'
+        WHEN 'rejected' THEN 'Rejected'
+        WHEN 'collections' THEN 'Collections'
+        ELSE pay.status::text
+      END AS status
+    FROM payment pay
+    JOIN tenant t ON t.id = pay.tenant_id
+    JOIN users usr ON usr.id = t.user_id
+    LEFT JOIN invoice inv ON inv.id = pay.invoice_id
+    LEFT JOIN unit u ON u.id = inv.unit_id
+    WHERE pay.landlord_id = $1`;
         const params = [landlordId];
         let paramIndex = 2;
 
@@ -81,91 +93,138 @@ router.get("/", requireAuth, requireLandlord, async (req, res) => {
         return res.json(result.rows);
       }
 
-      case 'arrears':
+      case "arrears":
         result = await pool.query(
           `SELECT 
-            usr.full_name AS tenant,
-            u.unit_number AS unit,
-            p.name AS property,
-            COALESCE(i.remaining_balance, i.amount_due, 0) AS balance,
-            CASE WHEN i.due_date IS NOT NULL 
-              THEN CURRENT_DATE - i.due_date::date 
-              ELSE 0 
-            END AS "daysOverdue",
-            (SELECT MAX(pay.payment_date) FROM payment pay WHERE pay.tenant_id = t.id AND pay.status = 'paid') AS "lastPayment",
-            CASE WHEN col.id IS NOT NULL THEN 'collections' ELSE 'overdue' END AS "collectionsStatus"
-           FROM tenant t
-           JOIN users usr ON usr.id = t.user_id
-           JOIN lease l ON l.tenant_id = t.id AND l.status = 'active'
-           JOIN unit u ON u.id = l.unit_id
-           JOIN property p ON p.id = u.property_id
-           JOIN invoice i ON i.tenant_id = t.id AND i.status IN ('sent', 'overdue')
-           LEFT JOIN collection col ON col.tenant_id = t.id AND col.status = 'active'
-           WHERE t.landlord_id = $1
-             AND i.due_date < CURRENT_DATE
-           ORDER BY "daysOverdue" DESC`,
-          [landlordId]
+        usr.full_name AS tenant,
+        u.unit_number AS unit,
+        p.name AS property,
+        COALESCE(i.remaining_balance, i.amount_due, 0) AS balance,
+        CASE WHEN i.due_date IS NOT NULL 
+          THEN CURRENT_DATE - i.due_date::date 
+          ELSE 0 
+        END AS "daysOverdue",
+        (SELECT MAX(pay.payment_date) FROM payment pay 
+         WHERE pay.tenant_id = t.id AND pay.status = 'paid') AS "lastPayment",
+        CASE WHEN col.id IS NOT NULL THEN 'collections' ELSE 'overdue' END AS "collectionsStatus"
+       FROM tenant t
+       JOIN users usr ON usr.id = t.user_id
+       JOIN lease l ON l.tenant_id = t.id AND l.status = 'active'
+       JOIN unit u ON u.id = l.unit_id
+       JOIN property p ON p.id = u.property_id
+       JOIN invoice i ON i.tenant_id = t.id AND i.status IN ('sent', 'overdue')
+       LEFT JOIN collection col ON col.tenant_id = t.id AND col.status = 'active'
+       WHERE t.landlord_id = $1
+         AND i.due_date < CURRENT_DATE
+       ORDER BY "daysOverdue" DESC`,
+          [landlordId],
         );
         return res.json(result.rows);
 
-      case 'maintenance':
+      case "maintenance":
         result = await pool.query(
           `SELECT 
-            mr.title,
-            p.name AS property,
-            mr.category::text AS category,
-            mr.priority::text AS priority,
-            COALESCE(mr.actual_cost, mr.estimated_cost, 0) AS cost,
-            mr.created_at AS date
-           FROM maintenance_request mr
-           JOIN unit u ON u.id = mr.unit_id
-           JOIN property p ON p.id = u.property_id
-           WHERE mr.landlord_id = $1
-             AND mr.status = 'completed'
-           ORDER BY mr.created_at DESC
-           LIMIT 50`,
-          [landlordId]
+        mr.title,
+        p.name AS property,
+        mr.category::text AS category,
+        mr.priority::text AS priority,
+        COALESCE(mr.actual_cost, mr.estimated_cost, 0) AS cost,
+        mr.created_at AS date
+       FROM maintenance_request mr
+       JOIN unit u ON u.id = mr.unit_id
+       JOIN property p ON p.id = u.property_id
+       WHERE mr.landlord_id = $1
+         AND mr.status = 'completed'
+       ORDER BY mr.created_at DESC
+       LIMIT 50`,
+          [landlordId],
         );
         return res.json(result.rows);
 
-      case 'occupancy':
+      case "occupancy":
         result = await pool.query(
           `SELECT 
-            p.name AS property,
-            COUNT(u.id) AS total,
-            COUNT(CASE WHEN u.status = 'occupied' THEN 1 END) AS occupied,
-            COUNT(CASE WHEN u.status = 'vacant' THEN 1 END) AS vacant,
-            COUNT(CASE WHEN u.status = 'maintenance' THEN 1 END) AS maintenance
-           FROM property p
-           JOIN unit u ON u.property_id = p.id
-           WHERE p.landlord_id = $1
-           GROUP BY p.id, p.name
-           ORDER BY p.name`,
-          [landlordId]
+        p.name AS property,
+        COUNT(u.id) AS total,
+        COUNT(CASE WHEN u.status = 'occupied' THEN 1 END) AS occupied,
+        COUNT(CASE WHEN u.status = 'vacant' THEN 1 END) AS vacant,
+        COUNT(CASE WHEN u.status = 'maintenance' THEN 1 END) AS maintenance
+       FROM property p
+       JOIN unit u ON u.property_id = p.id
+       WHERE p.landlord_id = $1
+       GROUP BY p.id, p.name
+       ORDER BY p.name`,
+          [landlordId],
         );
         return res.json(result.rows);
 
-      case 'tenant-ledger': {
+      case "tenant-ledger": {
         if (!tenant_id) {
           return res.json([]);
         }
         result = await pool.query(
           `SELECT 
-            inv.billing_period_start || ' — ' || inv.billing_period_end AS period,
-            inv.amount_due AS amount,
-            inv.due_date AS due,
-            pay.payment_date AS paid,
-            pay.payment_method AS method,
-            COALESCE(pay.status, 'late') AS status
-           FROM invoice inv
-           LEFT JOIN payment pay ON pay.invoice_id = inv.id AND pay.status = 'paid'
-           WHERE inv.tenant_id = $1
-           ORDER BY inv.due_date DESC
-           LIMIT 24`,
-          [tenant_id]
+        inv.billing_period_start || ' — ' || inv.billing_period_end AS period,
+        inv.amount_due AS amount,
+        inv.due_date AS due,
+        pay.payment_date AS paid,
+        pay.payment_method AS method,
+        CASE 
+          WHEN pay.status = 'paid' THEN 'Paid'
+          WHEN pay.status IS NULL THEN 'Unpaid'
+          ELSE 'Late'
+        END AS status
+       FROM invoice inv
+       LEFT JOIN payment pay ON pay.invoice_id = inv.id AND pay.status = 'paid'
+       WHERE inv.tenant_id = $1
+       ORDER BY inv.due_date DESC
+       LIMIT 24`,
+          [tenant_id],
         );
         return res.json(result.rows);
       }
+
+      case "reliability":
+        result = await pool.query(
+          `SELECT 
+        usr.full_name AS tenant,
+        u.unit_number AS unit,
+        p.name AS property,
+        t.reliability_score::text AS score,
+        t.reliability_score_value AS score_value,
+        COALESCE((
+          SELECT SUM(i.remaining_balance)
+          FROM invoice i
+          WHERE i.tenant_id = t.id
+            AND i.status IN ('sent', 'overdue', 'partial')
+        ), 0) AS balance,
+        COALESCE((
+          SELECT MAX(CURRENT_DATE - i.due_date)
+          FROM invoice i
+          WHERE i.tenant_id = t.id
+            AND i.status IN ('sent', 'overdue', 'partial')
+        ), 0) AS days_overdue,
+        COALESCE(t.total_warnings, 0) AS warnings,
+        COALESCE(t.total_fines, 0) AS fines,
+        l.status::text AS lease_status,
+        sh.reason AS breakdown
+       FROM tenant t
+       JOIN users usr ON usr.id = t.user_id
+       LEFT JOIN lease l ON l.tenant_id = t.id AND l.status = 'active'
+       LEFT JOIN unit u ON u.id = l.unit_id
+       LEFT JOIN property p ON p.id = u.property_id
+       LEFT JOIN LATERAL (
+         SELECT reason::text AS reason
+         FROM tenant_score_history h
+         WHERE h.tenant_id = t.id
+         ORDER BY h.created_at DESC
+         LIMIT 1
+       ) sh ON true
+       WHERE t.landlord_id = $1
+       ORDER BY t.reliability_score_value ASC NULLS LAST`,
+          [landlordId],
+        );
+        return res.json(result.rows);
 
       default:
         return res.json([]);

@@ -82,6 +82,7 @@ export default function App() {``
       await AsyncStorage.removeItem("user");
       await AsyncStorage.removeItem("temp_token");
       await AsyncStorage.removeItem("temp_user");
+      await AsyncStorage.removeItem("digest_shown");
     } catch (error) {
       console.error("Error clearing storage:", error);
     }

@@ -8,7 +8,6 @@ import { Icon } from "../../../components/Icon";
 
 const API = "http://localhost:4000";
 
-// ---- Local light theme ----
 const C = {
   background: "#f4f5f7",
   card: "#ffffff",

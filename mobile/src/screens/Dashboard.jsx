@@ -10,6 +10,7 @@ import { Ionicons, MaterialIcons, FontAwesome5, Feather } from "@expo/vector-ico
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import api from "../utils/api";
 import { C, F } from "../styles/theme";
+import LoginBriefingModal from "../components/LoginBriefingModal";
 
 function formatAmount(amount) {
   return `R ${Number(amount || 0).toLocaleString("en-ZA")}`;
@@ -31,6 +32,19 @@ function reliabilityColor(score) {
   if (!score) return C.green;
   if (score === "reliable" || score === "Reliable") return C.green;
   if (score === "moderate_risk" || score === "Moderate Risk") return C.primary;
+  return C.red;
+}
+
+function scoreLabel(score) {
+  if (!score) return "Reliable";
+  if (score === "reliable") return "Reliable";
+  if (score === "moderate_risk") return "Moderate Risk";
+  return "High Risk";
+}
+
+function scoreColor(score) {
+  if (!score || score === "reliable") return C.green;
+  if (score === "moderate_risk") return C.primary;
   return C.red;
 }
 
@@ -81,8 +95,8 @@ function SectionLabel({ title, actionLabel, onAction }) {
 function QuickAction({ icon, iconLibrary, label, color, bg, onPress, badge }) {
   const IconComponent =
     iconLibrary === "FontAwesome5" ? FontAwesome5 :
-    iconLibrary === "Ionicons" ? Ionicons :
-    iconLibrary === "Feather" ? Feather : MaterialIcons;
+      iconLibrary === "Ionicons" ? Ionicons :
+        iconLibrary === "Feather" ? Feather : MaterialIcons;
 
   return (
     <TouchableOpacity style={[S.qaCard, { backgroundColor: bg }]} onPress={onPress} activeOpacity={0.75}>
@@ -105,6 +119,13 @@ export default function TenantDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [dashboard, setDashboard] = useState(null);
   const [error, setError] = useState("");
+  const [showBriefing, setShowBriefing] = useState(false);
+
+  useEffect(() => {
+    AsyncStorage.getItem("digest_shown").then(val => {
+      if (val !== "true") setShowBriefing(true);
+    });
+  }, []);
 
   const fetchDashboard = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -166,6 +187,17 @@ export default function TenantDashboard() {
   const openComplaints = dashboard?.open_complaints || 0;
   const unreadMessages = dashboard?.unread_messages || 0;
   const tenantInfo = dashboard?.tenant || {};
+
+  const scoreValue = tenantInfo?.reliability_score_value != null
+    ? Number(tenantInfo.reliability_score_value)
+    : null;
+  const paymentHistory = {
+    onTime: tenantInfo?.on_time_payments || 0,
+    late: tenantInfo?.late_payments || 0,
+    missed: tenantInfo?.missed_payments || 0,
+    partial: tenantInfo?.partial_payments || 0,
+  };
+  const standing = tenantInfo?.standing || "good_standing";
 
   const tenantName = `${tenantInfo.first_name || ""} ${tenantInfo.last_name || ""}`.trim() || "Tenant";
   const unitNumber = lease?.unit_number || "—";
@@ -285,10 +317,23 @@ export default function TenantDashboard() {
             <Text style={S.unitCardUnit}>Unit {unitNumber}</Text>
             {leaseEnd && <Text style={S.unitCardLease}>Lease until {new Date(leaseEnd).toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" })}</Text>}
           </View>
-          <View style={[S.scorePill, { borderColor: reliabilityColor(reliabilityScore) }]}>
-            <Text style={[S.scoreText, { color: reliabilityColor(reliabilityScore) }]}>{reliabilityScore === "reliable" ? "Reliable" : reliabilityScore === "moderate_risk" ? "Moderate" : "At Risk"}</Text>
+          <View style={[S.scorePill, { borderColor: scoreColor(reliabilityScore) }]}>
+            <Text style={[S.scoreText, { color: scoreColor(reliabilityScore) }]}>
+              {scoreLabel(reliabilityScore)}
+              {scoreValue !== null ? ` · ${scoreValue.toFixed(1)}` : ""}
+            </Text>
           </View>
         </View>
+
+        {standing !== "good_standing" && (
+          <View style={[S.alertBanner, { marginTop: 8 }]}>
+            <MaterialIcons name="gavel" size={15} color={C.red} />
+            <Text style={S.alertText}>
+              Account standing: {standing.replace(/_/g, " ")}
+              {tenantInfo?.standing_reason ? ` • ${tenantInfo.standing_reason}` : ""}
+            </Text>
+          </View>
+        )}
 
         <TouchableOpacity style={S.rentCard} onPress={() => navigation.navigate("Payments")} activeOpacity={0.85}>
           <View style={S.rentTop}>
@@ -309,6 +354,28 @@ export default function TenantDashboard() {
             <MaterialIcons name="chevron-right" size={18} color="#cccccc" />
           </View>
         </TouchableOpacity>
+
+        <View style={S.paymentHistoryCard}>
+          <Text style={S.paymentHistoryTitle}>Payment History</Text>
+          <View style={S.paymentHistoryRow}>
+            <View style={S.paymentHistoryItem}>
+              <Text style={[S.paymentHistoryValue, { color: C.green }]}>{paymentHistory.onTime}</Text>
+              <Text style={S.paymentHistoryLabel}>On-time</Text>
+            </View>
+            <View style={S.paymentHistoryItem}>
+              <Text style={[S.paymentHistoryValue, { color: C.blue }]}>{paymentHistory.late}</Text>
+              <Text style={S.paymentHistoryLabel}>Late</Text>
+            </View>
+            <View style={S.paymentHistoryItem}>
+              <Text style={[S.paymentHistoryValue, { color: C.red }]}>{paymentHistory.missed}</Text>
+              <Text style={S.paymentHistoryLabel}>Missed</Text>
+            </View>
+            <View style={S.paymentHistoryItem}>
+              <Text style={[S.paymentHistoryValue, { color: C.gold || C.primary }]}>{paymentHistory.partial}</Text>
+              <Text style={S.paymentHistoryLabel}>Partial</Text>
+            </View>
+          </View>
+        </View>
 
         {isOverdue && (
           <View style={S.alertBanner}>
@@ -348,6 +415,8 @@ export default function TenantDashboard() {
           </View>
         )}
 
+        <LoginBriefingModal visible={showBriefing} onClose={() => setShowBriefing(false)} />
+
         <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
@@ -383,6 +452,44 @@ const S = {
   rentBanner: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 10, paddingHorizontal: 14 },
   rentBannerContent: { flexDirection: "row", alignItems: "center", gap: 8 },
   rentBannerText: { fontSize: 11, fontWeight: "500", fontFamily: F.dm },
+
+  paymentHistoryCard: {
+    backgroundColor: C.surface,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: C.border,
+    padding: 12,
+    marginBottom: 12,
+  },
+  paymentHistoryTitle: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#888888",
+    fontFamily: F.mono,
+    letterSpacing: 2,
+    textTransform: "uppercase",
+    marginBottom: 8,
+  },
+  paymentHistoryRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  paymentHistoryItem: {
+    alignItems: "center",
+    flex: 1,
+  },
+  paymentHistoryValue: {
+    fontSize: 16,
+    fontWeight: "700",
+    fontFamily: F.bebas,
+    letterSpacing: 1,
+  },
+  paymentHistoryLabel: {
+    fontSize: 10,
+    color: C.textMuted,
+    fontFamily: F.mono,
+    marginTop: 2,
+  },
 
   alertBanner: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "rgba(158,58,58,0.06)", borderRadius: 4, borderWidth: 1, borderColor: "rgba(158,58,58,0.15)", padding: 10, marginBottom: 16 },
   alertText: { fontSize: 11, color: C.red, fontFamily: F.dm, flex: 1, lineHeight: 16 },

@@ -11,7 +11,6 @@ import {
 } from "react-icons/fi";
 import { FaInfoCircle } from "react-icons/fa";
 import { IoMdCash, IoIosStats } from "react-icons/io";
-import { c as COLORS } from "../../../styles/theme";
 import UseDepositModal from "../../../components/UseDepositModal";
 
 const API = "http://localhost:4000";
@@ -37,6 +36,18 @@ function formatDate(d) {
 }
 function formatDateLong(d) {
   return d ? new Date(d).toLocaleDateString("en-ZA", { day: "2-digit", month: "long", year: "numeric" }) : "—";
+}
+
+function scoreColor(score) {
+  if (!score || score === "reliable") return "#2b7a4b";
+  if (score === "moderate_risk") return "#b9770e";
+  return "#c0392b";
+}
+
+function scoreLabel(score) {
+  if (!score || score === "reliable") return "Reliable";
+  if (score === "moderate_risk") return "Moderate Risk";
+  return "High Risk";
 }
 
 function InfoRow({ label, children, compact }) {
@@ -372,13 +383,13 @@ export default function LeaseSummary() {
   }
 
   function openCashPayment() {
-  if (!currentInvoice) {
-    toast.error("No open invoice available for payment.");
-    return;
+    if (!currentInvoice) {
+      toast.error("No open invoice available for payment.");
+      return;
+    }
+    setSelectedInvoice(currentInvoice);
+    setShowCashPayment(true);
   }
-  setSelectedInvoice(currentInvoice);
-  setShowCashPayment(true);
-}
 
   function sendEmail() {
     if (!emailRecipient.trim()) {
@@ -644,6 +655,36 @@ export default function LeaseSummary() {
                     <InfoRow label="Tenant" compact>{lease.tenant_name || "—"}</InfoRow>
                     <InfoRow label="Status" compact><span style={{ textTransform: 'capitalize' }}>{lease.status || "—"}</span></InfoRow>
                   </div>
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.5rem', alignItems: 'center' }}>
+                    <InfoRow label="Reliability" compact>
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.3rem',
+                        padding: '0.15rem 0.6rem',
+                        borderRadius: '12px',
+                        color: scoreColor(lease.reliability_score),
+                        background: `${scoreColor(lease.reliability_score)}15`,
+                        border: `1px solid ${scoreColor(lease.reliability_score)}30`,
+                        fontSize: '12px',
+                        fontWeight: 500,
+                      }}>
+                        {scoreLabel(lease.reliability_score)}
+                        {lease.reliability_score_value != null && (
+                          <span style={{ fontWeight: 700 }}>
+                            {Number(lease.reliability_score_value).toFixed(1)}
+                          </span>
+                        )}
+                      </span>
+                    </InfoRow>
+                    {lease.standing && lease.standing !== "good_standing" && (
+                      <InfoRow label="Standing" compact>
+                        <span style={{ textTransform: 'capitalize', color: '#9e3a3a' }}>
+                          {lease.standing.replace(/_/g, ' ')}
+                        </span>
+                      </InfoRow>
+                    )}
+                  </div>
                   <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
                     <InfoRow label="Property" compact>{lease.property_name || "—"}</InfoRow>
                     <InfoRow label="Unit" compact>{lease.unit_number ? `Unit ${lease.unit_number}` : "—"}</InfoRow>
@@ -685,6 +726,18 @@ export default function LeaseSummary() {
                 <div style={{ flex: 1, minWidth: 140, border: '1px solid #e9ecef', background: '#f9fafb', padding: '0.8rem', textAlign: 'center' }}>
                   <div style={{ fontSize: '18px', fontWeight: 600, color: '#000' }}>{formatAmount(depositOutstanding)}</div>
                   <div style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.05em', color: '#333' }}>DEPOSIT OUTSTANDING</div>
+                </div>
+                <div style={{ flex: 1, minWidth: 120, border: '1px solid #e9ecef', background: '#f9fafb', padding: '0.8rem', textAlign: 'center' }}>
+                  <div style={{ fontSize: '18px', fontWeight: 600, color: '#2b7a4b' }}>{lease.on_time_payments || 0}</div>
+                  <div style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.05em', color: '#333' }}>ON-TIME</div>
+                </div>
+                <div style={{ flex: 1, minWidth: 120, border: '1px solid #e9ecef', background: '#f9fafb', padding: '0.8rem', textAlign: 'center' }}>
+                  <div style={{ fontSize: '18px', fontWeight: 600, color: '#b9770e' }}>{lease.late_payments || 0}</div>
+                  <div style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.05em', color: '#333' }}>LATE</div>
+                </div>
+                <div style={{ flex: 1, minWidth: 120, border: '1px solid #e9ecef', background: '#f9fafb', padding: '0.8rem', textAlign: 'center' }}>
+                  <div style={{ fontSize: '18px', fontWeight: 600, color: '#c0392b' }}>{lease.missed_payments || 0}</div>
+                  <div style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.05em', color: '#333' }}>MISSED</div>
                 </div>
               </div>
 

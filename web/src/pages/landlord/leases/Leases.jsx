@@ -790,7 +790,7 @@ export default function Leases() {
           </div>
         )}
 
-        {/* Footer with pagination */}
+        {/* Footer */}
         {!loading && paginatedLeases.length > 0 && (
           <div style={{
             display: "flex",

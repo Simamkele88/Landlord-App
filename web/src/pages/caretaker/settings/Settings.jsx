@@ -6,7 +6,6 @@ import { Icon } from "../../../components/Icon";
 
 const API = "http://localhost:4000";
 
-// ---- Local light theme ----
 const C = {
   background: "#f4f5f7",
   card: "#ffffff",
@@ -33,7 +32,6 @@ const settingsNav = [
   { id: 'property', icon: 'home', label: 'Assigned Property' },
 ];
 
-// Common styles
 const inputStyle = {
   width: '100%',
   fontSize: '0.82rem',
@@ -173,20 +171,17 @@ export default function CaretakerSettings() {
   const [activePanel, setActivePanel] = useState('profile');
   const [hasChanges, setHasChanges] = useState(false);
 
-  // Profile
   const [firstName, setFirstName] = useState('David');
   const [lastName, setLastName] = useState('Nkosi');
   const [email, setEmail] = useState('david@chihwarentals.co.za');
   const [phone, setPhone] = useState('+27 83 456 7890');
 
-  // Notifications
   const [maintenanceAlerts, setMaintenanceAlerts] = useState(true);
   const [complaintAlerts, setComplaintAlerts] = useState(true);
   const [messageAlerts, setMessageAlerts] = useState(true);
   const [pushNotif, setPushNotif] = useState(true);
   const [emailDigest, setEmailDigest] = useState(false);
 
-  // Password
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');

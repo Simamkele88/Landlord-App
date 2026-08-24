@@ -25,15 +25,15 @@ const COLORS = {
 };
 
 const PLAN_STATUS = {
-  pending:   { color: "#5b4a0b", bg: "#faf6ed", border: "1px solid #e5dbb8", dot: "#8b6e1a", label: "Pending Approval" },
-  active:    { color: "#1e4a6b", bg: "#e8f0f5", border: "1px solid #b0cfe0", dot: "#2c6b9b", label: "Active" },
+  pending: { color: "#5b4a0b", bg: "#faf6ed", border: "1px solid #e5dbb8", dot: "#8b6e1a", label: "Pending Approval" },
+  active: { color: "#1e4a6b", bg: "#e8f0f5", border: "1px solid #b0cfe0", dot: "#2c6b9b", label: "Active" },
   completed: { color: "#1a4a30", bg: "#eef5e8", border: "1px solid #c5d9b8", dot: "#2b7a4b", label: "Completed" },
   defaulted: { color: "#7a2b2b", bg: "#fbeaea", border: "1px solid #e5bdbd", dot: "#9e3a3a", label: "Defaulted" },
-  rejected:  { color: "#5a5a5a", bg: "#f2f2f2", border: "1px solid #d0d0d0", dot: "#6b6b6b", label: "Rejected" },
+  rejected: { color: "#5a5a5a", bg: "#f2f2f2", border: "1px solid #d0d0d0", dot: "#6b6b6b", label: "Rejected" },
 };
 
 const INSTALMENT_STATUS = {
-  paid:    { color: "#1a4a30", bg: "#eef5e8", border: "1px solid #c5d9b8", dot: "#2b7a4b", label: "Paid" },
+  paid: { color: "#1a4a30", bg: "#eef5e8", border: "1px solid #c5d9b8", dot: "#2b7a4b", label: "Paid" },
   pending: { color: "#5b4a0b", bg: "#faf6ed", border: "1px solid #e5dbb8", dot: "#8b6e1a", label: "Pending" },
   overdue: { color: "#7a2b2b", bg: "#fbeaea", border: "1px solid #e5bdbd", dot: "#9e3a3a", label: "Overdue" },
 };
@@ -118,9 +118,220 @@ function ErrorBanner({ message, onRetry }) {
 }
 
 function CreatePlanModal({ tenants, onClose, onCreated }) {
+  const toast = useToast();
+  const [tenantId, setTenantId] = useState("");
+  const [totalAmount, setTotalAmount] = useState("");
+  const [instalments, setInstalments] = useState("3");
+  const [frequency, setFrequency] = useState("monthly");
+  const [startDate, setStartDate] = useState("");
+  const [note, setNote] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  function handleSubmit() {
+    if (!tenantId || !totalAmount || !instalments || !startDate) {
+      setError("Please fill all required fields.");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    axios.post(`${API}/repayment-plans`, {
+      tenant_id: tenantId,
+      total_amount: Number(totalAmount),
+      instalments: Number(instalments),
+      frequency,
+      start_date: startDate,
+    }, {
+      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+    })
+      .then(({ data }) => {
+        toast.success("Repayment plan created.");
+        onCreated(data.plan);
+        onClose();
+      })
+      .catch(err => {
+        setError(err.response?.data?.error || "Failed to create plan");
+      })
+      .finally(() => setLoading(false));
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', background: 'rgba(44,62,80,0.5)' }}>
+      <div style={{ width: '100%', maxWidth: 480, background: '#fdfdfd', border: '1px solid #e9ecef', borderRadius: '3px', boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.5rem', borderBottom: '1px solid #e9ecef' }}>
+          <h3 style={{ fontSize: '16px', fontWeight: 500, color: '#000' }}>Create Repayment Plan</h3>
+          <button onClick={onClose} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#95a5a6' }}><Icon name="x" size={18} /></button>
+        </div>
+        <div style={{ padding: '1.2rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
+          <div>
+            <label style={{ fontSize: '12px', fontWeight: 500, color: '#333', marginBottom: '0.3rem', display: 'block' }}>Tenant *</label>
+            <select value={tenantId} onChange={e => setTenantId(e.target.value)} style={{ width: '100%', padding: '0.4rem 0.7rem', fontSize: '14px', background: '#fdfdfd', border: '1px solid #dee2e6', color: '#000', outline: 'none', borderRadius: '2px' }}>
+              <option value="">Select tenant...</option>
+              {tenants.map(t => (
+                <option key={t.id} value={t.id}>{t.name} ({t.unit})</option>
+              ))}
+            </select>
+          </div>
+          <div style={{ display: 'flex', gap: '0.8rem' }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ fontSize: '12px', fontWeight: 500, color: '#333', marginBottom: '0.3rem', display: 'block' }}>Total Amount (R) *</label>
+              <input type="number" value={totalAmount} onChange={e => setTotalAmount(e.target.value)} style={{ width: '100%', padding: '0.4rem 0.7rem', fontSize: '14px', background: '#fdfdfd', border: '1px solid #dee2e6', color: '#000', outline: 'none', borderRadius: '2px' }} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={{ fontSize: '12px', fontWeight: 500, color: '#333', marginBottom: '0.3rem', display: 'block' }}>Instalments *</label>
+              <input type="number" min="1" max="24" value={instalments} onChange={e => setInstalments(e.target.value)} style={{ width: '100%', padding: '0.4rem 0.7rem', fontSize: '14px', background: '#fdfdfd', border: '1px solid #dee2e6', color: '#000', outline: 'none', borderRadius: '2px' }} />
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '0.8rem' }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ fontSize: '12px', fontWeight: 500, color: '#333', marginBottom: '0.3rem', display: 'block' }}>Frequency</label>
+              <select value={frequency} onChange={e => setFrequency(e.target.value)} style={{ width: '100%', padding: '0.4rem 0.7rem', fontSize: '14px', background: '#fdfdfd', border: '1px solid #dee2e6', color: '#000', outline: 'none', borderRadius: '2px' }}>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+                <option value="quarterly">Quarterly</option>
+              </select>
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={{ fontSize: '12px', fontWeight: 500, color: '#333', marginBottom: '0.3rem', display: 'block' }}>Start Date *</label>
+              <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} style={{ width: '100%', padding: '0.4rem 0.7rem', fontSize: '14px', background: '#fdfdfd', border: '1px solid #dee2e6', color: '#000', outline: 'none', borderRadius: '2px' }} />
+            </div>
+          </div>
+          {error && <p style={{ fontSize: '13px', color: '#9e3a3a' }}>{error}</p>}
+        </div>
+        <div style={{ display: 'flex', gap: '0.8rem', padding: '1rem 1.5rem 1.5rem', borderTop: '1px solid #e9ecef' }}>
+          <button onClick={onClose} disabled={loading} style={{ ...outlineBtnStyle, flex: 1, justifyContent: 'center' }}>Cancel</button>
+          <button onClick={handleSubmit} disabled={loading} style={{ ...primaryBtnStyle, flex: 1, justifyContent: 'center' }}>
+            {loading ? <span style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#ffffff', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} /> : "Create Plan"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function PlanDetailModal({ plan, onClose, onMarkPaid, onApprove, onReject }) {
+  const [loadingAction, setLoadingAction] = useState(false);
+  const toast = useToast();
+
+  const remaining = plan.total_amount - plan.paid_amount;
+  const progress = plan.total_amount > 0 ? Math.round((plan.paid_amount / plan.total_amount) * 100) : 0;
+
+  async function handleApprove() {
+    setLoadingAction(true);
+    try {
+      const token = localStorage.getItem("token");
+      await axios.post(`${API}/repayment-plans/${plan.id}/approve`, {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      onApprove(plan.id);
+      onClose();
+    } catch (err) {
+      toast.error(err.response?.data?.error || "Failed to approve");
+    } finally {
+      setLoadingAction(false);
+    }
+  }
+
+  async function handleReject() {
+    setLoadingAction(true);
+    try {
+      const token = localStorage.getItem("token");
+      await axios.post(`${API}/repayment-plans/${plan.id}/reject`, {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      onReject(plan.id);
+      onClose();
+    } catch (err) {
+      toast.error(err.response?.data?.error || "Failed to reject");
+    } finally {
+      setLoadingAction(false);
+    }
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', background: 'rgba(44,62,80,0.5)' }}>
+      <div style={{ width: '100%', maxWidth: 720, maxHeight: '90vh', overflowY: 'auto', background: '#fdfdfd', border: '1px solid #e9ecef', borderRadius: '3px', boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.5rem', borderBottom: '1px solid #e9ecef' }}>
+          <div>
+            <h3 style={{ fontSize: '16px', fontWeight: 500, color: '#000' }}>{plan.tenant_name}</h3>
+            <p style={{ fontSize: '13px', color: '#333', marginTop: '0.2rem' }}>{plan.unit} · {plan.property}</p>
+          </div>
+          <button onClick={onClose} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#95a5a6' }}><Icon name="x" size={18} /></button>
+        </div>
+
+        {/* Summary */}
+        <div style={{ padding: '1rem 1.5rem', display: 'flex', flexWrap: 'wrap', gap: '0.8rem' }}>
+          {[
+            ["Total", formatAmount(plan.total_amount)],
+            ["Paid", formatAmount(plan.paid_amount)],
+            ["Remaining", formatAmount(remaining)],
+            ["Progress", `${progress}%`],
+            ["Frequency", plan.frequency],
+            ["Start Date", formatDate(plan.start_date)],
+          ].map(([label, val]) => (
+            <div key={label} style={{ flex: '1 1 120px', background: '#f9fafb', border: '1px solid #e9ecef', padding: '0.6rem', textAlign: 'center' }}>
+              <div style={{ fontSize: '11px', color: '#333', textTransform: 'uppercase' }}>{label}</div>
+              <div style={{ fontSize: '1.1rem', fontWeight: 600, color: '#000' }}>{val}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Status */}
+        <div style={{ padding: '0 1.5rem 1rem' }}>
+          <StatusBadge status={plan.status} />
+        </div>
+
+        {/* Action buttons */}
+        {plan.status === 'pending' && (
+          <div style={{ padding: '0 1.5rem 1rem', display: 'flex', gap: '0.8rem' }}>
+            <button onClick={handleApprove} disabled={loadingAction} style={{ ...primaryBtnStyle, background: '#2b7a4b', borderColor: '#2b7a4b' }}>
+              Approve Plan
+            </button>
+            <button onClick={handleReject} disabled={loadingAction} style={{ ...outlineBtnStyle, color: '#9e3a3a', borderColor: '#e5bdbd' }}>
+              Reject Plan
+            </button>
+          </div>
+        )}
+
+        {/* Instalments */}
+        <div style={{ padding: '0 1.5rem 1.5rem' }}>
+          <h4 style={{ fontSize: '14px', fontWeight: 600, color: '#000', marginBottom: '0.6rem' }}>Instalment Schedule</h4>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                <th style={thStyle}>#</th>
+                <th style={thStyle}>Due Date</th>
+                <th style={thStyle}>Amount</th>
+                <th style={thStyle}>Status</th>
+                <th style={{ ...thStyle, textAlign: 'center' }}>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {plan.instalments.map((inst, idx) => (
+                <tr key={inst.id || idx}>
+                  <td style={tdStyle}>{inst.instalment_number}</td>
+                  <td style={tdStyle}>{formatDate(inst.due_date)}</td>
+                  <td style={tdStyle}>{formatAmount(inst.amount)}</td>
+                  <td style={tdStyle}><InstalmentBadge status={inst.status} /></td>
+                  <td style={{ ...tdStyle, textAlign: 'center' }}>
+                    {inst.status !== 'paid' && plan.status === 'active' && (
+                      <button
+                        onClick={() => onMarkPaid(plan.id, inst.id)}
+                        style={{ fontSize: '12px', fontWeight: 500, color: '#2b7a4b', background: 'none', border: 'none', cursor: 'pointer' }}
+                      >
+                        Mark Paid
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function RepaymentPlans() {
@@ -138,7 +349,7 @@ export default function RepaymentPlans() {
   const [detailPlan, setDetailPlan] = useState(null);
 
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(PAGE_SIZE); 
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -504,7 +715,7 @@ export default function RepaymentPlans() {
               </div>
             )}
 
-            {/* Footer info - right aligned */}
+            {/* Footer info  */}
             <div style={{ display: "flex", justifyContent: "flex-end", padding: "0 1.7rem 1.7rem", fontSize: "13px", color: "#7f8c8d", marginTop: "-1.5rem" }}>
               Showing {paginatedPlans.length} of {filteredPlans.length} plans
             </div>

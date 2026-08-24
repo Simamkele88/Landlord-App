@@ -536,7 +536,6 @@ export default function MessagesScreen() {
   const unreadTotal = conversations.reduce((sum, c) => sum + (c.unread || 0), 0);
   const canSend     = (messageInput.trim().length > 0 || attachments.length > 0) && !sending;
 
-  // Group active convo messages by date
   const messageGroups = activeConvo?.messages?.reduce((groups, msg) => {
     const dateHeader = formatDateHeader(msg.created_at);
     if (!groups[dateHeader]) groups[dateHeader] = [];

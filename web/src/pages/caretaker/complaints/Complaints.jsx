@@ -12,7 +12,6 @@ const API = "http://localhost:4000";
 const FONT = '"Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif';
 const PAGE_SIZE = 10;
 
-// Local light theme (same as Units page)
 const C = {
   background: "#f4f5f7",
   card: "#ffffff",
@@ -36,14 +35,14 @@ const STATUS_MAP = {
 };
 
 const statusConfig = {
-  "open":                   { color: "#9e3a3a", bg: "#fbeaea", border: "1px solid #e5bdbd", dot: "#9e3a3a", label: "Open" },
-  "under_review":           { color: "#8b6e1a", bg: "#faf6ed", border: "1px solid #e5dbb8", dot: "#8b6e1a", label: "Under Review" },
+  "open": { color: "#9e3a3a", bg: "#fbeaea", border: "1px solid #e5bdbd", dot: "#9e3a3a", label: "Open" },
+  "under_review": { color: "#8b6e1a", bg: "#faf6ed", border: "1px solid #e5dbb8", dot: "#8b6e1a", label: "Under Review" },
   "awaiting_clarification": { color: "#c25e1a", bg: "#fef9e7", border: "1px solid #f5c6cb", dot: "#c25e1a", label: "Needs Clarification" },
-  "approved":               { color: "#2c6b9b", bg: "#e8f0f5", border: "1px solid #b0cfe0", dot: "#2c6b9b", label: "Approved" },
-  "resolved":               { color: "#2b7a4b", bg: "#eef5e8", border: "1px solid #c5d9b8", dot: "#2b7a4b", label: "Resolved" },
-  "dismissed":              { color: "#5a5a5a", bg: "#f2f2f2", border: "1px solid #d0d0d0", dot: "#6b6b6b", label: "Dismissed" },
-  "escalated":              { color: "#54326b", bg: "#eee7f3", border: "1px solid #d1c2dc", dot: "#54326b", label: "Escalated" },
-  "rejected":               { color: "#5a5a5a", bg: "#f2f2f2", border: "1px solid #d0d0d0", dot: "#6b6b6b", label: "Rejected" },
+  "approved": { color: "#2c6b9b", bg: "#e8f0f5", border: "1px solid #b0cfe0", dot: "#2c6b9b", label: "Approved" },
+  "resolved": { color: "#2b7a4b", bg: "#eef5e8", border: "1px solid #c5d9b8", dot: "#2b7a4b", label: "Resolved" },
+  "dismissed": { color: "#5a5a5a", bg: "#f2f2f2", border: "1px solid #d0d0d0", dot: "#6b6b6b", label: "Dismissed" },
+  "escalated": { color: "#54326b", bg: "#eee7f3", border: "1px solid #d1c2dc", dot: "#54326b", label: "Escalated" },
+  "rejected": { color: "#5a5a5a", bg: "#f2f2f2", border: "1px solid #d0d0d0", dot: "#6b6b6b", label: "Rejected" },
 };
 
 const SCOPE_LABELS = {
@@ -99,6 +98,26 @@ function StatusBadge({ status }) {
   );
 }
 
+function StatChip({ label, value, color, bg, border }) {
+  return (
+    <div style={{
+      padding: "0.7rem 0.9rem",
+      borderRadius: "3px",
+      background: bg || "#f9fafb",
+      border: `1px solid ${border || "#e9ecef"}`,
+      textAlign: "center",
+      flex: "1 1 100px",
+    }}>
+      <div style={{ fontSize: "0.68rem", fontWeight: 600, color: "#555", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: FONT }}>
+        {label}
+      </div>
+      <div style={{ fontSize: "1.3rem", fontWeight: 700, color: color || "#000", marginTop: "2px" }}>
+        {value}
+      </div>
+    </div>
+  );
+}
+
 export default function CaretakerComplaints() {
   useDocumentTitle("Complaints");
   const navigate = useNavigate();
@@ -137,7 +156,6 @@ export default function CaretakerComplaints() {
     fetchComplaints(true);
   }
 
-  // Filtering logic
   const filtered = complaints.filter(c => {
     const actualStatus = STATUS_MAP[filter];
     const matchStatus = actualStatus === "All" || c.status === actualStatus;
@@ -154,6 +172,12 @@ export default function CaretakerComplaints() {
   useEffect(() => { setPage(1); }, [filter, search, pageSize]);
 
   const openCount = complaints.filter(c => ["open", "under_review", "awaiting_clarification"].includes(c.status)).length;
+  const underReviewCount = complaints.filter(c => c.status === "under_review").length;
+  const awaitingClarificationCount = complaints.filter(c => c.status === "awaiting_clarification").length;
+  const resolvedCount = complaints.filter(c => c.status === "resolved").length;
+  const dismissedCount = complaints.filter(c => c.status === "dismissed").length;
+  const rejectedCount = complaints.filter(c => c.status === "rejected").length;
+  const totalCount = complaints.length;
   const escalatedCount = complaints.filter(c => c.status === "escalated").length;
 
   const outlineBtnStyle = {
@@ -196,6 +220,24 @@ export default function CaretakerComplaints() {
           <h4 style={{ fontSize: '16px', color: '#000', margin: 0, fontFamily: FONT, fontWeight: 500 }}>
             List of Complaints
           </h4>
+        </div>
+
+        <div style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: "0.6rem",
+          padding: "0.85rem 1.1rem",
+          background: "#f9fafb",
+          borderBottom: "1px solid #dfe3e8",
+        }}>
+          <StatChip label="Total" value={totalCount} color="#2c3e50" bg="rgba(44,62,80,0.06)" border="rgba(44,62,80,0.15)" />
+          <StatChip label="Open" value={openCount} color="#9e3a3a" bg="rgba(158,58,58,0.06)" border="rgba(158,58,58,0.15)" />
+          <StatChip label="Under Review" value={underReviewCount} color="#8b6e1a" bg="rgba(139,110,26,0.06)" border="rgba(139,110,26,0.15)" />
+          <StatChip label="Needs Clarification" value={awaitingClarificationCount} color="#c25e1a" bg="rgba(194,94,26,0.06)" border="rgba(194,94,26,0.15)" />
+          <StatChip label="Escalated" value={escalatedCount} color="#54326b" bg="rgba(84,50,107,0.06)" border="rgba(84,50,107,0.15)" />
+          <StatChip label="Resolved" value={resolvedCount} color="#2b7a4b" bg="rgba(43,122,75,0.06)" border="rgba(43,122,75,0.15)" />
+          <StatChip label="Dismissed" value={dismissedCount} color="#5a5a5a" bg="rgba(0,0,0,0.04)" border="rgba(0,0,0,0.1)" />
+          <StatChip label="Rejected" value={rejectedCount} color="#5a5a5a" bg="rgba(0,0,0,0.04)" border="rgba(0,0,0,0.1)" />
         </div>
 
         {/* Toolbar */}

@@ -11,14 +11,14 @@ const PAGE_SIZE = 8;
 const FONT = '"Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif';
 
 const STATUS_CONFIG = {
-  "open":                   { label: "Open",               color: C.redLight,   bg: 'rgba(224,90,74,0.1)',    border: '1px solid rgba(224,90,74,0.2)',   dot: C.redLight   },
-  "under_review":           { label: "Under Review",       color: C.gold,       bg: 'rgba(232,160,18,0.08)',   border: '1px solid rgba(232,160,18,0.2)',   dot: C.gold       },
-  "awaiting_clarification": { label: "Needs Clarification",color: '#f59e0b',    bg: 'rgba(245,158,11,0.1)',    border: '1px solid rgba(245,158,11,0.2)',   dot: '#f59e0b'    },
-  "approved":               { label: "Approved",           color: C.blue,       bg: 'rgba(58,143,212,0.1)',    border: '1px solid rgba(58,143,212,0.2)',   dot: C.blue       },
-  "resolved":               { label: "Resolved",           color: C.greenLight, bg: 'rgba(26,122,74,0.1)',    border: '1px solid rgba(76,186,122,0.2)',   dot: C.greenLight },
-  "dismissed":              { label: "Dismissed",          color: 'rgba(245,240,232,0.4)', bg: 'rgba(245,240,232,0.04)', border: '1px solid rgba(245,240,232,0.1)', dot: 'rgba(245,240,232,0.3)' },
-  "escalated":              { label: "Escalated",          color: C.purple,     bg: 'rgba(139,92,246,0.1)',    border: '1px solid rgba(139,92,246,0.2)',   dot: C.purple     },
-  "rejected":               { label: "Rejected",           color: 'rgba(245,240,232,0.4)', bg: 'rgba(245,240,232,0.04)', border: '1px solid rgba(245,240,232,0.1)', dot: 'rgba(245,240,232,0.3)' },
+  "open": { label: "Open", color: C.redLight, bg: 'rgba(224,90,74,0.1)', border: '1px solid rgba(224,90,74,0.2)', dot: C.redLight },
+  "under_review": { label: "Under Review", color: C.gold, bg: 'rgba(232,160,18,0.08)', border: '1px solid rgba(232,160,18,0.2)', dot: C.gold },
+  "awaiting_clarification": { label: "Needs Clarification", color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)', dot: '#f59e0b' },
+  "approved": { label: "Approved", color: C.blue, bg: 'rgba(58,143,212,0.1)', border: '1px solid rgba(58,143,212,0.2)', dot: C.blue },
+  "resolved": { label: "Resolved", color: C.greenLight, bg: 'rgba(26,122,74,0.1)', border: '1px solid rgba(76,186,122,0.2)', dot: C.greenLight },
+  "dismissed": { label: "Dismissed", color: 'rgba(245,240,232,0.4)', bg: 'rgba(245,240,232,0.04)', border: '1px solid rgba(245,240,232,0.1)', dot: 'rgba(245,240,232,0.3)' },
+  "escalated": { label: "Escalated", color: C.purple, bg: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.2)', dot: C.purple },
+  "rejected": { label: "Rejected", color: 'rgba(245,240,232,0.4)', bg: 'rgba(245,240,232,0.04)', border: '1px solid rgba(245,240,232,0.1)', dot: 'rgba(245,240,232,0.3)' },
 };
 
 const FILTERS = ["All", "Open", "Under Review", "Escalated", "Approved", "Resolved", "Dismissed"];
@@ -41,6 +41,25 @@ function StatusBadge({ status }) {
       <span style={{ width: 5, height: 5, borderRadius: '50%', background: cfg.dot }} />
       {cfg.label}
     </span>
+  );
+}
+
+function StatCard({ label, value, color, bg, border }) {
+  return (
+    <div style={{
+      padding: "0.7rem 0.9rem",
+      borderRadius: "3px",
+      background: bg || "#f9fafb",
+      border: `1px solid ${border || "#e9ecef"}`,
+      textAlign: "center",
+    }}>
+      <div style={{ fontSize: "0.68rem", fontWeight: 600, color: "#555", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: FONT }}>
+        {label}
+      </div>
+      <div style={{ fontSize: "1.3rem", fontWeight: 700, color: color || "#000", marginTop: "2px" }}>
+        {value}
+      </div>
+    </div>
   );
 }
 
@@ -75,6 +94,7 @@ export default function LandlordComplaints() {
   const [refreshing, setRefreshing] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(PAGE_SIZE);
+  const [stats, setStats] = useState(null);
 
   const fetchComplaints = useCallback(async (isRefresh = false) => {
     if (!isRefresh) setLoading(true);
@@ -85,6 +105,7 @@ export default function LandlordComplaints() {
         headers: { Authorization: `Bearer ${token}` },
       });
       setComplaints(response.data.complaints || []);
+      setStats(response.data.stats || null);
     } catch (err) {
       console.error("Failed to fetch complaints:", err);
       setError(err.response?.data?.error || "Unable to connect to server");
@@ -165,6 +186,24 @@ export default function LandlordComplaints() {
             List of Complaints
           </h4>
         </div>
+
+        {stats && (
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+            gap: "0.6rem",
+            padding: "0.85rem 1.1rem",
+            background: "#f9fafb",
+            borderBottom: "1px solid #dfe3e8",
+          }}>
+            <StatCard label="Open" value={stats.open || 0} color="#9e3a3a" bg="rgba(158,58,58,0.06)" border="rgba(158,58,58,0.15)" />
+            <StatCard label="Under Review" value={stats.under_review || 0} color="#8b6e1a" bg="rgba(139,110,26,0.06)" border="rgba(139,110,26,0.15)" />
+            <StatCard label="Escalated" value={stats.escalated || 0} color="#6f42c1" bg="rgba(111,66,193,0.06)" border="rgba(111,66,193,0.15)" />
+            <StatCard label="Approved" value={stats.approved || 0} color="#2c6b9b" bg="rgba(44,107,155,0.06)" border="rgba(44,107,155,0.15)" />
+            <StatCard label="Warnings" value={stats.warnings || 0} color="#8b6e1a" bg="rgba(139,110,26,0.06)" border="rgba(139,110,26,0.15)" />
+            <StatCard label="Fines" value={stats.fines || 0} sub={stats.total_fines_amount ? `R ${Number(stats.total_fines_amount).toLocaleString("en-ZA")}` : null} color="#9e3a3a" bg="rgba(158,58,58,0.06)" border="rgba(158,58,58,0.15)" />
+          </div>
+        )}
 
         {/* Toolbar */}
         <div style={{
@@ -349,7 +388,7 @@ export default function LandlordComplaints() {
                       <td style={tdStyle}><StatusBadge status={c.status} /></td>
                       {/* Date */}
                       <td style={{ ...tdStyle, fontSize: '11px', color: '#555' }}>{timeAgo(c.created_at)}</td>
-                      
+
                     </tr>
                   );
                 })

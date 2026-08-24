@@ -31,7 +31,6 @@ router.get("/", requireAuth, requireLandlord, async (req, res) => {
     if (result.rows.length === 0) {
       return res.json({
         settings: {
-          // Grace period & late fees
           grace_period_days: 5,
           late_fee_type: "percentage",
           late_fee_value: 10,
@@ -71,8 +70,7 @@ router.get("/", requireAuth, requireLandlord, async (req, res) => {
   }
 });
 
-// PUT /landlord/payment-settings
-// Save/update all payment settings
+// PUT /landlord/payment-settings - Save settings
 router.put("/", requireAuth, requireLandlord, async (req, res) => {
   try {
     const landlordId = await getLandlordId(req.userId);

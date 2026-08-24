@@ -1,4 +1,4 @@
-// LANDLORD COLLECTIONS PAGE (Styled like Units)
+// LANDLORD COLLECTIONS PAGE
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
@@ -23,16 +23,19 @@ const STATUS_MAP = {
 };
 
 const statusConfig = {
-  "flagged":           { color: "#9e3a3a", bg: "#fdf0ee", border: "1px solid #f0cfcb", dot: "#9e3a3a", label: "Flagged" },
-  "active":            { color: "#9e3a3a", bg: "#fdf0ee", border: "1px solid #f0cfcb", dot: "#9e3a3a", label: "In Collections" },
-  "collections":       { color: "#9e3a3a", bg: "#fdf0ee", border: "1px solid #f0cfcb", dot: "#9e3a3a", label: "Collections" },
-  "repayment_agreed":  { color: "#2c6b9b", bg: "#e8f0f5", border: "1px solid #b0cfe0", dot: "#2c6b9b", label: "Repayment Agreed" },
-  "repayment_plan":    { color: "#2c6b9b", bg: "#e8f0f5", border: "1px solid #b0cfe0", dot: "#2c6b9b", label: "Repayment Plan" },
-  "legal":             { color: "#54326b", bg: "#eee7f3", border: "1px solid #d1c2dc", dot: "#54326b", label: "Legal" },
-  "recovered":         { color: "#2b7a4b", bg: "#eef5e8", border: "1px solid #c5d9b8", dot: "#2b7a4b", label: "Recovered" },
-  "resolved":          { color: "#2b7a4b", bg: "#eef5e8", border: "1px solid #c5d9b8", dot: "#2b7a4b", label: "Resolved" },
-  "written_off":       { color: "#6c757d", bg: "#f8f9fa", border: "1px solid #dee2e6", dot: "#6c757d", label: "Written Off" },
+  "flagged": { color: "#9e3a3a", bg: "#fdf0ee", border: "1px solid #f0cfcb", dot: "#9e3a3a", label: "Flagged" },
+  "active": { color: "#9e3a3a", bg: "#fdf0ee", border: "1px solid #f0cfcb", dot: "#9e3a3a", label: "In Collections" },
+  "collections": { color: "#9e3a3a", bg: "#fdf0ee", border: "1px solid #f0cfcb", dot: "#9e3a3a", label: "Collections" },
+  "repayment_agreed": { color: "#2c6b9b", bg: "#e8f0f5", border: "1px solid #b0cfe0", dot: "#2c6b9b", label: "Repayment Agreed" },
+  "repayment_plan": { color: "#2c6b9b", bg: "#e8f0f5", border: "1px solid #b0cfe0", dot: "#2c6b9b", label: "Repayment Plan" },
+  "legal": { color: "#54326b", bg: "#eee7f3", border: "1px solid #d1c2dc", dot: "#54326b", label: "Legal" },
+  "recovered": { color: "#2b7a4b", bg: "#eef5e8", border: "1px solid #c5d9b8", dot: "#2b7a4b", label: "Recovered" },
+  "resolved": { color: "#2b7a4b", bg: "#eef5e8", border: "1px solid #c5d9b8", dot: "#2b7a4b", label: "Resolved" },
+  "written_off": { color: "#6c757d", bg: "#f8f9fa", border: "1px solid #dee2e6", dot: "#6c757d", label: "Written Off" },
+  "partial_collection": { color: "#8b6e1a", bg: "#faf6ed", border: "1px solid #e5dbb8", dot: "#8b6e1a", label: "Partial Collection" },
+  "overdue": { color: "#9e3a3a", bg: "#fdf0ee", border: "1px solid #f0cfcb", dot: "#9e3a3a", label: "Overdue" },
 };
+
 
 const thStyle = {
   padding: '0.6rem 0.8rem',
@@ -85,9 +88,86 @@ function StatusBadge({ status }) {
   );
 }
 
+function ScoreBadge({ score, value }) {
+  if (!score) return null;
+  const display = score.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  const color =
+    score === 'reliable' ? '#2b7a4b' :
+      score === 'moderate_risk' ? '#b9770e' : '#c0392b';
+  return (
+    <span style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: '0.25rem',
+      fontSize: '11px',
+      fontWeight: 500,
+      padding: '0.1rem 0.45rem',
+      borderRadius: '12px',
+      color: color,
+      background: `${color}15`,
+      border: `1px solid ${color}30`,
+    }}>
+      <span style={{ width: 5, height: 5, borderRadius: '50%', background: color }} />
+      {display}
+      {value != null && <span style={{ fontWeight: 700 }}>{Number(value).toFixed(1)}</span>}
+    </span>
+  );
+}
+
+function CollectionsSummaryStrip({ summary }) {
+  if (!summary) return null;
+
+  const total = Number(summary.total || 0);
+  const active = Number(summary.active || 0);
+  const partial = Number(summary.partial || 0);
+  const legal = Number(summary.legal || 0);
+  const recovered = Number(summary.recovered || 0);
+  const totalBalance = Number(summary.total_balance || 0);
+
+  const cards = [
+    { label: "Total Accounts", value: total, color: "#2c3e50", bg: "rgba(44,62,80,0.06)", border: "rgba(44,62,80,0.15)" },
+    { label: "In Collections", value: active, color: "#9e3a3a", bg: "rgba(158,58,58,0.06)", border: "rgba(158,58,58,0.15)" },
+    { label: "Partial", value: partial, color: "#8b6e1a", bg: "rgba(139,110,26,0.06)", border: "rgba(139,110,26,0.15)" },
+    { label: "Legal", value: legal, color: "#54326b", bg: "rgba(84,50,107,0.06)", border: "rgba(84,50,107,0.15)" },
+    { label: "Recovered", value: recovered, color: "#2b7a4b", bg: "rgba(43,122,75,0.06)", border: "rgba(43,122,75,0.15)" },
+    { label: "Total Outstanding", value: formatAmount(totalBalance), color: totalBalance > 0 ? "#9e3a3a" : "#2b7a4b", bg: "rgba(0,0,0,0.02)", border: "rgba(0,0,0,0.06)" },
+  ];
+
+  return (
+    <div style={{
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+      gap: "0.6rem",
+      padding: "0.85rem 1.1rem",
+      background: "#f9fafb",
+      borderBottom: "1px solid #dfe3e8",
+    }}>
+      {cards.map(card => (
+        <div key={card.label} style={{
+          padding: "0.6rem 0.9rem",
+          borderRadius: "3px",
+          background: card.bg,
+          border: `1px solid ${card.border}`,
+          textAlign: "center",
+        }}>
+          <div style={{ fontSize: "11px", fontWeight: 600, color: "#333", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+            {card.label}
+          </div>
+          <div style={{ fontSize: "1.2rem", fontWeight: 700, color: card.color, marginTop: "2px" }}>
+            {card.value}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function SendToCollectionsModal({ account, onClose, onConfirm }) {
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
+  const toast = useToast();
+
+  const balance = Number(account.balance || account.outstanding_balance || 0);
 
   async function handleConfirm() {
     setLoading(true);
@@ -96,13 +176,13 @@ function SendToCollectionsModal({ account, onClose, onConfirm }) {
       await axios.post(`${API}/collections`, {
         tenant_id: account.tenant_id,
         lease_id: account.lease_id,
-        outstanding_balance: account.outstanding_balance || account.balance || 0,
+        outstanding_balance: balance,
         notes: note.trim() || null,
       }, { headers: { Authorization: `Bearer ${token}` } });
       onConfirm(account.id);
       onClose();
     } catch (err) {
-      console.error("Send to collections:", err);
+      toast.error(err.response?.data?.error || "Failed to send to collections.");
     } finally {
       setLoading(false);
     }
@@ -133,7 +213,7 @@ function SendToCollectionsModal({ account, onClose, onConfirm }) {
                 Send to Collections
               </h3>
               <p style={{ fontSize: "0.65rem", color: "#6c757d", fontFamily: FONT }}>
-                {account.tenant_name} · {formatAmount(account.outstanding_balance || account.balance)} outstanding
+                {account.tenant_name} · {formatAmount(balance)} outstanding
               </p>
             </div>
           </div>
@@ -145,7 +225,7 @@ function SendToCollectionsModal({ account, onClose, onConfirm }) {
           <p style={{ fontSize: "0.78rem", color: "#333", lineHeight: 1.6, marginBottom: "0.8rem" }}>
             You are about to escalate{" "}
             <strong style={{ color: "#000" }}>{account.tenant_name}</strong> to collections for{" "}
-            <strong style={{ color: "#9e3a3a" }}>{formatAmount(account.outstanding_balance || account.balance)}</strong>.
+            <strong style={{ color: "#9e3a3a" }}>{formatAmount(balance)}</strong>.
             The tenant will be notified.
           </p>
           <textarea
@@ -233,7 +313,7 @@ function InvoiceBreakdownModal({ account, onClose }) {
               Invoice Breakdown
             </h3>
             <p style={{ fontSize: "0.65rem", color: "#6c757d", fontFamily: FONT }}>
-              {account.tenant_name} · {formatAmount(account.outstanding_balance || account.balance)} outstanding
+              {account.tenant_name} · {formatAmount(account.balance || account.outstanding_balance || 0)} outstanding
             </p>
           </div>
           <button onClick={onClose} style={{ padding: "0.2rem", background: "transparent", border: "none", cursor: "pointer", color: "#6c757d" }}>
@@ -316,6 +396,7 @@ export default function Collections() {
   const toast = useToast();
 
   const [accounts, setAccounts] = useState([]);
+  const [summary, setSummary] = useState(null);
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -324,6 +405,7 @@ export default function Collections() {
   const [invoiceModal, setInvoiceModal] = useState(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(PAGE_SIZE);
+  const [riskFilter, setRiskFilter] = useState("All");
 
   const fetchAccounts = useCallback(async () => {
     setLoading(true);
@@ -333,7 +415,8 @@ export default function Collections() {
       const { data } = await axios.get(`${API}/collections`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setAccounts(data.accounts || data.collections || []);
+      setAccounts(data.accounts || []);
+      setSummary(data.summary || null);
     } catch (err) {
       const msg = err.response?.data?.error || "Failed to load collections";
       setError(msg);
@@ -353,7 +436,7 @@ export default function Collections() {
   async function handleUpdateStatus(id, newStatus) {
     try {
       const token = localStorage.getItem("token");
-      await axios.patch(`${API}/collections/${id}/status`, { status: newStatus }, {
+      await axios.put(`${API}/collections/${id}/status`, { status: newStatus }, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setAccounts(prev => prev.map(a => a.id === id ? { ...a, status: newStatus } : a));
@@ -365,11 +448,20 @@ export default function Collections() {
 
   const filtered = accounts.filter(a => {
     const actualStatus = STATUS_MAP[filter];
-    const matchStatus = actualStatus === "All" || a.status === actualStatus ||
-      (actualStatus === "repayment" && ["repayment_agreed", "repayment_plan"].includes(a.status));
+    const accountStatus = a.status || a.collections_status || "flagged";
+    let matchStatus = actualStatus === "All";
+    if (!matchStatus) {
+      if (actualStatus === "repayment") {
+        matchStatus = ["repayment_agreed", "repayment_plan"].includes(accountStatus);
+      } else {
+        matchStatus = accountStatus === actualStatus ||
+          (actualStatus === "active" && ["flagged", "active", "collections"].includes(accountStatus));
+      }
+    }
+    const matchRisk = riskFilter === "All" || a.reliability_score === riskFilter;
     const q = search.toLowerCase();
-    const matchSearch = !q || [a.tenant_name, a.unit_number, a.property_name].some(s => (s || "").toLowerCase().includes(q));
-    return matchStatus && matchSearch;
+    const matchSearch = !q || [a.tenant_name, a.unit, a.property].some(s => (s || "").toLowerCase().includes(q));
+    return matchStatus && matchSearch && matchRisk;
   });
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
@@ -377,13 +469,7 @@ export default function Collections() {
   const startIndex = (currentPage - 1) * pageSize;
   const paginatedAccounts = filtered.slice(startIndex, startIndex + pageSize);
 
-  useEffect(() => { setPage(1); }, [filter, search, pageSize]);
-
-  const inCollections = accounts.filter(a => ["flagged","active","collections"].includes(a.status || "flagged")).length;
-  const totalOutstanding = accounts
-    .filter(a => ["flagged","active","collections"].includes(a.status || "flagged"))
-    .reduce((s, a) => s + Number(a.outstanding_balance || a.balance || 0), 0);
-  const onRepaymentPlan = accounts.filter(a => ["repayment_agreed","repayment_plan"].includes(a.status)).length;
+  useEffect(() => { setPage(1); }, [filter, search, pageSize, riskFilter]);
 
   const outlineBtnStyle = {
     display: 'flex', alignItems: 'center', gap: '0.35rem',
@@ -430,10 +516,10 @@ export default function Collections() {
           <h4 style={{ fontSize: '16px', color: '#000', margin: 0, fontFamily: FONT, fontWeight: 500 }}>
             Collections
           </h4>
-          <p style={{ fontSize: '13px', color: '#555', margin: '0.2rem 0 0.4rem 0', fontFamily: FONT }}>
-            {inCollections} in collections · {formatAmount(totalOutstanding)} outstanding · {onRepaymentPlan} on repayment plans
-          </p>
         </div>
+
+        {/* Summary Strip */}
+        <CollectionsSummaryStrip summary={summary} />
 
         {/* Toolbar */}
         <div style={{
@@ -462,7 +548,6 @@ export default function Collections() {
               />
             </div>
 
-            {/* Status filter dropdown */}
             <select
               value={filter}
               onChange={e => setFilter(e.target.value)}
@@ -474,7 +559,21 @@ export default function Collections() {
               {Object.keys(STATUS_MAP).map(s => <option key={s} value={s}>{s}</option>)}
             </select>
 
-            {/* Page size dropdown */}
+            <select
+              value={riskFilter}
+              onChange={e => setRiskFilter(e.target.value)}
+              style={{
+                border: '1px solid #d0d1d3', borderRadius: '2px', fontSize: '14px',
+                padding: '0.3rem 1.5rem 0.3rem 0.5rem', background: '#fdfdfd',
+                color: '#000', fontFamily: FONT,
+              }}
+            >
+              <option value="All">All Risks</option>
+              <option value="reliable">Reliable</option>
+              <option value="moderate_risk">Moderate Risk</option>
+              <option value="high_risk">High Risk</option>
+            </select>
+
             <select
               value={pageSize}
               onChange={e => setPageSize(Number(e.target.value))}
@@ -516,7 +615,7 @@ export default function Collections() {
             <p>No accounts found.</p>
             <button
               onClick={() => { setFilter("All"); setSearch(""); }}
-              style={{ background: 'none', border: 'none', color: '#2471a3', cursor: 'pointer', textDecoration: 'underline', marginTop: '0.5rem' }}
+              style={{ background: 'none', border: 'none', color: '#2471a3', cursor: 'pointer', textDecoration: 'none', marginTop: '0.5rem' }}
             >
               Clear all filters
             </button>
@@ -531,20 +630,26 @@ export default function Collections() {
                   <th style={thStyle}>Balance</th>
                   <th style={thStyle}>Days Overdue</th>
                   <th style={thStyle}>Status</th>
+                  <th style={thStyle}>Risk</th>
                   <th style={thStyle}>Last Payment</th>
-                  <th style={thStyle}>Notes</th>
                   <th style={thStyle}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {paginatedAccounts.map(a => {
-                  const status = a.status || "flagged";
-                  const balance = Number(a.outstanding_balance || a.balance || 0);
+                  const status = a.status || a.collections_status || "flagged";
+                  const balance = Number(a.balance || a.outstanding_balance || 0);
                   const overdue = a.days_overdue || daysAgo(a.last_payment_date);
-                  const isActive = ["flagged","active","collections"].includes(status);
+                  const isActive = ["flagged", "active", "collections"].includes(status);
+                  const isOverdue = status === "overdue" || status === "partial_collection";
+                  const canSend = isActive || isOverdue;
+                  const accountId = a.id && typeof a.id === 'string' && a.id.startsWith('inv_') ? a.id.replace('inv_', '') : a.id;
+
                   return (
-                    <tr key={a.id} className="rb-row" style={{ cursor: 'pointer' }}>
-                      {/* Tenant column */}
+                    <tr key={a.id} className="rb-row"
+                      onClick={() => navigate(`/landlord/tenants/${a.tenant_id}`)}
+                      style={{ cursor: 'pointer' }}
+                    >
                       <td style={tdStyle}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                           <div style={{
@@ -558,20 +663,17 @@ export default function Collections() {
                         </div>
                       </td>
 
-                      {/* Unit / Property column */}
                       <td style={tdStyle}>
-                        <div style={{ fontWeight: 500 }}>{a.unit_number ? `Unit ${a.unit_number}` : "—"}</div>
-                        <div style={{ marginTop: '2px', fontSize: '11px', color: '#555' }}>{a.property_name || "—"}</div>
+                        <div style={{ fontWeight: 500 }}>{a.unit ? `Unit ${a.unit}` : "—"}</div>
+                        <div style={{ marginTop: '2px', fontSize: '11px', color: '#555' }}>{a.property || "—"}</div>
                       </td>
 
-                      {/* Balance column */}
                       <td style={tdStyle}>
                         <span style={{ fontWeight: 700, color: balance > 0 ? '#9e3a3a' : '#2b7a4b' }}>
                           {balance > 0 ? formatAmount(balance) : "Cleared"}
                         </span>
                       </td>
 
-                      {/* Days Overdue column */}
                       <td style={tdStyle}>
                         <span style={{
                           fontWeight: 600,
@@ -581,37 +683,32 @@ export default function Collections() {
                         </span>
                       </td>
 
-                      {/* Status column */}
                       <td style={tdStyle}><StatusBadge status={status} /></td>
 
-                      {/* Last Payment column */}
+                      <td style={tdStyle}>
+                        <ScoreBadge score={a.reliability_score} value={a.reliability_score_value} />
+                      </td>
+
                       <td style={{ ...tdStyle, fontSize: '0.7rem', color: '#555' }}>
                         {a.last_payment_date ? formatDate(a.last_payment_date) : "Never"}
                       </td>
 
-                      {/* Notes column */}
-                      <td style={{ ...tdStyle, maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#555' }}>
-                        {a.notes || "—"}
-                      </td>
-
-                      {/* Actions column */}
                       <td style={tdStyle} onClick={(e) => e.stopPropagation()}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                           <button onClick={() => setInvoiceModal(a)} style={linkStyle}>Invoices</button>
-                          <button onClick={() => navigate(`/landlord/tenants/${a.tenant_id}`)} style={linkStyle}>Profile</button>
-                          {isActive && (
+                          {canSend && (
                             <button onClick={() => setSendModal(a)} style={{ ...linkStyle, color: '#9e3a3a' }}>Send</button>
                           )}
-                          {status === "collections" && (
+                          {["active", "partial_collection"].includes(status) && !String(a.id).startsWith("inv_") && (
                             <>
-                              <button onClick={() => handleUpdateStatus(a.id, "legal")} style={{ ...linkStyle, color: '#54326b' }}>Legal</button>
-                              <button onClick={() => handleUpdateStatus(a.id, "written_off")} style={{ ...linkStyle, color: '#6c757d' }}>Write Off</button>
+                              <button onClick={() => handleUpdateStatus(accountId, "legal")} style={{ ...linkStyle, color: '#54326b' }}>Legal</button>
+                              <button onClick={() => handleUpdateStatus(accountId, "written_off")} style={{ ...linkStyle, color: '#6c757d' }}>Write Off</button>
                             </>
                           )}
-                          {["repayment_agreed","repayment_plan"].includes(status) && (
+                          {["repayment_agreed", "repayment_plan"].includes(status) && (
                             <button onClick={() => navigate("/landlord/payments/plans")} style={linkStyle}>View Plan</button>
                           )}
-                          {["recovered","resolved"].includes(status) && (
+                          {["recovered", "resolved"].includes(status) && (
                             <span style={{ fontSize: '0.65rem', color: '#2b7a4b', fontStyle: 'italic' }}>Cleared</span>
                           )}
                         </div>
@@ -624,7 +721,7 @@ export default function Collections() {
           </div>
         )}
 
-        {/* Footer with pagination */}
+        {/* Footer */}
         {!loading && !error && paginatedAccounts.length > 0 && (
           <div style={{
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',

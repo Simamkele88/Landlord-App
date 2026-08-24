@@ -11,7 +11,7 @@ import { Ionicons, Feather, MaterialIcons } from "@expo/vector-icons";
 import api from "../../utils/api";
 import { C, F } from "../../styles/theme";
 
-function fmt(n)     { return `R ${Number(n || 0).toLocaleString("en-ZA")}`; }
+function fmt(n) { return `R ${Number(n || 0).toLocaleString("en-ZA")}`; }
 function formatDate(d) {
   if (!d) return "—";
   try { return new Date(d).toLocaleDateString("en-ZA", { day: "2-digit", month: "long", year: "numeric" }); }
@@ -30,7 +30,7 @@ function formatRentalPeriod(startDateStr) {
       if (!isNaN(date.getTime())) {
         return date.toLocaleDateString("en-ZA", { month: "long", year: "numeric" });
       }
-    } catch {}
+    } catch { }
   }
   return "—";
 }
@@ -43,26 +43,82 @@ function formatTime(d) {
 
 function statusConfig(status) {
   switch (status) {
-    case "paid":     
+    case "paid":
       return { color: C.green, bg: "rgba(43,122,75,0.08)", label: "Fully Paid", icon: "checkmark-circle" };
-    case "partial":  
+    case "partial":
       return { color: C.blue, bg: "rgba(52,152,219,0.08)", label: "Partially Paid", icon: "time" };
-    case "overdue":  
+    case "overdue":
       return { color: C.red, bg: "rgba(158,58,58,0.08)", label: "Overdue", icon: "alert-circle" };
     case "sent":
-    case "unpaid":   
+    case "unpaid":
       return { color: C.blue, bg: "rgba(52,152,219,0.06)", label: "Payment Due", icon: "time" };
     case "pending_approval":
-    case "pending":  
+    case "pending":
       return { color: C.blue, bg: "rgba(52,152,219,0.06)", label: "Pending Approval", icon: "hourglass" };
     case "collections":
       return { color: C.purple, bg: "rgba(111,66,193,0.08)", label: "In Collections", icon: "warning" };
     case "void":
-    case "cancelled":     
+    case "cancelled":
       return { color: C.textMuted, bg: C.surface, label: "Cancelled", icon: "close-circle" };
-    default:         
+    default:
       return { color: C.textMuted, bg: C.surface, label: status || "Unknown", icon: "document" };
   }
+}
+
+function reliabilityColor(score) {
+  if (!score || score === "reliable") return C.green;
+  if (score === "moderate_risk") return C.primary;
+  return C.red;
+}
+
+function scoreLabel(score) {
+  if (!score || score === "reliable") return "Reliable";
+  if (score === "moderate_risk") return "Moderate Risk";
+  return "High Risk";
+}
+
+function getPaymentPolicyForInvoice(score, standing, invoice) {
+  const remaining = Number(invoice?.remaining_balance ?? invoice?.amount_due ?? 0);
+  const isReliable = score === "reliable";
+  const isHighRisk = score === "high_risk";
+  const isBadStanding = ["final_warning", "eviction_notice", "evicted"].includes(standing);
+  const inCollections = invoice?.status === "collections";
+  const isFineInvoice = invoice?.invoice_type === "fine";
+
+  if (inCollections) {
+    return {
+      canPayDirect: false,
+      fullPaymentOnly: true,
+      message: "Account in collections — payment through repayment plan only.",
+      color: C.purple,
+    };
+  }
+
+  if (isFineInvoice && remaining > 0) {
+    return {
+      canPayDirect: true,
+      fullPaymentOnly: true,
+      message: `This fine must be paid in full. Outstanding amount: ${fmt(remaining)}.`,
+      color: C.red,
+    };
+  }
+
+  if (!isReliable || isHighRisk || isBadStanding) {
+    return {
+      canPayDirect: true,
+      fullPaymentOnly: true,
+      message: `Your account does not allow partial payments. Please pay the full outstanding amount of ${fmt(remaining)}.`,
+      color: C.red,
+    };
+  }
+
+  return {
+    canPayDirect: true,
+    fullPaymentOnly: false,
+    canPartial: true,
+    message: "Partial payments are allowed (min 50% of balance).",
+    color: C.green,
+  };
 }
 
 function LineItem({ label, amount, sub, accent, bold, dimmed, topBorder }) {
@@ -111,14 +167,14 @@ function PaymentRow({ payment, index }) {
 }
 
 export default function InvoiceDetail() {
-  const navigation              = useNavigation();
-  const route                   = useRoute();
+  const navigation = useNavigation();
+  const route = useRoute();
   const { invoice: passedInv, invoiceId } = route.params || {};
 
-  const [loading, setLoading]   = useState(!passedInv);
+  const [loading, setLoading] = useState(!passedInv);
   const [refreshing, setRefreshing] = useState(false);
-  const [invoice, setInvoice]   = useState(passedInv || null);
-  const [tenant, setTenant]     = useState(null);
+  const [invoice, setInvoice] = useState(passedInv || null);
+  const [tenant, setTenant] = useState(null);
   const [payments, setPayments] = useState([]);
 
   const fetchData = useCallback(async () => {
@@ -172,46 +228,69 @@ export default function InvoiceDetail() {
     );
   }
 
-  const cfg         = statusConfig(invoice.status);
-  const isPaid      = invoice.status === "paid";
-  const isPartial   = invoice.status === "partial";
-  const isActionable= ["sent","unpaid","overdue", "partial"].includes(invoice.status);
-  const isPending   = ["pending","pending_approval"].includes(invoice.status);
+  const cfg = statusConfig(invoice.status);
+  const isPaid = invoice.status === "paid";
+  const isPartial = invoice.status === "partial";
+  const isActionable = ["sent", "unpaid", "overdue", "partial"].includes(invoice.status);
+  const isPending = ["pending", "pending_approval"].includes(invoice.status);
   const inCollections = invoice.status === "collections";
 
-  const rent      = Number(invoice.rent_amount      || 0);
+  const rent = Number(invoice.rent_amount || 0);
   const utilities = Number(invoice.utilities_amount || 0);
-  const lateFees  = Number(invoice.late_fees        || 0);
-  const other     = Number(invoice.other_charges    || 0);
-  const discounts = Number(invoice.discounts        || 0);
-  const total     = Number(invoice.amount_due || rent + utilities + lateFees + other - discounts);
-  const paid      = Number(invoice.paid_amount      || 0);
+  const lateFees = Number(invoice.late_fees || 0);
+  const other = Number(invoice.other_charges || 0);
+  const discounts = Number(invoice.discounts || 0);
+  const total = Number(invoice.amount_due || rent + utilities + lateFees + other - discounts);
+  const paid = Number(invoice.paid_amount || 0);
   const remaining = Number(invoice.remaining_balance ?? (total - paid));
   const paidPercent = total > 0 ? Math.round((paid / total) * 100) : 0;
 
   const tenantInfo = {
-    name:             tenant ? `${tenant.first_name || ""} ${tenant.last_name || ""}`.trim() : "Tenant",
-    unit:             tenant?.unit_number ? `Unit ${tenant.unit_number}` : "—",
-    property:         tenant?.property_name || "—",
-    rentAmount:       invoice?.amount_due || tenant?.rent_amount || tenant?.monthly_rent || 0,
-    dueDay:           invoice?.due_date ? new Date(invoice.due_date).getDate() : tenant?.payment_due_day || 1,
-    leaseEnd:         tenant?.lease_end_date || "—",
+    name: tenant ? `${tenant.first_name || ""} ${tenant.last_name || ""}`.trim() : "Tenant",
+    unit: tenant?.unit_number ? `Unit ${tenant.unit_number}` : "—",
+    property: tenant?.property_name || "—",
+    rentAmount: invoice?.amount_due || tenant?.rent_amount || tenant?.monthly_rent || 0,
+    dueDay: invoice?.due_date ? new Date(invoice.due_date).getDate() : tenant?.payment_due_day || 1,
+    leaseEnd: tenant?.lease_end_date || "—",
     reliabilityScore: tenant?.reliability_score || "reliable",
+    reliabilityScoreValue: tenant?.reliability_score_value != null
+      ? Number(tenant.reliability_score_value)
+      : null,
+    standing: tenant?.standing || "good_standing",
   };
 
+  const paymentPolicy = getPaymentPolicyForInvoice(
+    tenantInfo.reliabilityScore,
+    tenantInfo.standing,
+    invoice
+  );
+
   function handlePay() {
-    navigation.navigate("PaymentMethod", { 
-      invoice: invoice, 
-      tenant: tenantInfo 
+    if (!paymentPolicy.canPayDirect) {
+      Alert.alert("Payment Restricted", paymentPolicy.message);
+      return;
+    }
+    navigation.navigate("PaymentMethod", {
+      invoice,
+      tenant: tenantInfo,
+      paymentPolicy,
     });
   }
 
   function handleUpload() {
-    navigation.navigate("PaymentUpload", { invoice: invoice });
+    if (!paymentPolicy.canPayDirect) {
+      Alert.alert("Payment Restricted", paymentPolicy.message);
+      return;
+    }
+    navigation.navigate("PaymentUpload", {
+      invoice,
+      tenant: tenantInfo,
+      paymentPolicy,
+    });
   }
 
   function handleViewReceipt() {
-    navigation.navigate("PaymentReceipt", { 
+    navigation.navigate("PaymentReceipt", {
       invoiceId: invoice.id,
       payment: {
         ...invoice,
@@ -232,7 +311,7 @@ export default function InvoiceDetail() {
       await Share.share({
         message: `Invoice ${invoice.invoice_number} — ${formatPeriod(invoice.billing_period_start)} — ${fmt(total)} due ${formatDate(invoice.due_date)}`,
       });
-    } catch {}
+    } catch { }
   }
 
   return (
@@ -264,9 +343,19 @@ export default function InvoiceDetail() {
               <Text style={S.invoiceNum}>{invoice.invoice_number || "INV-—"}</Text>
               <Text style={S.invoicePeriod}>{formatPeriod(invoice.billing_period_start, invoice.billing_period_end)}</Text>
             </View>
-            <View style={[S.statusBadge, { backgroundColor: cfg.bg, borderColor: cfg.color + "30" }]}>
-              <Ionicons name={cfg.icon} size={12} color={cfg.color} />
-              <Text style={[S.statusText, { color: cfg.color }]}>{cfg.label}</Text>
+            <View style={{ alignItems: "flex-end" }}>
+              <View style={[S.statusBadge, { backgroundColor: cfg.bg, borderColor: cfg.color + "30" }]}>
+                <Ionicons name={cfg.icon} size={12} color={cfg.color} />
+                <Text style={[S.statusText, { color: cfg.color }]}>{cfg.label}</Text>
+              </View>
+              <View style={[S.scorePill, { borderColor: reliabilityColor(tenantInfo.reliabilityScore) }]}>
+                <Text style={[S.scoreText, { color: reliabilityColor(tenantInfo.reliabilityScore) }]}>
+                  {scoreLabel(tenantInfo.reliabilityScore)}
+                  {tenantInfo.reliabilityScoreValue != null
+                    ? ` · ${tenantInfo.reliabilityScoreValue.toFixed(1)}`
+                    : ""}
+                </Text>
+              </View>
             </View>
           </View>
 
@@ -316,6 +405,16 @@ export default function InvoiceDetail() {
           </View>
         )}
 
+        {/* POLICY BANNER */}
+        {paymentPolicy.message && !inCollections && (
+          <View style={[S.policyBanner, { backgroundColor: paymentPolicy.color + "10", borderColor: paymentPolicy.color + "30" }]}>
+            <MaterialIcons name="info-outline" size={16} color={paymentPolicy.color} />
+            <Text style={[S.policyText, { color: paymentPolicy.color }]}>
+              {paymentPolicy.message}
+            </Text>
+          </View>
+        )}
+
         {/* PAYMENT HISTORY ON INVOICE */}
         {payments.length > 0 && (
           <>
@@ -339,13 +438,13 @@ export default function InvoiceDetail() {
           <Text style={S.secLabel}>BILLING BREAKDOWN</Text>
         </View>
         <View style={S.card}>
-          <LineItem label="Monthly Rent"       amount={rent}      sub={formatPeriod(invoice.billing_period_start)} />
-          {utilities > 0 && <LineItem label="Utilities"    amount={utilities} />}
-          {lateFees  > 0 && <LineItem label="Late Fee"     amount={lateFees}  accent={C.red} />}
-          {other     > 0 && <LineItem label="Other Charges" amount={other}   />}
-          {discounts > 0 && <LineItem label="Discount"     amount={-discounts} accent={C.green} />}
+          <LineItem label="Monthly Rent" amount={rent} sub={formatPeriod(invoice.billing_period_start)} />
+          {utilities > 0 && <LineItem label="Utilities" amount={utilities} />}
+          {lateFees > 0 && <LineItem label="Late Fee" amount={lateFees} accent={C.red} />}
+          {other > 0 && <LineItem label="Other Charges" amount={other} />}
+          {discounts > 0 && <LineItem label="Discount" amount={-discounts} accent={C.green} />}
           <LineItem label="Total Due" amount={total} bold topBorder />
-          {paid > 0 && <LineItem label="Amount Paid"    amount={paid}      accent={C.green} />}
+          {paid > 0 && <LineItem label="Amount Paid" amount={paid} accent={C.green} />}
           {paid > 0 && remaining > 0 && (
             <LineItem label="Balance Remaining" amount={remaining} accent={C.red} bold />
           )}
@@ -357,9 +456,9 @@ export default function InvoiceDetail() {
         </View>
         <View style={S.card}>
           {[
-            ["Period",   `${formatDate(invoice.billing_period_start)} – ${formatDate(invoice.billing_period_end)}`],
+            ["Period", `${formatDate(invoice.billing_period_start)} – ${formatDate(invoice.billing_period_end)}`],
             ["Due Date", formatDate(invoice.due_date)],
-            ["Issued",   formatDate(invoice.created_at)],
+            ["Issued", formatDate(invoice.created_at)],
           ].map(([label, val], i, arr) => (
             <View key={label} style={[S.detailRow, i < arr.length - 1 && { borderBottomWidth: 1, borderBottomColor: C.border }]}>
               <Text style={S.detailLabel}>{label}</Text>
@@ -374,8 +473,8 @@ export default function InvoiceDetail() {
         </View>
         <View style={S.card}>
           {[
-            ["Tenant",   tenant ? `${tenant.first_name || ""} ${tenant.last_name || ""}`.trim() : "—"],
-            ["Unit",     tenant?.unit_number ? `Unit ${tenant.unit_number}` : "—"],
+            ["Tenant", tenant ? `${tenant.first_name || ""} ${tenant.last_name || ""}`.trim() : "—"],
+            ["Unit", tenant?.unit_number ? `Unit ${tenant.unit_number}` : "—"],
             ["Property", tenant?.property_name || "—"],
           ].map(([label, val], i, arr) => (
             <View key={label} style={[S.detailRow, i < arr.length - 1 && { borderBottomWidth: 1, borderBottomColor: C.border }]}>
@@ -396,7 +495,7 @@ export default function InvoiceDetail() {
         )}
 
         {/* ACTIONS */}
-        {isActionable && !inCollections && (
+        {isActionable && !inCollections && paymentPolicy.canPayDirect && (
           <>
             <View style={S.secHead}>
               <Text style={S.secLabel}>
@@ -418,13 +517,29 @@ export default function InvoiceDetail() {
           </>
         )}
 
+        {isActionable && !inCollections && !paymentPolicy.canPayDirect && (
+          <>
+            <View style={S.secHead}>
+              <Text style={S.secLabel}>PAYMENT RESTRICTED</Text>
+            </View>
+            <TouchableOpacity
+              style={[S.btnPrimary, { backgroundColor: paymentPolicy.color }]}
+              onPress={() => navigation.getParent()?.navigate("CollectionsStatus")}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="lock-closed" size={16} color="#ffffff" />
+              <Text style={[S.btnPrimaryText, { color: "#ffffff" }]}>View Collections Status</Text>
+            </TouchableOpacity>
+          </>
+        )}
+
         {isActionable && inCollections && (
           <>
             <View style={S.secHead}>
               <Text style={S.secLabel}>ACCOUNT IN COLLECTIONS</Text>
             </View>
-            <TouchableOpacity 
-              style={[S.btnPrimary, { backgroundColor: C.purple }]} 
+            <TouchableOpacity
+              style={[S.btnPrimary, { backgroundColor: C.purple }]}
               onPress={() => navigation.getParent()?.navigate("CollectionsStatus")}
               activeOpacity={0.85}
             >
@@ -452,9 +567,9 @@ export default function InvoiceDetail() {
 }
 
 const S = StyleSheet.create({
-  safe:   { flex: 1, backgroundColor: C.background },
+  safe: { flex: 1, backgroundColor: C.background },
   scroll: { flex: 1 },
-  pad:    { padding: 16 },
+  pad: { padding: 16 },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 12, backgroundColor: C.surface, borderBottomWidth: 1, borderBottomColor: C.border },
   headerTitle: { fontSize: 16, fontWeight: "700", color: C.textPrimary, fontFamily: F.bebas, letterSpacing: 1 },
 
@@ -505,4 +620,34 @@ const S = StyleSheet.create({
   btnPrimaryText: { fontSize: 13, fontWeight: "700", color: "#ffffff", fontFamily: F.dm, letterSpacing: 0.5, textTransform: "uppercase" },
   btnGhost: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: "transparent", borderRadius: 4, borderWidth: 1, borderColor: C.border, paddingVertical: 13, marginBottom: 16 },
   btnGhostText: { fontSize: 12, color: C.textSecondary, fontFamily: F.dm, letterSpacing: 0.3 },
+  scorePill: {
+    borderWidth: 1.5,
+    borderRadius: 3,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginTop: 6,
+    alignSelf: "flex-end",
+  },
+  scoreText: {
+    fontSize: 10,
+    fontWeight: "700",
+    fontFamily: F.mono,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
+  policyBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    borderRadius: 4,
+    borderWidth: 1,
+    padding: 12,
+    marginBottom: 16,
+  },
+  policyText: {
+    flex: 1,
+    fontSize: 12,
+    fontFamily: F.dm,
+    lineHeight: 18,
+  },
 });

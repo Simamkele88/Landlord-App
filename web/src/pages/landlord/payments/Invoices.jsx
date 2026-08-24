@@ -1,9 +1,9 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-/* eslint-disable no-unused-vars */
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
 import { useToast } from "../../../contexts/ToastContext";
+import useDocumentTitle from "../../../hooks/useDocumentTitle";
 import FullReportModal from "../../../components/FullReportModal";
 import { Icon } from "../../../components/Icon";
 import { FiPlus, FiSearch, FiChevronDown, FiRefreshCcw } from "react-icons/fi";
@@ -31,6 +31,8 @@ const INVOICE_FILTER_MAP = {
 
 const INVOICE_TYPES = [
   { value: "all", label: "All Types" },
+  { value: "damage", label: "Damage/Repair" },
+  { value: "fine", label: "Fine" },
   { value: "rent", label: "Rent" },
   { value: "deposit", label: "Deposit" },
   { value: "utility", label: "Utility" },
@@ -52,6 +54,8 @@ function typeLabel(type) {
     case "rent": return "Rent";
     case "deposit": return "Deposit";
     case "utility": return "Utility";
+    case "damage": return "Damage";
+    case "fine": return "Fine";
     case "other": return "Other";
     default: return type || "—";
   }
@@ -212,113 +216,140 @@ function CashPaymentModal({ invoice, onClose, onSuccess }) {
   );
 }
 
-function GenerateInvoicesModal({ period, periodLabel, onClose, onSuccess }) {
-}
-
-function DepositInvoiceModal({ onClose, onSuccess }) {
+function GenerateInvoicesModal({ period, onClose, onSuccess }) {
   const toast = useToast();
-  const [leases, setLeases] = useState([]);
-  const [leaseId, setLeaseId] = useState("");
-  const [amount, setAmount] = useState("");
-  const [dueDate, setDueDate] = useState("");
-  const [notes, setNotes] = useState("");
+  const [targetPeriod, setTargetPeriod] = useState(period || "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [result, setResult] = useState(null);
 
-  useEffect(() => {
-    const fetchLeases = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const { data } = await axios.get(`${API}/leases`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setLeases(data.leases || []);
-      } catch (err) {
-        console.error("Failed to fetch leases:", err);
-      }
-    };
-    fetchLeases();
-  }, []);
-
-  function handleSubmit() {
-    if (!leaseId || !amount || !dueDate) {
-      setError("Please fill all required fields.");
+  const handleSubmit = async () => {
+    if (!targetPeriod) {
+      setError("Please select a target month.");
       return;
     }
     setLoading(true);
     setError("");
-    axios.post(`${API}/landlord/payments/deposit-invoice`, {
-      lease_id: leaseId,
-      amount: Number(amount),
-      due_date: dueDate,
-      notes: notes || undefined,
-    }, {
-      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-    })
-      .then(() => {
-        toast.success("Deposit invoice created.");
-        onSuccess();
-        onClose();
-      })
-      .catch(err => {
-        setError(err.response?.data?.error || "Failed to create deposit invoice");
-      })
-      .finally(() => setLoading(false));
-  }
+    setResult(null);
+    try {
+      const token = localStorage.getItem("token");
+      const { data } = await axios.post(
+        `${API}/landlord/billing/generate-monthly`,
+        { period: targetPeriod },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setResult(data);
+      toast.success(data.message || "Invoices generated.");
+      if (data.generated > 0) {
+        onSuccess?.();
+      }
+    } catch (err) {
+      const msg = err?.response?.data?.error || "Failed to generate invoices.";
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleClose = () => {
+    if (!loading) {
+      onClose();
+    }
+  };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', background: 'rgba(44,62,80,0.5)' }}>
-      <div style={{ width: '100%', maxWidth: 460, background: '#fdfdfd', border: '1px solid #e9ecef', borderRadius: '3px', boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.5rem', borderBottom: '1px solid #e9ecef' }}>
-          <h3 style={{ fontSize: '16px', fontWeight: 500, color: '#000' }}>Create Deposit Invoice</h3>
-          <button onClick={onClose} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#95a5a6' }}><Icon name="x" size={18} /></button>
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 50,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: '1rem', background: 'rgba(44,62,80,0.5)'
+    }}>
+      <div style={{
+        width: '100%', maxWidth: 460,
+        background: '#fdfdfd', border: '1px solid #e9ecef',
+        borderRadius: '3px', boxShadow: '0 4px 20px rgba(0,0,0,0.15)'
+      }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '1rem 1.5rem', borderBottom: '1px solid #e9ecef'
+        }}>
+          <h3 style={{ fontSize: '16px', fontWeight: 500, color: '#000' }}>Generate Invoices</h3>
+          <button
+            onClick={handleClose}
+            disabled={loading}
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#555' }}
+          >
+            <Icon name="x" size={18} />
+          </button>
         </div>
+
         <div style={{ padding: '1.2rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-            <label style={{ fontSize: '12px', fontWeight: 500, color: '#333' }}>Lease</label>
-            <select value={leaseId} onChange={e => setLeaseId(e.target.value)} style={{
-              width: '100%', padding: '0.4rem 0.7rem', fontSize: '14px',
-              background: '#fdfdfd', border: '1px solid #dee2e6', color: '#000',
-              outline: 'none', borderRadius: '2px',
+            <label style={{ fontSize: '12px', fontWeight: 500, color: '#333' }}>Target Month</label>
+            <input
+              type="month"
+              value={targetPeriod}
+              onChange={(e) => setTargetPeriod(e.target.value)}
+              style={{
+                width: '100%', padding: '0.4rem 0.7rem', fontSize: '14px',
+                background: '#fdfdfd', border: '1px solid #dee2e6', color: '#000',
+                outline: 'none', borderRadius: '2px',
+              }}
+            />
+          </div>
+
+          <p style={{ fontSize: '12px', color: '#555', margin: 0 }}>
+            This will create rent invoices for all active leases covering the selected month.
+            Outstanding balances from previous periods will be included as <strong>other charges</strong>.
+          </p>
+
+          {error && <p style={{ fontSize: '13px', color: '#9e3a3a', margin: 0 }}>{error}</p>}
+
+          {result && (
+            <div style={{
+              background: '#f9fafb', border: '1px solid #e9ecef', borderRadius: '3px',
+              padding: '0.8rem', display: 'flex', flexDirection: 'column', gap: '0.3rem',
             }}>
-              <option value="">Select lease...</option>
-              {leases.map(l => (
-                <option key={l.id} value={l.id}>{l.tenant_name} - {l.property_name} (Unit {l.unit_number})</option>
-              ))}
-            </select>
-          </div>
-          <div style={{ display: 'flex', gap: '0.8rem' }}>
-            <div style={{ flex: 1 }}>
-              <label style={{ fontSize: '12px', fontWeight: 500, color: '#333' }}>Amount (R)</label>
-              <input type="number" value={amount} onChange={e => setAmount(e.target.value)} style={{
-                width: '100%', padding: '0.4rem 0.7rem', fontSize: '14px',
-                background: '#fdfdfd', border: '1px solid #dee2e6', color: '#000',
-                outline: 'none', borderRadius: '2px',
-              }} />
+              <p style={{ fontSize: '13px', fontWeight: 500, color: '#000', margin: 0 }}>
+                {result.message}
+              </p>
+              <div style={{ display: 'flex', gap: '1rem', fontSize: '12px', color: '#555' }}>
+                <span>Generated: <strong>{result.generated}</strong></span>
+                <span>Skipped: <strong>{result.skipped}</strong></span>
+                <span>Partial: <strong>{result.has_partial_invoices || 0}</strong></span>
+              </div>
             </div>
-            <div style={{ flex: 1 }}>
-              <label style={{ fontSize: '12px', fontWeight: 500, color: '#333' }}>Due Date</label>
-              <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} style={{
-                width: '100%', padding: '0.4rem 0.7rem', fontSize: '14px',
-                background: '#fdfdfd', border: '1px solid #dee2e6', color: '#000',
-                outline: 'none', borderRadius: '2px',
-              }} />
-            </div>
-          </div>
-          <div>
-            <label style={{ fontSize: '12px', fontWeight: 500, color: '#333' }}>Notes (optional)</label>
-            <textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)} style={{
-              width: '100%', padding: '0.4rem 0.7rem', fontSize: '14px',
-              background: '#fdfdfd', border: '1px solid #dee2e6', color: '#000',
-              outline: 'none', resize: 'vertical', borderRadius: '2px',
-            }} />
-          </div>
-          {error && <p style={{ fontSize: '13px', color: '#9e3a3a' }}>{error}</p>}
+          )}
         </div>
-        <div style={{ display: 'flex', gap: '0.8rem', padding: '1rem 1.5rem 1.5rem', borderTop: '1px solid #e9ecef' }}>
-          <button onClick={onClose} disabled={loading} style={{ ...outlineBtnStyle, flex: 1, justifyContent: 'center' }}>Cancel</button>
-          <button onClick={handleSubmit} disabled={loading} style={{ ...primaryBtnStyle, flex: 1, justifyContent: 'center' }}>
-            {loading ? <span style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#ffffff', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} /> : "Create Invoice"}
+
+        <div style={{
+          display: 'flex', gap: '0.8rem', padding: '1rem 1.5rem 1.5rem',
+          borderTop: '1px solid #e9ecef',
+        }}>
+          <button
+            onClick={handleClose}
+            disabled={loading}
+            style={{ ...outlineBtnStyle, flex: 1, justifyContent: 'center' }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={loading || !targetPeriod}
+            style={{
+              ...primaryBtnStyle, flex: 1, justifyContent: 'center',
+              opacity: !targetPeriod ? 0.5 : 1,
+              cursor: !targetPeriod ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {loading ? (
+              <span style={{
+                width: 14, height: 14,
+                border: '2px solid rgba(255,255,255,0.3)',
+                borderTopColor: '#ffffff', borderRadius: '50%',
+                animation: 'spin 0.6s linear infinite',
+              }} />
+            ) : "Generate"}
           </button>
         </div>
       </div>
@@ -326,7 +357,58 @@ function DepositInvoiceModal({ onClose, onSuccess }) {
   );
 }
 
+
+function InvoicesSummaryStrip({ summary }) {
+  if (!summary) return null;
+
+  const total = Number(summary.total || 0);
+  const unpaid = Number(summary.unpaid || 0);
+  const overdue = Number(summary.overdue || 0);
+  const partial = Number(summary.partial || 0);
+  const totalAmountDue = Number(summary.total_amount_due || 0);
+  const totalRemaining = Number(summary.total_remaining || 0);
+
+  const cards = [
+    { label: "Total Invoices", value: total, color: "#2c3e50", bg: "rgba(44,62,80,0.06)", border: "rgba(44,62,80,0.15)" },
+    { label: "Unpaid", value: unpaid, color: "#8b6e1a", bg: "rgba(139,110,26,0.06)", border: "rgba(139,110,26,0.15)" },
+    { label: "Overdue", value: overdue, color: "#7a2b2b", bg: "rgba(122,43,43,0.06)", border: "rgba(122,43,43,0.15)" },
+    { label: "Partial", value: partial, color: "#1e4a6b", bg: "rgba(30,74,107,0.06)", border: "rgba(30,74,107,0.15)" },
+    { label: "Total Due", value: formatAmount(totalAmountDue), color: "#2c3e50", bg: "rgba(0,0,0,0.02)", border: "rgba(0,0,0,0.06)" },
+    { label: "Total Remaining", value: formatAmount(totalRemaining), color: totalRemaining > 0 ? "#9e3a3a" : "#2b7a4b", bg: "rgba(0,0,0,0.02)", border: "rgba(0,0,0,0.06)" },
+  ];
+
+  return (
+    <div style={{
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+      gap: "0.6rem",
+      padding: "0.85rem 1.1rem",
+      background: "#f9fafb",
+      borderBottom: "1px solid #dfe3e8",
+    }}>
+      {cards.map(card => (
+        <div key={card.label} style={{
+          padding: "0.6rem 0.9rem",
+          borderRadius: "3px",
+          background: card.bg,
+          border: `1px solid ${card.border}`,
+          textAlign: "center",
+        }}>
+          <div style={{ fontSize: "11px", fontWeight: 600, color: "#333", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+            {card.label}
+          </div>
+          <div style={{ fontSize: "1.2rem", fontWeight: 700, color: card.color, marginTop: "2px" }}>
+            {card.value}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function InvoicesPage() {
+  useDocumentTitle("Invoices");
+
   const [invoices, setInvoices] = useState([]);
   const [invoiceSummary, setInvoiceSummary] = useState(null);
   const [loadingInvoices, setLoadingInvoices] = useState(true);
@@ -373,6 +455,7 @@ export default function InvoicesPage() {
       setInvoiceSummary(data.summary || null);
       setInvoicesPagination(data.pagination || { page: 1, total: 0, totalPages: 1 });
     } catch (err) {
+      console.log(err);
       setInvoicesError("Couldn't load invoices.");
       toast.error("Couldn't load invoices. Check your connection and try again.");
     } finally {
@@ -384,8 +467,6 @@ export default function InvoicesPage() {
     fetchInvoices(1, invoiceFilter, invoiceTypeFilter, debouncedSearch);
   }, [invoiceFilter, invoiceTypeFilter, debouncedSearch, pageSize]);
 
-  const unpaidCount = invoiceSummary?.unpaid ?? invoices.filter(i => i.status === 'sent').length;
-  const overdueCount = invoiceSummary?.overdue ?? invoices.filter(i => i.status === 'overdue').length;
 
   return (
     <div style={{ padding: '1rem', fontFamily: FONT, color: '#000', background: '#ffffff' }}>
@@ -429,12 +510,13 @@ export default function InvoicesPage() {
           </h4>
         </div>
 
+        <InvoicesSummaryStrip summary={invoiceSummary} />
+
         {/* Toolbar */}
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '0.85rem 1.1rem', gap: '1rem', flexWrap: 'wrap',
         }}>
-          {/* Left side: Refresh, Generate Invoices, Create Deposit Invoice */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginLeft: '0.6rem' }}>
             <button
               onClick={() => fetchInvoices(1)}
@@ -492,7 +574,6 @@ export default function InvoicesPage() {
             </button>
           </div>
 
-          {/* Right side: search, status filter, type filter, page size */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
             <div style={{ position: 'relative', width: '200px' }}>
               <FiSearch size={14} style={{ position: 'absolute', left: '0.6rem', top: '50%', transform: 'translateY(-50%)', color: '#555' }} />
@@ -617,12 +698,13 @@ export default function InvoicesPage() {
                 <tr><td colSpan={9} style={{ padding: '2rem', textAlign: 'center', color: '#555', background: '#e9eced52' }}>No invoices found.</td></tr>
               ) : (
                 invoices.map((inv, index) => {
-                  const canRecordCash = inv.status === 'sent' || inv.status === 'overdue' || inv.status === 'partial';
+                  const canRecordCash =
+                    (inv.status === 'sent' || inv.status === 'overdue' || inv.status === 'partial')
+                    && !inv.linked_plan_id;
                   const invoiceRef = `INV${String(index + 1).padStart(6, "0")}`;
                   const tenantId = inv.tenant_id;
                   return (
                     <tr key={inv.id}>
-                      {/* First column: clickable invoice reference */}
                       <td style={tdStyle}>
                         <Link
                           to={`/landlord/payments/invoices/${inv.id}`}
@@ -632,7 +714,6 @@ export default function InvoicesPage() {
                         </Link>
                       </td>
 
-                      {/* Tenant with initials and link */}
                       <td style={tdStyle}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                           <div style={{
@@ -685,6 +766,11 @@ export default function InvoicesPage() {
                           }}>
                           Record cash
                         </button>}
+                        {inv.linked_plan_id && (
+                          <Link to={`/landlord/payments/plans`} style={{ fontSize: '11px', color: '#2c6b9b' }}>
+                            Part of repayment plan
+                          </Link>
+                        )}
                       </td>
                     </tr>
                   );

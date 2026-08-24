@@ -73,25 +73,28 @@ function mapTenantFromAPI(t) {
     leaseEnd: t.lease_end_date || "",
     status: t.lease_status === "active" ? "Active" : "Inactive",
     reliabilityScore: (t.reliability_score || "reliable").replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()),
+    scoreValue: Number(t.reliability_score_value) || 0,  
     balance: Number(t.outstanding_balance) || 0,
     lease_id: t.lease_id,
   };
 }
 
-function ReliabilityBadge({ score }) {
+function ReliabilityBadge({ score, value }) {
   const cfg =
     score === "Reliable"
       ? { color: "#2b7a4b", bg: "#eef5e8", border: "1px solid #c5d9b8" }
       : score === "Moderate Risk"
-      ? { color: "#8b6e1a", bg: "#faf6ed", border: "1px solid #e5dbb8" }
-      : { color: "#9e3a3a", bg: "#fbeaea", border: "1px solid #e5bdbd" };
+        ? { color: "#8b6e1a", bg: "#faf6ed", border: "1px solid #e5dbb8" }
+        : { color: "#9e3a3a", bg: "#fbeaea", border: "1px solid #e5bdbd" };
   return (
     <span style={{
       display: "inline-flex", alignItems: "center", gap: "0.3rem",
       fontSize: "12px", fontWeight: 500, padding: "0.15rem 0.6rem",
       borderRadius: "12px", color: cfg.color, background: cfg.bg, border: cfg.border,
     }}>
-      <span style={{ width: 6, height: 6, borderRadius: "50%", background: cfg.color }} /> {score}
+      <span style={{ width: 6, height: 6, borderRadius: "50%", background: cfg.color }} />
+      {score}
+      {value != null && <span style={{ fontWeight: 700, marginLeft: "0.2rem" }}>{value.toFixed(1)}</span>}
     </span>
   );
 }
@@ -105,6 +108,7 @@ export default function Tenants() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState("All");
+  const [sortBy, setSortBy] = useState("default");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -147,6 +151,11 @@ export default function Tenants() {
     const matchScore = filter === "All" || t.reliabilityScore === filter;
     const q = search.toLowerCase();
     return matchScore && (!q || [t.name, t.email, t.phone, t.unit, t.property].some(s => (s || "").toLowerCase().includes(q)));
+  }).sort((a, b) => {
+    if (sortBy === "score-desc") return (b.scoreValue ?? 0) - (a.scoreValue ?? 0);
+    if (sortBy === "score-asc") return (a.scoreValue ?? 0) - (b.scoreValue ?? 0);
+    if (sortBy === "balance-desc") return b.balance - a.balance;
+    return 0;
   });
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
@@ -295,6 +304,13 @@ export default function Tenants() {
               <option value="High Risk">High Risk</option>
             </select>
 
+            <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ border: '1px solid #d0d1d3', borderRadius: '2px', fontSize: '14px', padding: '0.3rem 1.5rem 0.3rem 0.4rem', background: '#fdfdfd', color: '#000', fontFamily: FONT }}>
+              <option value="default">Sort: Default</option>
+              <option value="score-desc">Score: High to Low</option>
+              <option value="score-asc">Score: Low to High</option>
+              <option value="balance-desc">Balance: Highest</option>
+            </select>
+
             {/* Page size dropdown */}
             <select
               value={pageSize}
@@ -351,7 +367,6 @@ export default function Tenants() {
                   <th style={thStyle}>Lease Details</th>
                   <th style={thStyle}>Financials</th>
                   <th style={thStyle}>Reliability</th>
-                  <th style={{ ...thStyle, textAlign: "center" }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -386,20 +401,7 @@ export default function Tenants() {
                         {t.balance > 0 && <div style={{ fontSize: "11px", marginTop: "2px", color: "#9e3a3a" }}>{formatAmount(t.balance)} owed</div>}
                       </td>
                       <td style={tdStyle}>
-                        <ReliabilityBadge score={t.reliabilityScore} />
-                      </td>
-                      <td style={{ ...tdStyle, textAlign: "center" }}>
-                        <div style={{ display: "flex", gap: "0.35rem", justifyContent: "center" }}>
-                          <button onClick={() => setEditTenant(t)} style={{ fontSize: "12px", fontWeight: 500, color: "#2471a3", background: "none", border: "none", cursor: "pointer" }}>Edit</button>
-                          {t.balance > 0 && (
-                            <button onClick={() => setRepayment(t)} style={{ fontSize: "12px", fontWeight: 500, color: "#2471a3", background: "none", border: "none", cursor: "pointer" }}>Plan</button>
-                          )}
-                          {(leaseExpiresSoon(t.leaseEnd) || leaseExpired(t.leaseEnd)) && (
-                            <button onClick={() => setRenewal(t)} style={{ fontSize: "12px", fontWeight: 500, color: "#2b7a4b", background: "none", border: "none", cursor: "pointer" }}>Renew</button>
-                          )}
-                          <button onClick={() => setTermination(t)} style={{ fontSize: "12px", fontWeight: 500, color: "#9e3a3a", background: "none", border: "none", cursor: "pointer" }}>Terminate</button>
-                          <button onClick={() => setDelete(t)} style={{ fontSize: "12px", fontWeight: 500, color: "#9e3a3a", background: "none", border: "none", cursor: "pointer" }}>Delete</button>
-                        </div>
+                        <ReliabilityBadge score={t.reliabilityScore} value={t.scoreValue} />
                       </td>
                     </tr>
                   );

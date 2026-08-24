@@ -187,6 +187,7 @@ export default function CreateInvoice() {
                 <option value="utility">Utility</option>
                 <option value="deposit">Deposit</option>
                 <option value="rent">Rent</option>
+                <option value="fine">Fine</option>
               </select>
             </div>
           </div>

@@ -193,7 +193,7 @@ export default function InvoiceDetailPage() {
   const [error, setError] = useState("");
   const [showCashPayment, setShowCashPayment] = useState(false);
   const [useDeposit, setUseDeposit] = useState(null);
-  const [depositDetails, setDepositDetails] = useState(null); 
+  const [depositDetails, setDepositDetails] = useState(null);
   const [depositLoading, setDepositLoading] = useState(false);
 
   const fetchInvoice = useCallback(async () => {
@@ -265,7 +265,9 @@ export default function InvoiceDetailPage() {
 
   const lineItems = invoice.line_items || invoice.items || [];
   const payments = invoice.payments || [];
-  const canRecordCash = invoice.status === 'sent' || invoice.status === 'overdue' || invoice.status === 'partial';
+  const canRecordCash =
+    (invoice.status === 'sent' || invoice.status === 'overdue' || invoice.status === 'partial')
+    && !invoice.linked_plan_id;
   const canUseDeposit = depositDetails && (depositDetails.status === 'paid' || depositDetails.status === 'partially_refunded');
 
   const openUseDepositModal = () => {
@@ -414,7 +416,7 @@ export default function InvoiceDetailPage() {
           {/* Actions */}
           <div style={{
             display: 'flex',
-            justifyContent: 'space-between',   
+            justifyContent: 'space-between',
             alignItems: 'center',
             gap: '0.6rem',
             marginTop: '0.5rem',
@@ -441,7 +443,7 @@ export default function InvoiceDetailPage() {
             </button>
 
             {/* Right side – action buttons */}
-            <div style={{ display: 'flex', gap: '0.6rem' }}>
+            <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center' }}>
               {canRecordCash && (
                 <>
                   <button
@@ -488,6 +490,11 @@ export default function InvoiceDetailPage() {
                     )}
                   </button>
                 </>
+              )}
+              {invoice.linked_plan_id && (
+                <Link to={`/landlord/payments/plans`} style={{ fontSize: '12px', color: '#2c6b9b' }}>
+                  Part of an active repayment plan — manage payment there
+                </Link>
               )}
             </div>
           </div>

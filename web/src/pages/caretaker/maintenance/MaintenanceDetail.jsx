@@ -9,7 +9,6 @@ import { FiChevronRight } from "react-icons/fi";
 const API = "http://localhost:4000";
 const FONT = '"Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif';
 
-// ---- Local light theme ----
 const C = {
   background: "#f4f5f7",
   card: "#ffffff",

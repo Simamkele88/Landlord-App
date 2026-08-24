@@ -1,5 +1,4 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-/* eslint-disable no-unused-vars */
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
@@ -13,13 +12,13 @@ const PAGE_SIZE = 8;
 const FONT = '"Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif';
 
 const statusConfig = {
-  "paid":             { color: "#1a4a30", bg: "#eef5e8", border: "1px solid #c5d9b8", dot: "#2b7a4b", label: "Paid" },
-  "pending":          { color: "#5b4a0b", bg: "#faf6ed", border: "1px solid #e5dbb8", dot: "#8b6e1a", label: "Pending" },
+  "paid": { color: "#1a4a30", bg: "#eef5e8", border: "1px solid #c5d9b8", dot: "#2b7a4b", label: "Paid" },
+  "pending": { color: "#5b4a0b", bg: "#faf6ed", border: "1px solid #e5dbb8", dot: "#8b6e1a", label: "Pending" },
   "pending_approval": { color: "#5b4a0b", bg: "#faf6ed", border: "1px solid #e5dbb8", dot: "#8b6e1a", label: "Pending" },
-  "late":             { color: "#7a2b2b", bg: "#fbeaea", border: "1px solid #e5bdbd", dot: "#9e3a3a", label: "Late" },
-  "rejected":         { color: "#7a2b2b", bg: "#fbeaea", border: "1px solid #e5bdbd", dot: "#9e3a3a", label: "Rejected" },
-  "collections":      { color: "#3d2252", bg: "#eee7f3", border: "1px solid #d1c2dc", dot: "#54326b", label: "Collections" },
-  "partial":          { color: "#1e4a6b", bg: "#e8f0f5", border: "1px solid #b0cfe0", dot: "#2c6b9b", label: "Partial" },
+  "late": {  color: "#1a4a30", bg: "#eef5e8", border: "1px solid #c5d9b8", dot: "#2b7a4b", label: "Paid late" },
+  "rejected": { color: "#7a2b2b", bg: "#fbeaea", border: "1px solid #e5bdbd", dot: "#9e3a3a", label: "Rejected" },
+  "collections": { color: "#3d2252", bg: "#eee7f3", border: "1px solid #d1c2dc", dot: "#54326b", label: "Collections" },
+  "partial": { color: "#1e4a6b", bg: "#e8f0f5", border: "1px solid #b0cfe0", dot: "#2c6b9b", label: "Partial" },
 };
 
 const FILTERS = ["All", "Paid", "Pending", "Late", "Collections", "Rejected", "Partial"];
@@ -86,6 +85,90 @@ function ErrorBanner({ message, onRetry }) {
         <Icon name="alertCircle" size={14} /> {message}
       </span>
       <button onClick={onRetry} style={{ ...outlineBtnStyle, padding: '0.25rem 0.8rem', fontSize: '13px' }}>Retry</button>
+    </div>
+  );
+}
+
+function PaymentsSummaryStrip({ summary }) {
+  if (!summary) return null;
+
+  const totalCollected = Number(summary.total_collected || 0);
+  const totalOutstanding = Number(summary.total_outstanding || 0);
+  const collectionRate =
+    totalCollected + totalOutstanding > 0
+      ? Math.round((totalCollected / (totalCollected + totalOutstanding)) * 100)
+      : null;
+
+  const cards = [
+    {
+      label: "Collected",
+      value: formatAmount(totalCollected),
+      color: "#2b7a4b",
+      bg: "rgba(43,122,75,0.06)",
+      border: "rgba(43,122,75,0.15)",
+    },
+    {
+      label: "Outstanding",
+      value: formatAmount(totalOutstanding),
+      color: "#9e3a3a",
+      bg: "rgba(158,58,58,0.06)",
+      border: "rgba(158,58,58,0.15)",
+    },
+    {
+      label: "Pending Approvals",
+      value: summary.pending_count ?? 0,
+      color: "#8b6e1a",
+      bg: "rgba(139,110,26,0.06)",
+      border: "rgba(139,110,26,0.15)",
+    },
+    {
+      label: "Late Payments",
+      value: summary.late_count ?? 0,
+      color: "#7a2b2b",
+      bg: "rgba(122,43,43,0.06)",
+      border: "rgba(122,43,43,0.15)",
+    },
+    {
+      label: "In Collections",
+      value: summary.collections_count ?? 0,
+      color: "#3d2252",
+      bg: "rgba(61,34,82,0.06)",
+      border: "rgba(61,34,82,0.15)",
+    },
+    {
+      label: "Collection Rate",
+      value: collectionRate === null ? "—" : `${collectionRate}%`,
+      color: collectionRate !== null && collectionRate >= 80 ? "#2b7a4b" : collectionRate !== null && collectionRate >= 50 ? "#b9770e" : "#9e3a3a",
+      bg: "rgba(0,0,0,0.02)",
+      border: "rgba(0,0,0,0.06)",
+    },
+  ];
+
+  return (
+    <div style={{
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+      gap: "0.6rem",
+      padding: "0.85rem 1.1rem",
+      background: "#f9fafb",
+      borderBottom: "1px solid #dfe3e8",
+    }}>
+      {cards.map(card => (
+        <div key={card.label} style={{
+          padding: "0.6rem 0.9rem",
+          borderRadius: "3px",
+          background: card.bg,
+          border: `1px solid ${card.border}`,
+          textAlign: "center",
+        }}>
+          <div style={{ fontSize: "11px", fontWeight: 600, color: "#333", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+            {card.label}
+          </div>
+          <div style={{ fontSize: "1.2rem", fontWeight: 700, color: card.color, marginTop: "2px" }}>
+            {card.value}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -185,6 +268,7 @@ export default function PaymentsListPage() {
       setPayments(data.payments || []);
       setPaymentsPagination(data.pagination || { page: 1, total: 0, totalPages: 1 });
     } catch (err) {
+      console.log(err);
       setPaymentsError("Couldn't load payments.");
       toast.error("Couldn't load payments. Check your connection and try again.");
     } finally {
@@ -197,7 +281,8 @@ export default function PaymentsListPage() {
       const token = localStorage.getItem("token");
       const { data } = await axios.get(`${API}/landlord/payments/summary`, { headers: { Authorization: `Bearer ${token}` } });
       setPaymentsSummary(data.summary || null);
-    } catch (err) { /* hello */ }
+    } catch (err) { console.log(err); }
+    
   }, []);
 
   useEffect(() => {
@@ -211,8 +296,6 @@ export default function PaymentsListPage() {
     fetchPaymentsSummary();
     toast.warning("Account escalated to collections.");
   }
-
-  const pendingPayments = paymentsSummary?.pending_count ?? payments.filter(p => p.status === 'pending' || p.status === 'pending_approval').length;
 
   return (
     <div style={{ padding: '1rem', fontFamily: FONT, color: '#000', background: '#ffffff' }}>
@@ -247,6 +330,8 @@ export default function PaymentsListPage() {
             List of Payments
           </h4>
         </div>
+
+        <PaymentsSummaryStrip summary={paymentsSummary} />
 
         {/* Toolbar */}
         <div style={{
@@ -366,7 +451,7 @@ export default function PaymentsListPage() {
                   const paymentRef = `PAY${String(index + 1).padStart(6, "0")}`;
                   const isPending = p.status === "pending" || p.status === "pending_approval";
                   const needsCollections = (p.status === "late" || p.status === "rejected") && p.invoice_status !== "paid";
-                  const noActionNeeded = (p.status === "late" || p.status === "rejected") && p.invoice_status === "paid";
+                  const noActionNeeded = ( p.status === "rejected") && p.invoice_status === "paid";
                   return (
                     <tr key={p.id}>
                       <td style={tdStyle}>
@@ -406,7 +491,7 @@ export default function PaymentsListPage() {
                         </div>
                       </td>
 
-                      <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 500, color: '#2b7a4b' }}>{formatAmount(p.amount_paid || 0)}</td>
+                      <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 500, color: `${p.status === 'paid' || p.status === 'late' ? '#2b7a4b' : '#9e3a3a'}` }}>{formatAmount(p.amount_paid || 0)}</td>
                       <td style={tdStyle}>{p.payment_method === 'cash' ? 'Cash' : (p.payment_method || "—")}</td>
                       <td style={tdStyle}>{p.bank_reference || "—"}</td>
                       <td style={tdStyle}><StatusBadge status={p.status} /></td>
@@ -446,7 +531,7 @@ export default function PaymentsListPage() {
                               Collections
                             </button>
                           )}
-                          {p.status === "paid" && (
+                          {(p.status === "paid" || p.status === "late") && (
                             <button
                               onClick={() => navigate(`/landlord/payments/receipt/${p.id}`, { state: { payment: p } })}
                               style={{

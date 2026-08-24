@@ -274,8 +274,6 @@ router.post("/", requireAuth, async (req, res) => {
       [userId, recipient_id, property_id || null, subject || null, message]
     );
 
-    // full_name is universal on users now — no more COALESCE across
-    // landlord/tenant/caretaker just to find a display name
     const senderResult = await pool.query(
       "SELECT full_name AS sender_name FROM users WHERE id = $1",
       [userId]

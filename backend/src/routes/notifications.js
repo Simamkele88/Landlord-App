@@ -34,6 +34,23 @@ router.get("/", requireAuth, async (req, res) => {
   }
 });
 
+// GET /notifications/unread-count - Get unread notification count
+router.get("/unread-count", requireAuth, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT COUNT(*) AS count
+       FROM notification
+       WHERE user_id = $1 AND is_read = false`,
+      [req.userId]
+    );
+
+    res.json({ count: Number(result.rows[0].count) });
+  } catch (err) {
+    console.error("Get unread count:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 // PUT /notifications/:id/read - Mark notification as read
 router.put("/:id/read", requireAuth, async (req, res) => {
   try {

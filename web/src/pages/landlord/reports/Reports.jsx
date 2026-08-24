@@ -92,11 +92,13 @@ const btnGhost = {
 };
 
 const REPORT_TYPES = [
-  { id: 'rent-roll',       icon: 'file-text',  label: 'Rent Roll',        desc: 'All tenants, units, rent amounts & balances' },
-  { id: 'collections',     icon: 'credit-card', label: 'Payment Collections', desc: 'Payments collected for a date range' },
-  { id: 'maintenance',     icon: 'wrench',      label: 'Maintenance Costs', desc: 'Repair costs by property & category' },
-  { id: 'occupancy',       icon: 'home',        label: 'Occupancy Report', desc: 'Vacancy rates & occupancy trends' },
-  { id: 'tenant-ledger',   icon: 'users',       label: 'Tenant Ledger',    desc: 'Full payment history per tenant' },
+  { id: 'rent-roll', icon: 'file-text', label: 'Rent Roll', desc: 'All tenants, units, rent amounts & balances' },
+  { id: 'collections', icon: 'credit-card', label: 'Payment Collections', desc: 'Payments collected for a date range' },
+  { id: 'maintenance', icon: 'wrench', label: 'Maintenance Costs', desc: 'Repair costs by property & category' },
+  { id: 'occupancy', icon: 'home', label: 'Occupancy Report', desc: 'Vacancy rates & occupancy trends' },
+  { id: 'tenant-ledger', icon: 'users', label: 'Tenant Ledger', desc: 'Full payment history per tenant' },
+  { id: 'reliability', icon: 'shield', label: 'Tenant Reliability', desc: 'Risk scores & payment behavior' },
+  { id: 'arrears', icon: 'alert', label: 'Arrears Report', desc: 'Overdue balances & collections' },
 ];
 
 function RentRollTable({ data }) {
@@ -237,6 +239,93 @@ function ArrearsTable({ data }) {
                     background: row.collectionsStatus === 'collections' ? 'rgba(158,58,58,0.1)' : 'rgba(44,62,80,0.08)',
                     border: `1px solid ${row.collectionsStatus === 'collections' ? 'rgba(158,58,58,0.2)' : 'rgba(44,62,80,0.2)'}`,
                   }}>{row.collectionsStatus === 'collections' ? 'Collections' : 'Overdue'}</span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function ReliabilityTable({ data }) {
+  const count = (score) => data.filter(d => d.score === score).length;
+  const reliable = count('reliable');
+  const moderate = count('moderate_risk');
+  const high = count('high_risk');
+  const avg = data.length
+    ? (data.reduce((sum, d) => sum + (Number(d.score_value) || 0), 0) / data.length).toFixed(1)
+    : '—';
+
+  const scoreColor = (score) => {
+    if (score === 'reliable') return C.green;
+    if (score === 'moderate_risk') return C.primary;
+    if (score === 'high_risk') return C.red;
+    return C.textMuted;
+  };
+
+  return (
+    <div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '0.6rem', marginBottom: '1.2rem' }}>
+        <div style={{ padding: '0.7rem 0.9rem', borderRadius: '3px', background: 'rgba(43,122,75,0.06)', border: '1px solid rgba(43,122,75,0.15)', textAlign: 'center' }}>
+          <p style={{ fontSize: '11px', fontWeight: 600, color: C.text, textTransform: 'uppercase' }}>Reliable</p>
+          <p style={{ fontSize: '1.2rem', fontWeight: 700, color: C.green }}>{reliable}</p>
+        </div>
+        <div style={{ padding: '0.7rem 0.9rem', borderRadius: '3px', background: 'rgba(44,62,80,0.06)', border: '1px solid rgba(44,62,80,0.15)', textAlign: 'center' }}>
+          <p style={{ fontSize: '11px', fontWeight: 600, color: C.text, textTransform: 'uppercase' }}>Moderate Risk</p>
+          <p style={{ fontSize: '1.2rem', fontWeight: 700, color: C.primary }}>{moderate}</p>
+        </div>
+        <div style={{ padding: '0.7rem 0.9rem', borderRadius: '3px', background: 'rgba(158,58,58,0.06)', border: '1px solid rgba(158,58,58,0.15)', textAlign: 'center' }}>
+          <p style={{ fontSize: '11px', fontWeight: 600, color: C.text, textTransform: 'uppercase' }}>High Risk</p>
+          <p style={{ fontSize: '1.2rem', fontWeight: 700, color: C.red }}>{high}</p>
+        </div>
+        <div style={{ padding: '0.7rem 0.9rem', borderRadius: '3px', background: '#f9fafb', border: `1px solid ${C.border}`, textAlign: 'center' }}>
+          <p style={{ fontSize: '11px', fontWeight: 600, color: C.text, textTransform: 'uppercase' }}>Average Score</p>
+          <p style={{ fontSize: '1.2rem', fontWeight: 700, color: C.text }}>{avg}</p>
+        </div>
+      </div>
+
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr>
+              {["Tenant", "Unit", "Property", "Score", "Balance", "Days Overdue", "Warnings", "Fines", "Lease"].map(h => (
+                <th key={h} style={{ fontSize: '11px', fontWeight: 600, color: C.text, textTransform: 'uppercase', letterSpacing: '0.04em', padding: '0.6rem 0.8rem', textAlign: 'left', borderBottom: `1px solid ${C.border}`, background: '#f7f8fa' }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {data.length === 0 && (
+              <tr><td colSpan={9} style={{ padding: '2rem', textAlign: 'center', color: C.text }}>No reliability data found.</td></tr>
+            )}
+            {data.map((row, i) => (
+              <tr key={i} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? '#ffffff' : '#fafbfc' }}>
+                <td style={{ padding: '0.55rem 0.8rem', fontWeight: 500, color: C.text }}>{row.tenant}</td>
+                <td style={{ padding: '0.55rem 0.8rem', color: C.text }}>{row.unit}</td>
+                <td style={{ padding: '0.55rem 0.8rem', color: C.text }}>{row.property}</td>
+                <td style={{ padding: '0.55rem 0.8rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <span style={{
+                      fontSize: '11px', fontWeight: 600, padding: '0.1rem 0.5rem', borderRadius: '12px',
+                      color: scoreColor(row.score), background: `${scoreColor(row.score)}15`,
+                      border: `1px solid ${scoreColor(row.score)}30`,
+                    }}>
+                      {row.score?.replace(/_/g, ' ')}
+                    </span>
+                    <span style={{ fontWeight: 600, color: C.text }}>{row.score_value != null ? Number(row.score_value).toFixed(1) : '—'}</span>
+                  </div>
+                </td>
+                <td style={{ padding: '0.55rem 0.8rem', fontWeight: 600, color: row.balance > 0 ? C.red : C.green }}>
+                  {row.balance > 0 ? format(row.balance) : 'Clear'}
+                </td>
+                <td style={{ padding: '0.55rem 0.8rem', fontWeight: 600, color: row.days_overdue > 60 ? C.red : C.primary }}>
+                  {row.days_overdue > 0 ? `${row.days_overdue}d` : '—'}
+                </td>
+                <td style={{ padding: '0.55rem 0.8rem', color: C.text }}>{row.warnings}</td>
+                <td style={{ padding: '0.55rem 0.8rem', color: C.text }}>{row.fines != null && row.fines > 0 ? format(row.fines) : '—'}</td>
+                <td style={{ padding: '0.55rem 0.8rem', textTransform: 'capitalize', color: C.text }}>
+                  {row.lease_status || '—'}
                 </td>
               </tr>
             ))}
@@ -458,7 +547,7 @@ export default function Reports() {
         .then(({ data }) => {
           setTenants(data.tenants || []);
         })
-        .catch(() => {});
+        .catch(() => { });
     }
   }, [fetchReport, activeReport]);
 
@@ -516,6 +605,28 @@ export default function Reports() {
       case 'tenant-ledger':
         columns = ['Period', 'Amount', 'Due Date', 'Date Paid', 'Method', 'Status'];
         rows = reportData.map(r => [r.period || '—', format(r.amount), formatDate(r.due), r.paid ? formatDate(r.paid) : '—', r.method || '—', r.status]);
+        break;
+      case 'reliability':
+        columns = ['Tenant', 'Unit', 'Property', 'Score', 'Score Value', 'Balance', 'Days Overdue', 'Warnings', 'Fines', 'Lease'];
+        rows = reportData.map(r => [
+          r.tenant, r.unit, r.property,
+          r.score?.replace(/_/g, ' '),
+          r.score_value != null ? Number(r.score_value).toFixed(1) : '—',
+          r.balance > 0 ? format(r.balance) : 'Clear',
+          r.days_overdue > 0 ? `${r.days_overdue}d` : '—',
+          r.warnings,
+          r.fines != null ? format(r.fines) : '—',
+          r.lease_status || '—',
+        ]);
+        break;
+      case 'arrears':
+        columns = ['Tenant', 'Unit', 'Property', 'Balance', 'Days Overdue', 'Last Payment', 'Status'];
+        rows = reportData.map(r => [
+          r.tenant, r.unit, r.property,
+          format(r.balance), `${r.daysOverdue}d`,
+          r.lastPayment ? formatDate(r.lastPayment) : 'Never',
+          r.collectionsStatus === 'collections' ? 'Collections' : 'Overdue',
+        ]);
         break;
     }
 
@@ -658,6 +769,8 @@ export default function Reports() {
                     {activeReport === 'maintenance' && <MaintenanceCostTable data={reportData} />}
                     {activeReport === 'occupancy' && <OccupancyTable data={reportData} />}
                     {activeReport === 'tenant-ledger' && <TenantLedgerTable data={reportData} selectedTenant={selectedTenant} />}
+                    {activeReport === 'reliability' && <ReliabilityTable data={reportData} />}
+                    {activeReport === 'arrears' && <ArrearsTable data={reportData} />}
                   </>
                 ) : (
                   <div style={{ textAlign: 'center', padding: '2rem', color: C.text }}>

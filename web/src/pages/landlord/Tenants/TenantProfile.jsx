@@ -6,7 +6,7 @@ import useDocumentTitle from "../../../hooks/useDocumentTitle";
 import { useToast } from "../../../contexts/ToastContext";
 import {
   FiChevronRight, FiEdit, FiFileText, FiTool, FiMessageSquare,
-  FiUser, FiX, FiSearch,
+  FiUser, FiX, FiSearch, FiShield,
 } from "react-icons/fi";
 import { IoMdCash } from "react-icons/io";
 import { c as COLORS } from "../../../styles/theme";
@@ -31,6 +31,14 @@ function formatAmount(amount) {
 
 function fmtDate(d) {
   return d ? new Date(d).toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+}
+
+function riskColor(score) {
+  if (!score) return '#6b6b6b';
+  if (score === 'reliable') return '#2b7a4b';
+  if (score === 'moderate_risk') return '#b9770e';
+  if (score === 'high_risk') return '#c0392b';
+  return '#6b6b6b';
 }
 
 function monthsUntil(dateStr) {
@@ -101,7 +109,6 @@ const tdStyle = {
   border: '1px solid #9a9d9e52', verticalAlign: 'middle', fontWeight: 400, background: '#e9eced52',
 };
 
-// Status badge configurations for different entity types
 const STATUS_STYLES = {
   invoice: {
     paid: { color: '#1a4a30', bg: '#eef5e8', border: '1px solid #c5d9b8', dot: '#2b7a4b' },
@@ -190,7 +197,7 @@ export default function TenantProfile() {
   const [maintenanceRequests, setMaintenanceRequests] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [payments, setPayments] = useState([]);
-  const [deposits, setDeposits] = useState([]); // <-- added
+  const [deposits, setDeposits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState("tenant");
@@ -232,11 +239,14 @@ export default function TenantProfile() {
     }
   }, [id]);
 
+  console.log("tenant: ", tenant);
+
   useEffect(() => { fetchTenant(); }, [fetchTenant]);
 
   const openInvoice = invoices.find(inv =>
     ["sent", "overdue", "partial"].includes(inv.status) &&
-    Number(inv.remaining_balance) > 0
+    Number(inv.remaining_balance) > 0 &&
+    !inv.linked_plan_id
   );
   const availableDeposit = deposits.find(d => {
     const avail = Number(d.amount_held ?? d.amount ?? 0) -
@@ -364,8 +374,8 @@ export default function TenantProfile() {
             const TabIcon = tab.icon;
             const count = tab.id === 'leases' ? leases.length
               : tab.id === 'maintenance' ? maintenanceRequests.length
-              : tab.id === 'complaints' ? complaints.length
-              : tab.id === 'financials' ? (invoices.length + payments.length) : 0;
+                : tab.id === 'complaints' ? complaints.length
+                  : tab.id === 'financials' ? (invoices.length + payments.length) : 0;
             return (
               <button
                 key={tab.id}
@@ -458,9 +468,9 @@ export default function TenantProfile() {
                       <div style={{ fontSize: '13px', color: '#333', marginBottom: '0.3rem' }}>
                         {fmtDate(activeLease.lease_start_date)} - {fmtDate(activeLease.lease_end_date)}
                       </div>
-                      <a href="#lease" onClick={(e) => { e.preventDefault(); setActiveTab("leases"); }} className="rb-link">
+                      <button onClick={(e) => navigate(`/landlord/leases/${tenant.lease_id}`)} className="rb-link">
                         View Lease
-                      </a>
+                      </button>
                     </>
                   ) : (
                     <div style={{ color: '#666' }}>No lease on record</div>
@@ -476,6 +486,79 @@ export default function TenantProfile() {
                   </div>
                 </SummaryCard>
               </div>
+
+              {tenant.score_breakdown && (
+                <div style={{ marginTop: "1.5rem", border: "1px solid #e9ecef", padding: "1rem", borderRadius: "3px" }}>
+                  <h4 style={{ fontSize: "15px", fontWeight: 600, marginBottom: "0.5rem", color: "#000" }}>
+                    Reliability Score
+                  </h4>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.8rem", marginBottom: "1rem" }}>
+                    <span style={{
+                      display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+                      padding: '0.3rem 0.8rem', borderRadius: '12px',
+                      background: riskColor(tenant.reliability_score) + '22',
+                      color: riskColor(tenant.reliability_score),
+                      fontSize: '13px', fontWeight: 600,
+                    }}>
+                      <FiShield size={14} />
+                      {tenant.reliability_score.replace(/_/g, ' ')}
+                    </span>
+                    <span style={{ fontSize: '22px', fontWeight: 700, color: riskColor(tenant.reliability_score) }}>
+                      {tenant.reliability_score_value != null ? Number(tenant.reliability_score_value).toFixed(1) : '—'}
+                    </span>
+                  </div>
+
+                  {/* Sub-scores */}
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "0.8rem" }}>
+                    {[
+                      { key: 'payment', label: 'Payment' },
+                      { key: 'complaints', label: 'Complaints' },
+                      { key: 'lease', label: 'Lease' },
+                      { key: 'tenure', label: 'Tenure' },
+                      { key: 'maintenance', label: 'Maintenance' },
+                    ].map(({ key, label }) => {
+                      const val = tenant.score_breakdown[key] !== undefined ? tenant.score_breakdown[key] : null;
+                      return (
+                        <div key={key}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#555', marginBottom: '0.25rem' }}>
+                            <span>{label}</span>
+                            <span>{val !== null ? Number(val).toFixed(1) : '—'}</span>
+                          </div>
+                          <div style={{ height: '6px', background: '#eee', borderRadius: '3px', overflow: 'hidden' }}>
+                            <div style={{
+                              width: `${val !== null ? Math.max(0, Math.min(100, val)) : 0}%`,
+                              height: '100%',
+                              background: val !== null ? (val >= 80 ? '#2b7a4b' : val >= 50 ? '#b9770e' : '#c0392b') : '#ddd',
+                            }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Score history */}
+                  {tenant.score_history && tenant.score_history.length > 0 && (
+                    <div style={{ marginTop: "1rem" }}>
+                      <h5 style={{ fontSize: "13px", fontWeight: 600, marginBottom: "0.5rem", color: "#000" }}>Recent changes</h5>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+                        {tenant.score_history.slice(0, 5).map((h, idx) => (
+                          <div key={idx} style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "12px" }}>
+                            <span style={{ color: '#666', minWidth: 80 }}>{fmtDate(h.created_at)}</span>
+                            <span style={{ color: riskColor(h.old_score) }}>{h.old_score?.replace(/_/g, ' ') ?? '—'}</span>
+                            <span>→</span>
+                            <span style={{ color: riskColor(h.new_score), fontWeight: 600 }}>{h.new_score?.replace(/_/g, ' ') ?? '—'}</span>
+                            <span style={{ color: '#999' }}>
+                              {h.old_score_value != null && h.new_score_value != null
+                                ? `${Number(h.old_score_value).toFixed(1)} → ${Number(h.new_score_value).toFixed(1)}`
+                                : ''}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -683,6 +766,18 @@ export default function TenantProfile() {
                   </tbody>
                 </table>
               </div>
+              {tenant.active_collection && (
+                <div style={{ border: "1px solid #e9ecef", borderRadius: "3px", padding: "1rem", margin: "0 1.7rem 1rem" }}>
+                  <h4 style={{ fontSize: "15px", fontWeight: 600, marginBottom: "0.5rem" }}>Collections Status</h4>
+                  <StatusBadge status={tenant.active_collection.status} type="collection" />
+                  {tenant.active_plan && (
+                    <div style={{ marginTop: "0.6rem", fontSize: "13px" }}>
+                      Repayment plan: {formatAmount(tenant.active_plan.paid_amount)} of {formatAmount(tenant.active_plan.total_amount)} paid
+                      <Link to="/landlord/payments/plans" className="rb-link" style={{ marginLeft: "0.5rem" }}>View plan</Link>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -793,7 +888,7 @@ export default function TenantProfile() {
           onClose={() => setUseDeposit(null)}
           onSuccess={() => {
             setUseDeposit(null);
-            fetchTenant(); 
+            fetchTenant();
           }}
         />
       )}

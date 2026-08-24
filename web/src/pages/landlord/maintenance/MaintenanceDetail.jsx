@@ -140,6 +140,7 @@ export default function LandlordMaintenanceDetail() {
       const token = localStorage.getItem("token");
       const { data } = await axios.get(`${API}/landlord/maintenance/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       setRequest(data.request || data);
+      console.log("The error here: ", data.request);
     } catch (err) { setError(err.response?.data?.error || "Failed to load request"); }
     finally { setLoading(false); }
   }, [id]);
@@ -355,7 +356,7 @@ export default function LandlordMaintenanceDetail() {
                         <div style={{ flex: 1, paddingBottom: i < timeline.length - 1 ? '0.8rem' : '0' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '2px' }}>
                             <span style={{ fontSize: '14px', fontWeight: 500, color: toCfg.color }}>{toCfg.label}</span>
-                            {fromCfg && <><Icon name="arrow-right" size={10} color="#999" /><span style={{ fontSize: '12px', color: '#333' }}>from {fromCfg.label}</span></>}
+                            {fromCfg && <><Icon name="arrowRight" size={10} color="#999" /><span style={{ fontSize: '12px', color: '#333' }}>from {fromCfg.label}</span></>}
                             <span style={{ fontSize: '12px', color: '#555', marginLeft: 'auto' }}>{fmtDate(u.created_at)}</span>
                           </div>
                           {u.notes && <p style={{ fontSize: '13px', color: '#333', lineHeight: 1.5 }}>{u.notes}</p>}

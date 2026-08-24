@@ -20,17 +20,17 @@ function formatDate(d) {
 
 function instalmentStatus(inst) {
   const today = new Date();
-  const due   = new Date(inst.due_date);
-  if (inst.status === "paid")    return { color: C.green, label: "Paid",    icon: "checkmark-circle" };
-  if (due < today)               return { color: C.red,   label: "Overdue", icon: "alert-circle" };
-  return                                { color: C.blue,   label: "Due",     icon: "time" };
+  const due = new Date(inst.due_date);
+  if (inst.status === "paid") return { color: C.green, label: "Paid", icon: "checkmark-circle" };
+  if (due < today) return { color: C.red, label: "Overdue", icon: "alert-circle" };
+  return { color: C.blue, label: "Due", icon: "time" };
 }
 
-function InstalmentRow({ inst, number, last }) {
-  const cfg      = instalmentStatus(inst);
-  const isPaid   = inst.status === "paid";
-  const isOverdue= !isPaid && new Date(inst.due_date) < new Date();
-
+function InstalmentRow({ inst, number, last, onPay }) {
+  const cfg = instalmentStatus(inst);
+  const isPaid = inst.status === "paid";
+  const isPendingApproval = inst.status === "pending_approval";
+  const isOverdue = !isPaid && !isPendingApproval && new Date(inst.due_date) < new Date();
   return (
     <View style={[S.instRow, !last && { borderBottomWidth: 1, borderBottomColor: C.border }]}>
       {/* Number */}
@@ -57,20 +57,32 @@ function InstalmentRow({ inst, number, last }) {
           <Text style={[S.statusText, { color: cfg.color }]}>{cfg.label}</Text>
         </View>
       </View>
+
+      {!isPaid && !isPendingApproval && onPay && (
+        <TouchableOpacity onPress={() => onPay(inst)} style={S.payBtn} activeOpacity={0.8}>
+          <Text style={S.payBtnText}>Pay</Text>
+        </TouchableOpacity>
+      )}
     </View>
+
   );
 }
 
 export default function RepaymentPlan() {
-  const navigation              = useNavigation();
-  const [loading, setLoading]   = useState(true);
+  const navigation = useNavigation();
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [plan, setPlan]         = useState(null);
+  const [plan, setPlan] = useState(null);
+  const [tenant, setTenant] = useState(null);
 
   const fetchData = useCallback(async () => {
     try {
-      const data = await api.get("/repayment-plans/me");
-      setPlan(data.plan || null);
+      const [planData, tenantData] = await Promise.all([
+        api.get("/repayment-plans/me"),
+        api.getTenantProfile(),
+      ]);
+      setPlan(planData.plan || null);
+      setTenant(tenantData || null);
     } catch (err) {
       console.error("Fetch repayment plan:", err?.message || err);
     } finally {
@@ -81,6 +93,21 @@ export default function RepaymentPlan() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
   function onRefresh() { setRefreshing(true); fetchData(); }
+
+  function handlePayInstalment(inst) {
+    navigation.navigate("PaymentMethod", {
+      invoice: {
+        id: inst.id,
+        invoice_number: `INST-${inst.instalment_number}`,
+        amount_due: inst.amount,
+        remaining_balance: inst.amount,
+        invoice_type: "other",
+      },
+      tenant,
+      repayment_instalment_id: inst.id,
+      paymentPolicy: { canPartial: false, canPayDirect: true, fullPaymentOnly: true },
+    });
+  }
 
   if (loading) {
     return (
@@ -93,12 +120,12 @@ export default function RepaymentPlan() {
     );
   }
 
-  const pct        = plan?.progress_pct || 0;
-  const paidCount  = (plan?.instalments || []).filter(i => i.status === "paid").length;
+  const pct = plan?.progress_pct || 0;
+  const paidCount = (plan?.instalments || []).filter(i => i.status === "paid").length;
   const totalCount = (plan?.instalments || []).length;
-  const nextDue    = (plan?.instalments || []).find(i => i.status !== "paid");
+  const nextDue = (plan?.instalments || []).find(i => i.status !== "paid");
   const isComplete = plan?.status === "completed";
-  const isPending  = plan?.status === "pending";
+  const isPending = plan?.status === "pending";
 
   return (
     <SafeAreaView style={S.safe}>
@@ -143,47 +170,6 @@ export default function RepaymentPlan() {
             </View>
           )}
 
-          {/* SUMMARY CARD */}
-          <View style={S.summaryCard}>
-            {/* Progress ring visual */}
-            <View style={S.ringWrap}>
-              <View style={S.ringOuter}>
-                <View style={S.ringInner}>
-                  <Text style={S.ringPct}>{pct}%</Text>
-                  <Text style={S.ringLabel}>paid</Text>
-                </View>
-              </View>
-              <View style={[S.ringArc, { borderColor: pct >= 100 ? C.green : C.primary }]} />
-            </View>
-
-            <View style={S.summaryRight}>
-              <View style={S.sumRow}>
-                <Text style={S.sumLabel}>Total</Text>
-                <Text style={S.sumVal}>{fmt(plan.total_amount)}</Text>
-              </View>
-              <View style={[S.sumRow, { borderTopWidth: 1, borderTopColor: C.border }]}>
-                <Text style={S.sumLabel}>Paid</Text>
-                <Text style={[S.sumVal, { color: C.green }]}>{fmt(plan.paid_amount)}</Text>
-              </View>
-              <View style={[S.sumRow, { borderTopWidth: 1, borderTopColor: C.border }]}>
-                <Text style={S.sumLabel}>Remaining</Text>
-                <Text style={[S.sumVal, { color: C.red }]}>{fmt(plan.remaining)}</Text>
-              </View>
-              <View style={[S.sumRow, { borderTopWidth: 1, borderTopColor: C.border }]}>
-                <Text style={S.sumLabel}>Instalments</Text>
-                <Text style={S.sumVal}>{paidCount}/{totalCount}</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* PROGRESS BAR */}
-          <View style={S.progressRow}>
-            <View style={S.progressTrack}>
-              <View style={[S.progressFill, { width: `${pct}%`, backgroundColor: pct >= 100 ? C.green : C.primary }]} />
-            </View>
-            <Text style={S.progressLabel}>{pct}%</Text>
-          </View>
-
           {/* NEXT PAYMENT */}
           {nextDue && !isComplete && (
             <>
@@ -211,7 +197,8 @@ export default function RepaymentPlan() {
                 key={inst.id || i}
                 inst={inst}
                 number={inst.instalment_number || i + 1}
-                last={i === (plan.instalments.length - 1)}
+                last={i === plan.instalments.length - 1}
+                onPay={plan.status === "active" ? handlePayInstalment : undefined}
               />
             ))}
           </View>
@@ -222,9 +209,9 @@ export default function RepaymentPlan() {
           </View>
           <View style={S.card}>
             {[
-              ["Frequency",   plan.frequency ? plan.frequency.charAt(0).toUpperCase() + plan.frequency.slice(1) : "Monthly"],
-              ["Start date",  formatDate(plan.start_date)],
-              ["Status",      plan.status ? plan.status.charAt(0).toUpperCase() + plan.status.replace(/_/g, " ").slice(1) : "Active"],
+              ["Frequency", plan.frequency ? plan.frequency.charAt(0).toUpperCase() + plan.frequency.slice(1) : "Monthly"],
+              ["Start date", formatDate(plan.start_date)],
+              ["Status", plan.status ? plan.status.charAt(0).toUpperCase() + plan.status.replace(/_/g, " ").slice(1) : "Active"],
             ].map(([label, val], i, arr) => (
               <View key={label} style={[S.detailRow, i < arr.length - 1 && { borderBottomWidth: 1, borderBottomColor: C.border }]}>
                 <Text style={S.detailLabel}>{label}</Text>
@@ -241,9 +228,26 @@ export default function RepaymentPlan() {
 }
 
 const S = StyleSheet.create({
-  safe:   { flex: 1, backgroundColor: C.background },
+  payBtn: {
+    marginLeft: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 4,
+    backgroundColor: "rgba(44,62,80,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(44,62,80,0.15)",
+  },
+  payBtnText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: C.primary,
+    fontFamily: F.mono,
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+  },
+  safe: { flex: 1, backgroundColor: C.background },
   scroll: { flex: 1 },
-  pad:    { padding: 16 },
+  pad: { padding: 16 },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 12, backgroundColor: C.surface, borderBottomWidth: 1, borderBottomColor: C.border },
   headerTitle: { fontSize: 16, fontWeight: "700", color: C.textPrimary, fontFamily: F.bebas, letterSpacing: 1 },
 

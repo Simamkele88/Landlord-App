@@ -88,6 +88,7 @@ export default function App() {
   function logout() {
     setToken(null);
     setUser(null);
+    sessionStorage.removeItem("digest_shown");
   }
 
   const defaultPath = token

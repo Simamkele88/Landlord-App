@@ -15,7 +15,6 @@ const API = "http://localhost:4000";
 const FONT = '"Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif';
 const PAGE_SIZE = 10;
 
-// ---- Status badge config (light theme) ----
 const statusConfig = {
   active:   { color: "#1a4a30", bg: "#eef5e8", border: "1px solid #c5d9b8", dot: "#2b7a4b", label: "Active" },
   inactive: { color: "#6a6a6a", bg: "#f5f5f5", border: "1px solid #e0e0e0", dot: "#7a7a7a", label: "Inactive" },

@@ -1,5 +1,5 @@
 /* eslint-disable no-unused-vars */
-// CARETAKER TENANTS PAGE — UNITS STYLE
+// CARETAKER TENANTS PAGE 
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
@@ -100,7 +100,6 @@ export default function CaretakerTenants() {
       setTenants(data.tenants || []);
       setPropertyName(data.property_name || "Your Property");
     } catch (err) {
-      // Fallback data for demo — replace with actual error handling in production
       setTenants([
         { id: 1, first_name: "Sipho", last_name: "Dlamini", unit_number: "101", rent_amount: 5800, payment_frequency: "monthly", lease_end_date: "2026-12-31", reliability_score: "Reliable", phone: "0821234567", email: "sipho@email.com", outstanding_balance: 0 },
         { id: 2, first_name: "Lerato", last_name: "Mokoena", unit_number: "102", rent_amount: 6500, payment_frequency: "monthly", lease_end_date: "2026-09-15", reliability_score: "Moderate Risk", phone: "0839876543", email: "lerato@email.com", outstanding_balance: 1500 },
@@ -116,7 +115,6 @@ export default function CaretakerTenants() {
 
   useEffect(() => { fetchTenants(); }, [fetchTenants]);
 
-  // Filtering
   const filtered = tenants.filter(t => {
     const actualReliability = RELIABILITY_MAP[reliabilityFilter];
     const matchReliability = actualReliability === "All" || (t.reliability_score || "").toLowerCase().replace(/\s+/g, "_") === actualReliability;
@@ -354,7 +352,7 @@ export default function CaretakerTenants() {
           </div>
         )}
 
-        {/* Footer with pagination */}
+        {/* Footer */}
         {!loading && !error && paginatedTenants.length > 0 && (
           <div style={{
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',

@@ -41,10 +41,14 @@ function InvoiceTypeBadge({ type }) {
 
 function collectionStatusConfig(status) {
   switch (status) {
-    case "flagged":           return { color: C.red,    label: "Flagged",           icon: "alert-circle" };
-    case "active":            return { color: C.red,    label: "In Collections",    icon: "alert-circle" };
-    case "repayment_agreed":  return { color: C.blue,   label: "Repayment Agreed",  icon: "time" };
-    case "recovered":         return { color: C.green,  label: "Recovered",         icon: "checkmark-circle" };
+    case "flagged":           return { color: C.red,   label: "Flagged",           icon: "alert-circle" };
+    case "active":            return { color: C.red,   label: "In Collections",    icon: "alert-circle" };
+    case "collections":       return { color: C.red,   label: "Collections",       icon: "alert-circle" };
+    case "partial_collection":return { color: "#8b6e1a", label: "Partial Collection", icon: "time" };
+    case "repayment_agreed":  return { color: C.blue,  label: "Repayment Agreed",  icon: "time" };
+    case "recovered":         return { color: C.green, label: "Recovered",         icon: "checkmark-circle" };
+    case "written_off":       return { color: "#6c757d", label: "Written Off",      icon: "archive" };
+    case "legal":             return { color: "#54326b", label: "Legal",            icon: "alert-octagon" };
     default:                  return { color: C.textMuted, label: status,           icon: "information-circle" };
   }
 }
@@ -311,17 +315,6 @@ export default function CollectionsStatus() {
             </TouchableOpacity>
           </>
         )}
-
-        {/* TIMELINE */}
-        <View style={S.secHead}>
-          <Text style={S.secLabel}>RESOLUTION STEPS</Text>
-        </View>
-        <View style={S.card}>
-          <TimelineStep label="Account flagged" desc="Your account was flagged for outstanding rent." done={step1done} active={false} last={false} />
-          <TimelineStep label="Under review" desc="Landlord is reviewing your account and payment history." done={step2done} active={!step2done} last={false} />
-          <TimelineStep label="Arrangement made" desc="A repayment plan is agreed or full payment is received." done={step3done} active={step2done && !step3done} last={false} />
-          <TimelineStep label="Account cleared" desc="Your balance is settled and account returns to good standing." done={step4done} active={step3done && !step4done} last />
-        </View>
 
         {/* RESOLVED */}
         {isResolved && (

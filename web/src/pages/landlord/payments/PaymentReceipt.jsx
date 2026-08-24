@@ -5,14 +5,15 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import useDocumentTitle from "../../../hooks/useDocumentTitle";
 import { Icon } from "../../../components/Icon";
+import jsPDF from 'jspdf';
 
 const API = "http://localhost:4000";
 
 const FONT = '"Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif';
 
 const COLORS = {
-  text: "#000000",       
-  textMuted: "#333333",  
+  text: "#000000",
+  textMuted: "#333333",
   link: "#2471a3",
   border: "#dfe3e8",
   green: "#2b7a4b",
@@ -21,14 +22,13 @@ const COLORS = {
   blue: "#2c6b9b",
 };
 
+const LOGO_BASE64 = "../../../../public/images/logo/logo.jpg";
+
 function formatAmount(amount) {
   if (amount === null || amount === undefined) return "R 0.00";
   return `R ${Number(amount).toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-function initials(name = "") {
-  return name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
-}
 
 function formatDate(dateStr) {
   if (!dateStr) return "—";
@@ -66,46 +66,6 @@ function formatPaymentMethod(method) {
   return methods[method] || method.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
 }
 
-// InfoRow component similar to other pages
-function InfoRow({ label, children, mono = false, highlight = false, color }) {
-  return (
-    <div style={{
-      display: 'flex',
-      overflow: 'hidden',
-      border: '1px solid #e2e3e4',
-      marginBottom: '0.4rem',
-      fontSize: '14px',
-      fontWeight: 400,
-    }}>
-      <div style={{
-        width: '150px',
-        flexShrink: 0,
-        padding: '0.4rem 0.6rem',
-        color: '#000',
-        fontWeight: 500,
-        background: '#fdfdfd',
-        borderRight: '1px solid #e9ecef',
-        display: 'flex',
-        alignItems: 'center',
-      }}>
-        {label}
-      </div>
-      <div style={{
-        padding: '0.4rem 0.6rem',
-        color: color || '#000',
-        background: '#f5f5f5',
-        flex: 1,
-        display: 'flex',
-        alignItems: 'center',
-        fontWeight: highlight ? 600 : 400,
-        fontFamily: mono ? 'monospace' : FONT,
-      }}>
-        {children}
-      </div>
-    </div>
-  );
-}
-
 export default function PaymentReceipt() {
   useDocumentTitle("Receipt");
   const { state } = useLocation();
@@ -131,6 +91,191 @@ export default function PaymentReceipt() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function handleExportPDF() {
+    if (!payment) return;
+
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = doc.internal.pageSize.width;
+    const margin = 20;
+    let y = margin;
+
+    const drawLine = (yPos) => {
+      doc.setDrawColor(200, 200, 200);
+      doc.line(margin, yPos, pageWidth - margin, yPos);
+    };
+
+    const logoSize = 15;
+    const logoWidth = 30;
+    const logoX = margin;
+    const logoY = y;
+
+    if (LOGO_BASE64) {
+      doc.addImage(LOGO_BASE64, 'PNG', logoX, logoY, logoWidth, logoSize);
+    }
+
+    const textX = LOGO_BASE64 ? logoX + logoWidth + 4 : logoX;
+    const textY = logoY + (LOGO_BASE64 ? logoSize / 2 : 0) - 2;
+
+    doc.setFontSize(LOGO_BASE64 ? 12 : 14);
+    doc.setFont(undefined, 'bold');
+    doc.setTextColor(44, 62, 80);
+    doc.text('Chihwa Rentals', textX, textY);
+    doc.setFontSize(LOGO_BASE64 ? 8 : 9);
+    doc.setFont(undefined, 'normal');
+    doc.setTextColor(100, 100, 100);
+    doc.text(payment.property_name || 'Property', textX, textY + 5);
+
+    y = logoY + logoSize + 6;
+
+    const rcpNo = payment.receipt_no || payment.receipt_number || `RCP-${String(payment.id).slice(0, 8)}`;
+    doc.setFontSize(8);
+    doc.setTextColor(150, 150, 150);
+    doc.text(rcpNo, pageWidth - margin, margin + 2, { align: 'right' });
+    doc.setTextColor(43, 122, 75);
+    doc.setTextColor(0, 0, 0);
+
+    drawLine(y);
+    y += 6;
+
+    doc.setFontSize(18);
+    doc.setFont(undefined, 'bold');
+    doc.setTextColor(0, 0, 0);
+    doc.text('Payment Receipt', pageWidth / 2, y, { align: 'center' });
+    y += 6;
+    doc.setFontSize(9);
+    doc.setFont(undefined, 'normal');
+    doc.setTextColor(100, 100, 100);
+    doc.text('Official record of payment', pageWidth / 2, y, { align: 'center' });
+    y += 10;
+
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'bold');
+    doc.setTextColor(44, 62, 80);
+    doc.text('Tenant', margin, y);
+    y += 4;
+    doc.setFont(undefined, 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(0, 0, 0);
+    const tenantName = payment.tenant_name || 'Unknown';
+    const unitInfo = payment.unit_number || '—';
+    const propertyName = payment.property_name || '—';
+    doc.text(`${tenantName}`, margin + 2, y);
+    y += 5;
+    doc.text(`${unitInfo} · ${propertyName}`, margin + 2, y);
+    y += 8;
+
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'bold');
+    doc.setTextColor(44, 62, 80);
+    doc.text('Payment Details', margin, y);
+    y += 4;
+    doc.setFont(undefined, 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(0, 0, 0);
+
+    const details = [
+      ['Invoice', payment.invoice_number || '—'],
+      ['Period', formatRentalPeriod(payment.billing_period_start)],
+      ['Due Date', formatDate(payment.due_date)],
+      ['Paid On', formatDate(payment.payment_date)],
+      ['Method', formatPaymentMethod(payment.payment_method)],
+      ['Reference', payment.bank_reference || '—'],
+    ];
+    if (payment.proof_of_payment_url) details.push(['Proof', 'Verified']);
+
+    const labelWidth = 30;
+    const valueStart = margin + labelWidth + 2;
+    details.forEach(([label, value]) => {
+      doc.setFont(undefined, 'bold');
+      doc.setTextColor(44, 62, 80);
+      doc.text(label + ':', margin, y);
+      doc.setFont(undefined, 'normal');
+      doc.setTextColor(0, 0, 0);
+      doc.text(value, valueStart, y);
+      y += 5;
+    });
+    y += 4;
+
+    drawLine(y);
+    y += 6;
+
+    const totalPaid = Number(payment.amount_paid || 0);
+    const allocatedRent = Number(payment.allocated_rent || 0);
+    const allocatedUtilities = Number(payment.allocated_utilities || 0);
+    const allocatedLateFees = Number(payment.allocated_late_fees || 0);
+    const hasAllocation = allocatedRent + allocatedUtilities + allocatedLateFees > 0;
+    const invoiceAmountDue = Number(payment.amount_due || 0);
+    const invoiceRentAmount = Number(payment.rent_amount || 0);
+    const invoiceLateFees = Number(payment.late_fees || 0);
+    const invoiceUtilities = Number(payment.utilities_amount || 0);
+    const invoiceRemaining = Number(payment.remaining_balance || 0);
+
+    const showRent = hasAllocation ? allocatedRent : invoiceRentAmount || invoiceAmountDue;
+    const showUtilities = hasAllocation ? allocatedUtilities : invoiceUtilities;
+    const showLateFees = hasAllocation ? allocatedLateFees : invoiceLateFees;
+    const showInvoiceTotal = invoiceAmountDue > 0 && totalPaid < invoiceAmountDue;
+
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'bold');
+    doc.setTextColor(44, 62, 80);
+    doc.text('Amount Breakdown', margin, y);
+    y += 4;
+    doc.setFont(undefined, 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(0, 0, 0);
+
+    const printBreakdown = (label, amount, color = null) => {
+      const labelStr = label + ':';
+      const amountStr = formatAmount(amount);
+      doc.setFont(undefined, 'bold');
+      doc.setTextColor(44, 62, 80);
+      doc.text(labelStr, margin, y);
+      doc.setFont(undefined, 'normal');
+      doc.setTextColor(color || 0, 0, 0);
+      doc.text(amountStr, pageWidth - margin, y, { align: 'right' });
+      y += 5;
+    };
+
+    printBreakdown('Rent', showRent);
+    if (showUtilities > 0) printBreakdown('Utilities', showUtilities);
+    if (showLateFees > 0) printBreakdown('Late Fees', showLateFees, COLORS.red);
+    if (showInvoiceTotal) printBreakdown('Invoice Total', invoiceAmountDue);
+    if (invoiceRemaining > 0) printBreakdown('Balance Due', invoiceRemaining, COLORS.red);
+
+    y += 2;
+    drawLine(y);
+    y += 4;
+    doc.setFontSize(12);
+    doc.setFont(undefined, 'bold');
+    doc.setTextColor(0, 0, 0);
+    const totalLabel = 'Total Paid:';
+    const totalAmount = formatAmount(totalPaid);
+    doc.text(totalLabel, margin, y);
+    doc.setTextColor(43, 122, 75);
+    doc.text(totalAmount, pageWidth - margin, y, { align: 'right' });
+    y += 6;
+
+    if (invoiceRemaining > 0) {
+      doc.setFontSize(9);
+      doc.setFont(undefined, 'italic');
+      doc.setTextColor(139, 110, 26);
+      doc.text(`* Partial payment received. ${formatAmount(invoiceRemaining)} still outstanding.`, margin, y);
+      y += 6;
+    }
+
+    const issuedOn = new Date().toLocaleDateString("en-ZA", { day: "2-digit", month: "long", year: "numeric" });
+    drawLine(y);
+    y += 6;
+    doc.setFontSize(8);
+    doc.setFont(undefined, 'normal');
+    doc.setTextColor(150, 150, 150);
+    doc.text(`Approved by Landlord · Issued ${issuedOn}`, pageWidth / 2, y, { align: 'center' });
+    y += 5;
+    doc.text('Official payment receipt · Chihwa Rentals', pageWidth / 2, y, { align: 'center' });
+
+    doc.save(`Receipt_${rcpNo}.pdf`);
   }
 
   if (loading) {
@@ -211,14 +356,8 @@ export default function PaymentReceipt() {
   const periodLabel = formatRentalPeriod(billingStart);
   const hasProof = !!payment.proof_of_payment_url;
   const isPartial = payment.invoice_status === "partial" || invoiceRemaining > 0;
-  const statusLabel = payment.status === "paid" ? (isPartial ? "Partial Payment" : "Paid") : payment.status;
-  const statusColor = isPartial ? COLORS.gold : COLORS.green;
   const rcpNo = payment.receipt_no || payment.receipt_number || `RCP-${String(payment.id).slice(0, 8)}`;
   const issuedOn = new Date().toLocaleDateString("en-ZA", { day: "2-digit", month: "long", year: "numeric" });
-
-  function handleDownload() {
-    window.print();
-  }
 
   return (
     <div style={{ maxWidth: 1280, padding: "1.5rem 1rem 3rem", margin: "-1rem -1.8rem", fontFamily: FONT, color: COLORS.text }}>
@@ -269,189 +408,113 @@ export default function PaymentReceipt() {
           style={{
             padding: "1.5rem 2rem",
             borderBottom: "1px solid #e9ecef",
-            display: "grid",
-            gridTemplateColumns: "1fr auto",
-            gap: "2rem",
-            alignItems: "start",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
           }}
         >
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "0.8rem" }}>
-              <div
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: "6px",
-                  background: "#eaf2f8",
-                  border: "1px solid #b0cfe0",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Icon name="home" size={18} color={COLORS.blue} />
+          <div style={{ display: "flex", alignItems: "center", gap: "0.8rem" }}>
+            <div>
+              <div style={{ fontWeight: 600, color: COLORS.text, fontSize: "14px", letterSpacing: "0.04em" }}>
+                Chihwa Rentals
               </div>
-              <div>
-                <span
-                  style={{
-                    fontWeight: 600,
-                    color: COLORS.text,
-                    fontSize: "14px",
-                    letterSpacing: "0.04em",
-                    textTransform: "uppercase",
-                    display: "block",
-                  }}
-                >
-                  Chihwa Rentals
-                </span>
-                <span style={{ fontSize: "13px", color: "#333" }}>{propertyName}</span>
-              </div>
+              <div style={{ fontSize: "12px", color: "#333" }}>{propertyName}</div>
             </div>
-            <h2 style={{ fontSize: "1.4rem", fontWeight: 500, color: COLORS.text, margin: 0 }}>Payment Receipt</h2>
-            <p style={{ fontSize: "13px", color: "#333", margin: "0.2rem 0 0" }}>Official record of payment</p>
           </div>
           <div style={{ textAlign: "right" }}>
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "0.35rem",
-                fontSize: "12px",
-                fontWeight: 500,
-                padding: "0.2rem 0.65rem",
-                borderRadius: "12px",
-                color: statusColor,
-                background: statusColor === COLORS.green ? "#eef5e8" : "#faf6ed",
-                border: `1px solid ${statusColor === COLORS.green ? "#c5d9b8" : "#e5dbb8"}`,
-                marginBottom: "0.6rem",
-              }}
-            >
-              <span style={{ width: 6, height: 6, borderRadius: "50%", background: statusColor }} />
-              {statusLabel}
-            </div>
-            <p style={{ fontSize: "13px", color: "#333", fontFamily: FONT }}>{rcpNo}</p>
+            <div style={{ fontSize: "12px", color: "#333" }}>{rcpNo}</div>
           </div>
         </div>
 
         {/* Receipt body */}
-        <div style={{ padding: "1.5rem 2rem", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2rem" }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: "1.2rem" }}>
-            {/* Tenant section */}
-            <div>
-              <p style={{ fontSize: "12px", fontWeight: 500, color: "#000", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "0.5rem" }}>Tenant</p>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.8rem",
-                  padding: "1rem 1.2rem",
-                  borderRadius: "2px",
-                  background: "#f9fafb",
-                  border: "1px solid #e9ecef",
-                }}
-              >
-                <div
-                  style={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: "50%",
-                    background: "#eaf2f8",
-                    color: COLORS.blue,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: "16px",
-                    fontWeight: 600,
-                    flexShrink: 0,
-                  }}
-                >
-                  {initials(tenantName)}
-                </div>
-                <div>
-                  <p style={{ fontWeight: 500, color: COLORS.text, fontSize: "14px", margin: 0 }}>{tenantName}</p>
-                  <p style={{ fontSize: "13px", color: "#333" }}>{unitInfo} · {propertyName}</p>
-                </div>
-              </div>
-            </div>
+        <div style={{ padding: "1.5rem 2rem" }}>
+          {/* Title */}
+          <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
+            <h2 style={{ fontSize: "1.3rem", fontWeight: 500, color: COLORS.text, margin: 0 }}>Payment Receipt</h2>
+            <p style={{ fontSize: "12px", color: "#333", margin: "0.2rem 0 0" }}>Official record of payment</p>
+          </div>
 
-            {/* Payment details */}
-            <div>
-              <p style={{ fontSize: "12px", fontWeight: 500, color: "#000", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "0.5rem" }}>Payment Details</p>
-              <div>
-                <InfoRow label="Invoice">{invoiceNo}</InfoRow>
-                <InfoRow label="Period">{periodLabel}</InfoRow>
-                <InfoRow label="Due Date">{formatDate(dueDate)}</InfoRow>
-                <InfoRow label="Paid On">{formatDate(paidDate)}</InfoRow>
-                <InfoRow label="Method">{method}</InfoRow>
-                <InfoRow label="Reference" mono>{bankRef}</InfoRow>
-                {hasProof && <InfoRow label="Proof" color={COLORS.green}>Verified</InfoRow>}
+          {/* Tenant */}
+          <div style={{ marginBottom: "1.2rem" }}>
+            <div style={{ fontSize: "11px", fontWeight: 500, color: COLORS.text, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "0.3rem" }}>Tenant</div>
+            <div style={{ padding: "0.8rem 1rem", borderRadius: "2px", background: "#f9fafb", border: "1px solid #e9ecef" }}>
+              <div style={{ fontWeight: 500, fontSize: "14px", color: COLORS.text }}>{tenantName}</div>
+              <div style={{ fontSize: "13px", color: "#333" }}>{unitInfo} · {propertyName}</div>
+            </div>
+          </div>
+
+          {/* Payment Details */}
+          <div style={{ marginBottom: "1.2rem" }}>
+            <div style={{ fontSize: "11px", fontWeight: 500, color: COLORS.text, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "0.4rem" }}>Payment Details</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem" }}>
+              {[
+                ["Invoice", invoiceNo],
+                ["Period", periodLabel],
+                ["Due Date", formatDate(dueDate)],
+                ["Paid On", formatDate(paidDate)],
+                ["Method", method],
+                ["Reference", bankRef],
+                ...(hasProof ? [["Proof", "Verified"]] : []),
+              ].map(([label, value]) => (
+                <div key={label} style={{ display: "flex", justifyContent: "space-between", padding: "0.2rem 0", borderBottom: "1px solid #f1f3f5" }}>
+                  <span style={{ fontSize: "13px", color: "#333", fontWeight: 500 }}>{label}</span>
+                  <span style={{ fontSize: "13px", color: COLORS.text, fontWeight: label === "Proof" ? 600 : 400 }}>{value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <hr style={{ border: "none", borderTop: "1px solid #e9ecef", margin: "1.2rem 0" }} />
+
+          {/* Amount Breakdown */}
+          <div>
+            <div style={{ fontSize: "11px", fontWeight: 500, color: COLORS.text, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "0.4rem" }}>Amount Breakdown</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem" }}>
+              {[
+                ["Rent", formatAmount(showRent)],
+                ...(showUtilities > 0 ? [["Utilities", formatAmount(showUtilities)]] : []),
+                ...(showLateFees > 0 ? [["Late Fees", formatAmount(showLateFees), COLORS.red]] : []),
+                ...(showInvoiceTotal ? [["Invoice Total", formatAmount(invoiceAmountDue)]] : []),
+                ...(invoiceRemaining > 0 ? [["Balance Due", formatAmount(invoiceRemaining), COLORS.red]] : []),
+              ].map(([label, amount, color]) => (
+                <div key={label} style={{ display: "flex", justifyContent: "space-between", padding: "0.2rem 0", borderBottom: "1px solid #f1f3f5" }}>
+                  <span style={{ fontSize: "13px", color: "#333" }}>{label}</span>
+                  <span style={{ fontSize: "13px", color: color || COLORS.text, fontWeight: label === "Balance Due" ? 600 : 400 }}>{amount}</span>
+                </div>
+              ))}
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "0.8rem 0", marginTop: "0.3rem", borderTop: "2px solid #e9ecef" }}>
+                <span style={{ fontSize: "14px", fontWeight: 600, color: COLORS.text }}>Total Paid</span>
+                <span style={{ fontSize: "16px", fontWeight: 700, color: COLORS.green }}>{formatAmount(totalPaid)}</span>
               </div>
             </div>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "1.2rem" }}>
-            {/* Amount breakdown */}
-            <div>
-              <p style={{ fontSize: "12px", fontWeight: 500, color: "#000", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "0.5rem" }}>Amount Breakdown</p>
-              <div>
-                <InfoRow label="Rent">{formatAmount(showRent)}</InfoRow>
-                {showUtilities > 0 && <InfoRow label="Utilities">{formatAmount(showUtilities)}</InfoRow>}
-                {showLateFees > 0 && <InfoRow label="Late Fees" color={COLORS.red}>{formatAmount(showLateFees)}</InfoRow>}
-                {showInvoiceTotal && <InfoRow label="Invoice Total">{formatAmount(invoiceAmountDue)}</InfoRow>}
-                {invoiceRemaining > 0 && <InfoRow label="Balance Due" color={COLORS.red}>{formatAmount(invoiceRemaining)}</InfoRow>}
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "1rem 0",
-                    marginTop: "0.5rem",
-                    borderTop: "2px solid #e9ecef",
-                  }}
-                >
-                  <span style={{ fontWeight: 500, color: COLORS.text, fontSize: "14px" }}>Total Paid</span>
-                  <span style={{ fontSize: "18px", fontWeight: 600, color: COLORS.text }}>{formatAmount(totalPaid)}</span>
-                </div>
-              </div>
+          {/* Partial payment note */}
+          {isPartial && (
+            <div style={{ marginTop: "1rem", padding: "0.7rem 1rem", borderRadius: "2px", background: "#faf6ed", border: "1px solid #e5dbb8", display: "flex", alignItems: "flex-start", gap: "0.5rem" }}>
+              <Icon name="info" size={15} color={COLORS.gold} style={{ marginTop: 1 }} />
+              <p style={{ fontSize: "13px", color: COLORS.gold, lineHeight: 1.5, margin: 0 }}>
+                Partial payment received. {formatAmount(invoiceRemaining)} still outstanding on invoice {invoiceNo}.
+              </p>
             </div>
+          )}
 
-            {isPartial && (
-              <div
-                style={{
-                  padding: "0.8rem 1rem",
-                  borderRadius: "2px",
-                  background: "#faf6ed",
-                  border: "1px solid #e5dbb8",
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: "0.5rem",
-                }}
-              >
-                <Icon name="info" size={15} color={COLORS.gold} style={{ marginTop: 1 }} />
-                <p style={{ fontSize: "13px", color: COLORS.gold, lineHeight: 1.5, margin: 0 }}>
-                  Partial payment received. {formatAmount(invoiceRemaining)} still outstanding on invoice {invoiceNo}.
-                </p>
-              </div>
-            )}
-
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", color: "#333", paddingTop: "0.5rem", flexWrap: "wrap", gap: "0.4rem" }}>
-              <span>Approved by Landlord</span>
-              <span>Issued {issuedOn}</span>
-            </div>
+          {/* Footer info */}
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#333", paddingTop: "1rem", marginTop: "1.2rem", borderTop: "1px solid #e9ecef" }}>
+            <span>Approved by Landlord</span>
+            <span>Issued {issuedOn}</span>
           </div>
         </div>
 
-        {/* Footer */}
-        <div style={{ borderTop: "1px solid #e9ecef", padding: "1rem 2rem" }}>
-          <p style={{ textAlign: "center", fontSize: "13px", color: "#333", lineHeight: 1.6, margin: 0 }}>
-            Official payment receipt · Chihwa Rentals
-          </p>
+        {/* Footer line */}
+        <div style={{ borderTop: "1px solid #e9ecef", padding: "0.8rem 2rem", textAlign: "center", fontSize: "12px", color: "#333" }}>
+          Official payment receipt · Chihwa Rentals
         </div>
 
         {/* Action buttons */}
         <div className="no-print" style={{ padding: "0 2rem 1.5rem", display: "flex", gap: "0.8rem" }}>
           <button
-            onClick={() => navigate("/landlord/payments")}
+            onClick={() => navigate("/landlord/payments/history")}
             style={{
               flex: 1,
               display: "flex",
@@ -472,7 +535,7 @@ export default function PaymentReceipt() {
             <Icon name="chevronLeft" size={14} /> Back to Payments
           </button>
           <button
-            onClick={handleDownload}
+            onClick={handleExportPDF}
             style={{
               flex: 1,
               display: "flex",
@@ -490,7 +553,7 @@ export default function PaymentReceipt() {
               color: "#ffffff",
             }}
           >
-            <Icon name="download" size={14} /> Download Receipt
+            <Icon name="download" size={14} /> Download PDF
           </button>
         </div>
       </div>

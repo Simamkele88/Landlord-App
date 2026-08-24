@@ -82,7 +82,6 @@ function pushRecentSearch(term) {
   return updated;
 }
 
-// Flattens grouped search results into a single ordered list for keyboard nav
 function flattenResults(results) {
   const flat = [];
   Object.keys(results || {}).forEach(category => {
@@ -174,7 +173,6 @@ export default function HeaderBar({ user, onMenuClick }) {
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
-  // Global ⌘K / Ctrl+K shortcut
   useEffect(() => {
     function handleKeyDown(e) {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {

@@ -1,11 +1,10 @@
-/* eslint-disable no-unused-vars */
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
 import { useToast } from "../../../contexts/ToastContext";
 import { FiChevronRight, FiSearch, FiChevronDown } from "react-icons/fi";
 import { FaPlus } from "react-icons/fa";
-import { c as COLORS } from "../../../styles/theme";
+import useDocumentTitle from "../../../hooks/useDocumentTitle";
 
 const API = "http://localhost:4000";
 const FONT = '"Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif';
@@ -47,6 +46,9 @@ function getTotalUnits(property) {
 }
 
 export default function PropertiesPage() {
+
+  useDocumentTitle("Properties");
+
   const toast = useToast();
   const navigate = useNavigate();
   const [properties, setProperties] = useState([]);

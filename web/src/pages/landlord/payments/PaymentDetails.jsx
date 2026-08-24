@@ -312,7 +312,7 @@ export default function PaymentDetails() {
               </button>
             )}
             <button
-              onClick={() => navigate('/landlord/payments')}
+              onClick={() => navigate('/landlord/payments/history')}
               style={{ background: '#fdfdfd', color: '#000', border: '1px solid #ccc', padding: '0.4rem 0.8rem', borderRadius: '2px', cursor: 'pointer', fontSize: '14px' }}
             >
               Back to Payments

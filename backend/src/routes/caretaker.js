@@ -5,6 +5,238 @@ const { requireAuth } = require("../middleware/auth");
 const { requireCaretaker } = require("../middleware/roleCheck");
 const { createNotification } = require("../utils/notifications");
 
+function timeAgo(dateStr) {
+  if (!dateStr) return "";
+  const diff = (Date.now() - new Date(dateStr)) / 1000;
+  if (diff < 60) return "Just now";
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
+
+// GET /caretaker/dashboard
+router.get("/dashboard", requireAuth, requireCaretaker, async (req, res) => {
+  try {
+    const caretakerRes = await pool.query(
+      `SELECT c.id,
+              c.assigned_property,
+              u.full_name AS caretaker_name
+       FROM caretaker c
+       JOIN users u ON u.id = c.user_id
+       WHERE c.user_id = $1
+         AND c.is_active = true`,
+      [req.userId]
+    );
+
+    if (!caretakerRes.rows.length) {
+      return res.status(404).json({ error: "Caretaker not found" });
+    }
+
+    const caretaker = caretakerRes.rows[0];
+    let propertyId = caretaker.assigned_property;
+
+    if (!propertyId) {
+      const propertyRes = await pool.query(
+        `SELECT id FROM property WHERE caretaker_id = $1 LIMIT 1`,
+        [caretaker.id]
+      );
+      propertyId = propertyRes.rows[0]?.id || null;
+    }
+
+    if (!propertyId) {
+      return res.json({
+        caretaker_name: caretaker.caretaker_name,
+        property_name: null,
+        property_address: null,
+        stats: {
+          total_units: 0,
+          total_tenants: 0,
+          occupied_units: 0,
+          open_maintenance: 0,
+          in_progress: 0,
+          open_complaints: 0,
+          pending_verdicts: 0,
+          high_risk_tenants: 0,
+          avg_reliability_score: null,
+        },
+        recent_activity: [],
+      });
+    }
+
+    const [
+      propertyRes,
+      unitRes,
+      maintenanceRes,
+      inProgressRes,
+      complaintsRes,
+      pendingVerdictsRes,
+      highRiskRes,
+      avgScoreRes,
+      recentMaintenanceRes,
+      recentComplaintsRes,
+    ] = await Promise.all([
+      pool.query(
+        `SELECT name AS property_name,
+                address_line1 AS property_address
+         FROM property
+         WHERE id = $1`,
+        [propertyId]
+      ),
+
+      pool.query(
+        `SELECT COUNT(*)::int AS total_units,
+                COUNT(*) FILTER (WHERE status = 'occupied')::int AS occupied_units
+         FROM unit
+         WHERE property_id = $1`,
+        [propertyId]
+      ),
+
+      pool.query(
+        `SELECT COUNT(*)::int AS open_maintenance
+         FROM maintenance_request mr
+         JOIN unit u ON u.id = mr.unit_id
+         WHERE u.property_id = $1
+           AND mr.status IN ('needs_repair', 'assigned', 'in_progress', 'pending_approval')`,
+        [propertyId]
+      ),
+
+      pool.query(
+        `SELECT COUNT(*)::int AS in_progress
+         FROM maintenance_request mr
+         JOIN unit u ON u.id = mr.unit_id
+         WHERE u.property_id = $1
+           AND mr.status = 'in_progress'`,
+        [propertyId]
+      ),
+
+      pool.query(
+        `SELECT COUNT(*)::int AS open_complaints
+         FROM complaint
+         WHERE property_id = $1
+           AND status IN ('open', 'under_review', 'escalated', 'awaiting_clarification', 'approved')`,
+        [propertyId]
+      ),
+
+      pool.query(
+        `SELECT COUNT(*)::int AS pending_verdicts
+         FROM complaint
+         WHERE property_id = $1
+           AND status = 'approved'`,
+        [propertyId]
+      ),
+
+      pool.query(
+        `SELECT COUNT(DISTINCT t.id)::int AS high_risk_tenants
+         FROM tenant t
+         JOIN lease l ON l.tenant_id = t.id AND l.status = 'active'
+         JOIN unit u ON u.id = l.unit_id
+         WHERE u.property_id = $1
+           AND t.reliability_score = 'high_risk'`,
+        [propertyId]
+      ),
+
+      pool.query(
+        `SELECT ROUND(AVG(t.reliability_score_value)::numeric, 1) AS avg_reliability_score
+         FROM tenant t
+         JOIN lease l ON l.tenant_id = t.id AND l.status = 'active'
+         JOIN unit u ON u.id = l.unit_id
+         WHERE u.property_id = $1
+           AND t.reliability_score_value IS NOT NULL`,
+        [propertyId]
+      ),
+
+      pool.query(
+        `SELECT 'maintenance' AS type,
+                mr.id,
+                mr.title,
+                'Unit ' || u.unit_number || ' · ' || usr.full_name AS detail,
+                mr.created_at,
+                mr.status::text AS status,
+                mr.priority::text AS priority
+         FROM maintenance_request mr
+         JOIN unit u ON u.id = mr.unit_id
+         JOIN tenant t ON t.id = mr.tenant_id
+         JOIN users usr ON usr.id = t.user_id
+         WHERE u.property_id = $1
+         ORDER BY mr.created_at DESC
+         LIMIT 5`,
+        [propertyId]
+      ),
+
+      pool.query(
+        `SELECT 'complaint' AS type,
+                c.id,
+                c.subject AS title,
+                'Filed by ' || fu.full_name AS detail,
+                c.created_at,
+                c.status::text AS status,
+                CASE
+                  WHEN c.severity >= 4 THEN 'urgent'
+                  WHEN c.severity = 3 THEN 'high'
+                  ELSE 'medium'
+                END AS priority
+         FROM complaint c
+         JOIN users fu ON fu.id = c.filed_by
+         WHERE c.property_id = $1
+         ORDER BY c.created_at DESC
+         LIMIT 5`,
+        [propertyId]
+      ),
+    ]);
+
+    const property = propertyRes.rows[0] || {};
+    const units = unitRes.rows[0] || {};
+    const maintenance = maintenanceRes.rows[0] || {};
+    const inProgress = inProgressRes.rows[0] || {};
+    const complaints = complaintsRes.rows[0] || {};
+    const pendingVerdicts = pendingVerdictsRes.rows[0] || {};
+    const highRisk = highRiskRes.rows[0] || {};
+    const avgScore = avgScoreRes.rows[0] || {};
+
+    const recentActivity = [
+      ...recentMaintenanceRes.rows.map((row) => ({
+        type: "maintenance",
+        title: row.title,
+        detail: row.detail,
+        time: timeAgo(row.created_at),
+        status: row.status,
+        priority: row.priority,
+      })),
+      ...recentComplaintsRes.rows.map((row) => ({
+        type: "complaint",
+        title: row.title,
+        detail: row.detail,
+        time: timeAgo(row.created_at),
+        status: row.status,
+        priority: row.priority,
+      })),
+    ]
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      .slice(0, 8);
+
+    res.json({
+      caretaker_name: caretaker.caretaker_name,
+      property_name: property.property_name || null,
+      property_address: property.property_address || null,
+      stats: {
+        total_units: units.total_units || 0,
+        total_tenants: units.occupied_units || 0,
+        occupied_units: units.occupied_units || 0,
+        open_maintenance: maintenance.open_maintenance || 0,
+        in_progress: inProgress.in_progress || 0,
+        open_complaints: complaints.open_complaints || 0,
+        pending_verdicts: pendingVerdicts.pending_verdicts || 0,
+        high_risk_tenants: highRisk.high_risk_tenants || 0,
+        avg_reliability_score: avgScore.avg_reliability_score || null,
+      },
+      recent_activity: recentActivity,
+    });
+  } catch (err) {
+    console.error("Caretaker dashboard:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 // GET /caretaker/maintenance - Caretaker views all requests for their assigned property
 router.get("/maintenance", requireAuth, requireCaretaker, async (req, res) => {
   try {

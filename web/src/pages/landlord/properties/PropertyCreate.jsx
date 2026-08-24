@@ -7,6 +7,8 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useToast } from "../../../contexts/ToastContext";
 import { FiX, FiSearch, FiChevronDown, FiChevronRight } from "react-icons/fi";
+import useDocumentTitle from "../../../hooks/useDocumentTitle";
+
 
 const API = "http://localhost:4000";
 const DEFAULT_CENTER = [-26.2041, 28.0473];
@@ -73,6 +75,7 @@ const selectStyle = {
 };
 
 export default function PropertyCreate({ onClose }) {
+  useDocumentTitle("Create Property");
   const navigate = useNavigate();
   const toast = useToast();
 

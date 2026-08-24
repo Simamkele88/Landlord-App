@@ -270,12 +270,59 @@ function DepositInvoiceModal({ deposit, onClose, onSuccess }) {
   );
 }
 
+function DepositsSummaryStrip({ summary }) {
+  if (!summary) return null;
+
+  const total = Number(summary.total || 0);
+  const held = Number(summary.total_held || 0);
+  const totalDeposit = Number(summary.total_deposit_amount || 0);
+  const refunded = Number(summary.total_refunded || 0);
+  const disputed = Number(summary.disputed || 0);
+
+  const cards = [
+    { label: "Total Deposits", value: total, color: "#2c3e50", bg: "rgba(44,62,80,0.06)", border: "rgba(44,62,80,0.15)" },
+    { label: "Total Held", value: formatAmount(held), color: "#1e4a6b", bg: "rgba(30,74,107,0.06)", border: "rgba(30,74,107,0.15)" },
+    { label: "Total Refunded", value: formatAmount(refunded), color: "#1a4a30", bg: "rgba(26,74,48,0.06)", border: "rgba(26,74,48,0.15)" },
+    { label: "Total Deposit Amount", value: formatAmount(totalDeposit), color: "#2c3e50", bg: "rgba(0,0,0,0.02)", border: "rgba(0,0,0,0.06)" },
+    { label: "Disputed", value: disputed, color: "#7a2b2b", bg: "rgba(122,43,43,0.06)", border: "rgba(122,43,43,0.15)" },
+  ];
+
+  return (
+    <div style={{
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+      gap: "0.6rem",
+      padding: "0.85rem 1.1rem",
+      background: "#f9fafb",
+      borderBottom: "1px solid #dfe3e8",
+    }}>
+      {cards.map(card => (
+        <div key={card.label} style={{
+          padding: "0.6rem 0.9rem",
+          borderRadius: "3px",
+          background: card.bg,
+          border: `1px solid ${card.border}`,
+          textAlign: "center",
+        }}>
+          <div style={{ fontSize: "11px", fontWeight: 600, color: "#333", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+            {card.label}
+          </div>
+          <div style={{ fontSize: "1.2rem", fontWeight: 700, color: card.color, marginTop: "2px" }}>
+            {card.value}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function DepositsPage() {
   const [useDeposit, setUseDeposit] = useState(null);
   const [deposits, setDeposits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pagination, setPagination] = useState({ page: 1, total: 0, totalPages: 1 });
+  const [summary, setSummary] = useState(null);
   const [filter, setFilter] = useState("All");
   const [searchInput, setSearchInput] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -306,6 +353,7 @@ export default function DepositsPage() {
         params,
       });
       setDeposits(data.deposits || []);
+      setSummary(data.summary || null);
       setPagination(data.pagination || { page: 1, total: 0, totalPages: 1 });
     } catch (err) {
       setError("Couldn't load deposits.");
@@ -373,6 +421,9 @@ export default function DepositsPage() {
             List of Deposits
           </h4>
         </div>
+
+        {/* Summary Strip */}
+        <DepositsSummaryStrip summary={summary} />
 
         {/* Toolbar */}
         <div style={{
@@ -478,6 +529,7 @@ export default function DepositsPage() {
                 <th style={{ ...thStyle, textAlign: 'right' }}>Refunded</th>
                 <th style={thStyle}>Date Held</th>
                 <th style={thStyle}>Status</th>
+                <th style={{ ...thStyle, textAlign: 'center' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -489,6 +541,7 @@ export default function DepositsPage() {
                 deposits.map((d, index) => {
                   const tenantId = d.tenant_id;
                   const depositRef = `DEP${String(index + 1).padStart(6, "0")}`;
+                  const canAct = d.status === 'paid' || d.status === 'partially_refunded';
                   return (
                     <tr key={d.id}>
                       <td style={tdStyle}>
@@ -529,7 +582,50 @@ export default function DepositsPage() {
                       <td style={{ ...tdStyle, textAlign: 'right' }}>{formatAmount(d.amount_refunded || 0)}</td>
                       <td style={tdStyle}>{d.date_held ? new Date(d.date_held).toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' }) : "—"}</td>
                       <td style={tdStyle}><StatusBadge status={d.status} /></td>
-                      
+                      <td style={{ ...tdStyle, textAlign: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem', flexWrap: 'wrap' }}>
+                          {canAct && (
+                            <>
+                              <button
+                                onClick={() => setUseDeposit(d)}
+                                style={{
+                                  display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+                                  fontSize: '11px', fontWeight: 500, padding: '0.15rem 0.4rem',
+                                  color: '#2c6b9b', cursor: 'pointer',
+                                }}
+                              >
+                                Use
+                              </button>
+                              <button
+                                onClick={() => setRefundDeposit(d)}
+                                style={{
+                                  display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+                                  fontSize: '11px', fontWeight: 500, padding: '0.15rem 0.4rem',
+                                  color: '#1a4a30', cursor: 'pointer',
+                                }}
+                              >
+                                Refund
+                              </button>
+                            </>
+                          )}
+                          <button
+                            onClick={() => setDepositInvoice(d)}
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+                              fontSize: '11px', fontWeight: 500, padding: '0.15rem 0.4rem',
+                              color: '#8b6e1a', cursor: 'pointer',
+                            }}
+                          >
+                            Invoice
+                          </button>
+                          {d.status === 'forfeited' && (
+                            <span style={{ fontSize: '11px', color: '#95a5a6', fontStyle: 'italic' }}>Forfeited</span>
+                          )}
+                          {d.status === 'fully_refunded' && (
+                            <span style={{ fontSize: '11px', color: '#95a5a6', fontStyle: 'italic' }}>Refunded</span>
+                          )}
+                        </div>
+                      </td>
                     </tr>
                   );
                 })

@@ -28,8 +28,9 @@ const repaymentPlanRoutes = require("./routes/repaymentPlans");
 const collectionRoutes = require("./routes/collections");
 const leaseRoutes = require("./routes/leases");
 const landlordMaintenanceRoutes = require("./routes/landlordMaintenance");
-const landlordDashboard = require("./routes/dashboard");
+const dashboard = require("./routes/dashboard");
 const searchRoutes = require("./routes/search");
+const landordBillingRoutes = require("./routes/billing");
 
 
 const app = express();
@@ -75,8 +76,10 @@ app.use("/repayment-plans", repaymentPlanRoutes);
 app.use("/collections", collectionRoutes);
 app.use("/leases", leaseRoutes);
 app.use("/landlord/maintenance", landlordMaintenanceRoutes);
-app.use("/landlord/dashboard", landlordDashboard);
+app.use("/dashboard", dashboard);
 app.use("/search", searchRoutes);
+app.use("/landlord/billing", landordBillingRoutes);
+app.use("/payments/payfast", require("./routes/payfast"));
 
 
 app.get("/uploads/maintenance/:filename", (req, res) => {

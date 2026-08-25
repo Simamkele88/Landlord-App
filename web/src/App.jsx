@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-// ROOT COMPONENT 
+// ROOT COMPONENT
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useState, useEffect, createContext, useContext } from "react";
 
@@ -56,6 +56,7 @@ import CreateInvoice from "./pages/landlord/payments/InvoiceCreate";
 import PaymentDetails from "./pages/landlord/payments/PaymentDetails";
 
 import "./index.css";
+import CaretakerRecurringIssues from "./pages/caretaker/maintenance/caretakerRecurringIssues";
 
 export const AuthContext = createContext(null);
 
@@ -92,7 +93,9 @@ export default function App() {
   }
 
   const defaultPath = token
-    ? user?.role === "caretaker" ? "/caretaker/dashboard" : "/landlord/dashboard"
+    ? user?.role === "caretaker"
+      ? "/caretaker/dashboard"
+      : "/landlord/dashboard"
     : "/login";
 
   return (
@@ -109,7 +112,10 @@ export default function App() {
 
               {/* LANDLORD */}
               <Route path="/landlord" element={<DashboardLayout />}>
-                <Route index element={<Navigate to="/landlord/dashboard" replace />} />
+                <Route
+                  index
+                  element={<Navigate to="/landlord/dashboard" replace />}
+                />
                 <Route path="dashboard" element={<Dashboard />} />
 
                 {/* Property */}
@@ -141,19 +147,34 @@ export default function App() {
                   <Route path="settings" element={<PaymentSettings />} />
                 </Route>
                 <Route path="payments/review/:id" element={<PaymentReview />} />
-                <Route path="payments/receipt/:id" element={<PaymentReceipt />} />
+                <Route
+                  path="payments/receipt/:id"
+                  element={<PaymentReceipt />}
+                />
                 <Route path="payments/plans" element={<RepaymentPlans />} />
                 <Route path="payments/settings" element={<PaymentSettings />} />
-                <Route path="payments/invoices/:id" element={<InvoiceDetailPage />} />
-                <Route path="payments/deposits/:id" element={<DepositDetailPage />} />
-                <Route path="payments/invoices/create" element={<CreateInvoice />} />
+                <Route
+                  path="payments/invoices/:id"
+                  element={<InvoiceDetailPage />}
+                />
+                <Route
+                  path="payments/deposits/:id"
+                  element={<DepositDetailPage />}
+                />
+                <Route
+                  path="payments/invoices/create"
+                  element={<CreateInvoice />}
+                />
                 <Route path="payments/:id" element={<PaymentDetails />} />
 
                 {/* Issues */}
                 <Route path="maintenance" element={<LandlordMaintenance />} />
                 <Route path="maintenance/:id" element={<MaintenanceDetail />} />
                 <Route path="complaints" element={<LandlordComplaints />} />
-                <Route path="complaints/:id" element={<LandlordComplaintDetail />} />
+                <Route
+                  path="complaints/:id"
+                  element={<LandlordComplaintDetail />}
+                />
                 <Route path="collections" element={<LandlordCollections />} />
 
                 {/* Insights */}
@@ -167,17 +188,32 @@ export default function App() {
 
               {/* CARETAKER */}
               <Route path="/caretaker" element={<DashboardLayout />}>
-                <Route index element={<Navigate to="/caretaker/dashboard" replace />} />
+                <Route
+                  index
+                  element={<Navigate to="/caretaker/dashboard" replace />}
+                />
                 <Route path="dashboard" element={<CaretakerDashboard />} />
                 <Route path="maintenance" element={<CaretakerMaintenance />} />
-                <Route path="maintenance/:id" element={<CaretakerMaintenanceDetail />} />
+                <Route
+                  path="maintenance/recurring"
+                  element={<CaretakerRecurringIssues />}
+                />
+                <Route
+                  path="maintenance/:id"
+                  element={<CaretakerMaintenanceDetail />}
+                />
                 <Route path="complaints" element={<CaretakerComplaints />} />
-                <Route path="complaints/:id" element={<CaretakerComplaintDetail />} />
+                <Route
+                  path="complaints/:id"
+                  element={<CaretakerComplaintDetail />}
+                />
                 <Route path="tenants" element={<CaretakerTenants />} />
                 <Route path="messages" element={<CaretakerMessages />} />
-                <Route path="notifications" element={<CaretakerNotificationsPage />} />
+                <Route
+                  path="notifications"
+                  element={<CaretakerNotificationsPage />}
+                />
                 <Route path="settings" element={<CaretakerSettings />} />
-
               </Route>
 
               {/* CATCH-ALL  */}

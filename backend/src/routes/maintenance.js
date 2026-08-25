@@ -2,31 +2,50 @@ const express = require("express");
 const router = express.Router();
 const pool = require("../config/database");
 const { requireAuth } = require("../middleware/auth");
-const { requireTenant } = require("../middleware/roleCheck");
+const { requireTenant, requireCaretaker } = require("../middleware/roleCheck");
 const { createNotification } = require("../utils/notifications");
 
 async function getTenant(userId) {
-  const result = await pool.query("SELECT id, landlord_id FROM tenant WHERE user_id = $1", [userId]);
+  const result = await pool.query(
+    "SELECT id, landlord_id FROM tenant WHERE user_id = $1",
+    [userId],
+  );
   return result.rows[0] || null;
 }
 
-const VALID_CATEGORIES = ['plumbing', 'electrical', 'structural', 'appliance', 'hvac', 'painting', 'cleaning', 'pest_control', 'other'];
-const VALID_PRIORITIES = ['low', 'medium', 'high', 'urgent', 'emergency'];
+const VALID_CATEGORIES = [
+  "plumbing",
+  "electrical",
+  "structural",
+  "appliance",
+  "hvac",
+  "painting",
+  "cleaning",
+  "pest_control",
+  "other",
+];
+const VALID_PRIORITIES = ["low", "medium", "high", "urgent", "emergency"];
 
 // POST /maintenance  - Tenant submits a maintenance request
 router.post("/", requireAuth, requireTenant, async (req, res) => {
   const { title, description, category, priority, photos } = req.body;
 
   if (!title || !description || !category) {
-    return res.status(400).json({ error: "Title, description, and category are required" });
+    return res
+      .status(400)
+      .json({ error: "Title, description, and category are required" });
   }
 
   if (!VALID_CATEGORIES.includes(category)) {
-    return res.status(400).json({ error: "Invalid category", validCategories: VALID_CATEGORIES });
+    return res
+      .status(400)
+      .json({ error: "Invalid category", validCategories: VALID_CATEGORIES });
   }
 
   if (priority && !VALID_PRIORITIES.includes(priority)) {
-    return res.status(400).json({ error: "Invalid priority", validPriorities: VALID_PRIORITIES });
+    return res
+      .status(400)
+      .json({ error: "Invalid priority", validPriorities: VALID_PRIORITIES });
   }
 
   try {
@@ -37,11 +56,13 @@ router.post("/", requireAuth, requireTenant, async (req, res) => {
        WHERE t.user_id = $1
        ORDER BY l.lease_start_date DESC
        LIMIT 1`,
-      [req.userId]
+      [req.userId],
     );
 
     if (!tr.rows.length) {
-      return res.status(404).json({ error: "No active lease found. Please contact your landlord." });
+      return res.status(404).json({
+        error: "No active lease found. Please contact your landlord.",
+      });
     }
 
     const { id: tenantId, landlord_id, unit_id, lease_id } = tr.rows[0];
@@ -56,7 +77,17 @@ router.post("/", requireAuth, requireTenant, async (req, res) => {
         created_at, updated_at
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'needs_repair', NOW(), NOW()) 
       RETURNING *`,
-      [tenantId, landlord_id, unit_id, req.userId, requestNumber, title, description, category, priority || "medium"]
+      [
+        tenantId,
+        landlord_id,
+        unit_id,
+        req.userId,
+        requestNumber,
+        title,
+        description,
+        category,
+        priority || "medium",
+      ],
     );
 
     const requestId = result.rows[0].id;
@@ -67,12 +98,24 @@ router.post("/", requireAuth, requireTenant, async (req, res) => {
         const docResult = await pool.query(
           `INSERT INTO document (tenant_id, uploaded_by, document_type, document_name, document_url, file_size, mime_type)
            VALUES ($1, $2, 'maintenance_photo', $3, $4, $5, $6) RETURNING id`,
-          [tenantId, req.userId, photo.document_name || `Photo - ${requestNumber}`, photo.document_url, photo.file_size || 0, photo.mime_type || 'image/jpeg']
+          [
+            tenantId,
+            req.userId,
+            photo.document_name || `Photo - ${requestNumber}`,
+            photo.document_url,
+            photo.file_size || 0,
+            photo.mime_type || "image/jpeg",
+          ],
         );
         await pool.query(
           `INSERT INTO maintenance_photo (request_id, document_id, photo_type, uploaded_by)
            VALUES ($1, $2, $3, $4)`,
-          [requestId, docResult.rows[0].id, photo.photo_type || 'before', req.userId]
+          [
+            requestId,
+            docResult.rows[0].id,
+            photo.photo_type || "before",
+            req.userId,
+          ],
         );
       }
     }
@@ -80,47 +123,77 @@ router.post("/", requireAuth, requireTenant, async (req, res) => {
     await pool.query(
       `INSERT INTO maintenance_update (request_id, updated_by, status_from, status_to, notes)
        VALUES ($1, $2, NULL, 'needs_repair', 'Request submitted by tenant')`,
-      [requestId, req.userId]
+      [requestId, req.userId],
     );
 
     const unitInfo = await pool.query(
       `SELECT u.unit_number, p.name AS property_name, p.id AS property_id
        FROM unit u JOIN property p ON p.id = u.property_id WHERE u.id = $1`,
-      [unit_id]
+      [unit_id],
     );
 
-    const unitNumber = unitInfo.rows[0]?.unit_number || 'Unknown';
-    const propertyName = unitInfo.rows[0]?.property_name || 'Unknown';
+    const unitNumber = unitInfo.rows[0]?.unit_number || "Unknown";
+    const propertyName = unitInfo.rows[0]?.property_name || "Unknown";
     const propertyId = unitInfo.rows[0]?.property_id;
 
     if (propertyId) {
       const caretaker = await pool.query(
         `SELECT u.id FROM users u JOIN caretaker c ON c.user_id = u.id WHERE c.assigned_property = $1`,
-        [propertyId]
+        [propertyId],
       );
 
       if (caretaker.rows.length) {
-        await createNotification(caretaker.rows[0].id, "maintenance_update", "New Request",
-          `New ${priority || 'medium'} priority: "${title}" (${category}) - Unit ${unitNumber}, ${propertyName}`, requestId, "maintenance");
+        await createNotification(
+          caretaker.rows[0].id,
+          "maintenance_update",
+          "New Request",
+          `New ${priority || "medium"} priority: "${title}" (${category}) - Unit ${unitNumber}, ${propertyName}`,
+          requestId,
+          "maintenance",
+        );
       } else {
-        const landlordUser = await pool.query("SELECT user_id FROM landlord WHERE id = $1", [landlord_id]);
+        const landlordUser = await pool.query(
+          "SELECT user_id FROM landlord WHERE id = $1",
+          [landlord_id],
+        );
         if (landlordUser.rows.length) {
-          await createNotification(landlordUser.rows[0].user_id, "maintenance_update", "New Request (No Caretaker)",
-            `"${title}" (${category}) - No caretaker for ${propertyName}`, requestId, "maintenance");
+          await createNotification(
+            landlordUser.rows[0].user_id,
+            "maintenance_update",
+            "New Request (No Caretaker)",
+            `"${title}" (${category}) - No caretaker for ${propertyName}`,
+            requestId,
+            "maintenance",
+          );
         }
       }
     }
 
-    await createNotification(req.userId, "maintenance_update", "Request Submitted",
-      `"${title}" (${requestNumber}) submitted for review.`, requestId, "maintenance");
+    await createNotification(
+      req.userId,
+      "maintenance_update",
+      "Request Submitted",
+      `"${title}" (${requestNumber}) submitted for review.`,
+      requestId,
+      "maintenance",
+    );
 
     res.status(201).json({
       message: "Maintenance request submitted",
-      request: { ...result.rows[0], request_number: requestNumber, unit_number: unitNumber, property_name: propertyName, photos_count: photos ? photos.length : 0 }
+      request: {
+        ...result.rows[0],
+        request_number: requestNumber,
+        unit_number: unitNumber,
+        property_name: propertyName,
+        photos_count: photos ? photos.length : 0,
+      },
     });
   } catch (err) {
     console.error("Submit maintenance:", err);
-    res.status(500).json({ error: "Server error", details: process.env.NODE_ENV === 'development' ? err.message : undefined });
+    res.status(500).json({
+      error: "Server error",
+      details: process.env.NODE_ENV === "development" ? err.message : undefined,
+    });
   }
 });
 
@@ -130,17 +203,26 @@ router.get("/", requireAuth, async (req, res) => {
     let where, params;
 
     if (req.userRole === "landlord") {
-      const lr = await pool.query("SELECT id FROM landlord WHERE user_id = $1", [req.userId]);
-      if (!lr.rows.length) return res.status(404).json({ error: "Landlord not found" });
+      const lr = await pool.query(
+        "SELECT id FROM landlord WHERE user_id = $1",
+        [req.userId],
+      );
+      if (!lr.rows.length)
+        return res.status(404).json({ error: "Landlord not found" });
       where = "mr.landlord_id = $1";
       params = [lr.rows[0].id];
     } else if (req.userRole === "tenant") {
-      const tr = await pool.query("SELECT id FROM tenant WHERE user_id = $1", [req.userId]);
-      if (!tr.rows.length) return res.status(404).json({ error: "Tenant not found" });
+      const tr = await pool.query("SELECT id FROM tenant WHERE user_id = $1", [
+        req.userId,
+      ]);
+      if (!tr.rows.length)
+        return res.status(404).json({ error: "Tenant not found" });
       where = "mr.tenant_id = $1";
       params = [tr.rows[0].id];
     } else {
-      return res.status(403).json({ error: "Use /caretaker/maintenance endpoint" });
+      return res
+        .status(403)
+        .json({ error: "Use /caretaker/maintenance endpoint" });
     }
 
     const result = await pool.query(
@@ -154,7 +236,7 @@ router.get("/", requireAuth, async (req, res) => {
        JOIN unit u ON u.id = mr.unit_id
        JOIN property p ON p.id = u.property_id
        WHERE ${where} ORDER BY mr.created_at DESC`,
-      params
+      params,
     );
 
     res.json({ requests: result.rows });
@@ -176,21 +258,23 @@ router.put("/:id/confirm", requireAuth, requireTenant, async (req, res) => {
 
     const requestCheck = await pool.query(
       "SELECT * FROM maintenance_request WHERE id = $1 AND tenant_id = $2 AND status = 'completed'",
-      [id, tenant.id]
+      [id, tenant.id],
     );
     if (!requestCheck.rows.length) {
-      return res.status(404).json({ error: "Request not found or not completed yet" });
+      return res
+        .status(404)
+        .json({ error: "Request not found or not completed yet" });
     }
 
     await pool.query(
       `UPDATE maintenance_request SET status = 'closed'::maintenance_status, tenant_confirmed = true, tenant_confirmed_at = NOW(), updated_at = NOW() WHERE id = $1`,
-      [id]
+      [id],
     );
 
     await pool.query(
       `INSERT INTO maintenance_update (request_id, updated_by, status_from, status_to, notes)
        VALUES ($1, $2, 'completed'::maintenance_status, 'closed'::maintenance_status, 'Tenant confirmed completion — request closed')`,
-      [id, userId]
+      [id, userId],
     );
 
     if (photos && Array.isArray(photos) && photos.length > 0) {
@@ -199,23 +283,36 @@ router.put("/:id/confirm", requireAuth, requireTenant, async (req, res) => {
         const docResult = await pool.query(
           `INSERT INTO document (tenant_id, uploaded_by, document_type, document_name, document_url, file_size, mime_type)
            VALUES ($1, $2, 'maintenance_photo', $3, $4, $5, $6) RETURNING id`,
-          [tenant.id, userId, `After photo - ${id}`, photo.document_url, photo.file_size || 0, photo.mime_type || 'image/jpeg']
+          [
+            tenant.id,
+            userId,
+            `After photo - ${id}`,
+            photo.document_url,
+            photo.file_size || 0,
+            photo.mime_type || "image/jpeg",
+          ],
         );
         await pool.query(
           `INSERT INTO maintenance_photo (request_id, document_id, photo_type, uploaded_by)
            VALUES ($1, $2, 'after', $3)`,
-          [id, docResult.rows[0].id, userId]
+          [id, docResult.rows[0].id, userId],
         );
       }
     }
 
     const caretaker = await pool.query(
       `SELECT u.id FROM users u JOIN caretaker c ON c.user_id = u.id JOIN property p ON p.id = c.assigned_property JOIN unit u2 ON u2.property_id = p.id JOIN maintenance_request mr ON mr.unit_id = u2.id WHERE mr.id = $1`,
-      [id]
+      [id],
     );
     if (caretaker.rows.length) {
-      await createNotification(caretaker.rows[0].id, "maintenance_update", "Completion Confirmed",
-        `Tenant confirmed completion of "${requestCheck.rows[0].title}". Request closed.`, id, "maintenance");
+      await createNotification(
+        caretaker.rows[0].id,
+        "maintenance_update",
+        "Completion Confirmed",
+        `Tenant confirmed completion of "${requestCheck.rows[0].title}". Request closed.`,
+        id,
+        "maintenance",
+      );
     }
 
     res.json({ message: "Completion confirmed. Request closed." });
@@ -241,10 +338,12 @@ router.put("/:id/reopen", requireAuth, requireTenant, async (req, res) => {
        JOIN unit u ON u.id = mr.unit_id
        JOIN property p ON p.id = u.property_id
        WHERE mr.id = $1 AND mr.tenant_id = $2 AND mr.status IN ('completed', 'cancelled', 'closed')`,
-      [id, tenant.id]
+      [id, tenant.id],
     );
     if (!requestCheck.rows.length) {
-      return res.status(404).json({ error: "Request not found or cannot be reopened" });
+      return res
+        .status(404)
+        .json({ error: "Request not found or cannot be reopened" });
     }
 
     const currentRequest = requestCheck.rows[0];
@@ -253,28 +352,48 @@ router.put("/:id/reopen", requireAuth, requireTenant, async (req, res) => {
       `UPDATE maintenance_request 
        SET status = 'needs_repair'::maintenance_status, completed_at = NULL, contractor_name = NULL, contractor_phone = NULL, scheduled_date = NULL, actual_cost = NULL, completion_notes = NULL, tenant_confirmed = false, tenant_confirmed_at = NULL, updated_at = NOW() 
        WHERE id = $1`,
-      [id]
+      [id],
     );
 
     await pool.query(
       `INSERT INTO maintenance_update (request_id, updated_by, status_from, status_to, notes)
        VALUES ($1, $2, $3::maintenance_status, 'needs_repair'::maintenance_status, $4::text)`,
-      [id, userId, currentRequest.status, reason || "Tenant reopened. Issue not resolved"]
+      [
+        id,
+        userId,
+        currentRequest.status,
+        reason || "Tenant reopened. Issue not resolved",
+      ],
     );
 
     const caretaker = await pool.query(
       "SELECT u.id FROM users u JOIN caretaker c ON c.user_id = u.id WHERE c.assigned_property = $1",
-      [currentRequest.property_id]
+      [currentRequest.property_id],
     );
     if (caretaker.rows.length) {
-      await createNotification(caretaker.rows[0].id, "maintenance_update", "Request Reopened",
-        `Tenant reopened: "${currentRequest.title}"`, id, "maintenance");
+      await createNotification(
+        caretaker.rows[0].id,
+        "maintenance_update",
+        "Request Reopened",
+        `Tenant reopened: "${currentRequest.title}"`,
+        id,
+        "maintenance",
+      );
     }
 
-    const landlordUser = await pool.query("SELECT user_id FROM landlord WHERE id = $1", [currentRequest.landlord_id]);
+    const landlordUser = await pool.query(
+      "SELECT user_id FROM landlord WHERE id = $1",
+      [currentRequest.landlord_id],
+    );
     if (landlordUser.rows.length) {
-      await createNotification(landlordUser.rows[0].user_id, "maintenance_update", "Request Reopened",
-        `"${currentRequest.title}" reopened by tenant`, id, "maintenance");
+      await createNotification(
+        landlordUser.rows[0].user_id,
+        "maintenance_update",
+        "Request Reopened",
+        `"${currentRequest.title}" reopened by tenant`,
+        id,
+        "maintenance",
+      );
     }
 
     res.json({ message: "Request reopened", newStatus: "needs_repair" });
@@ -300,12 +419,13 @@ router.get("/:id", requireAuth, async (req, res) => {
        JOIN unit u ON u.id = mr.unit_id
        JOIN property p ON p.id = u.property_id
        WHERE mr.id = $1`,
-      [id]
+      [id],
     );
 
-    if (!result.rows.length) return res.status(404).json({ error: "Request not found" });
+    if (!result.rows.length)
+      return res.status(404).json({ error: "Request not found" });
 
-    if (req.userRole === 'tenant') {
+    if (req.userRole === "tenant") {
       const tenant = await getTenant(req.userId);
       if (!tenant || result.rows[0].tenant_id !== tenant.id) {
         return res.status(403).json({ error: "Access denied" });

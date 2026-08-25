@@ -278,35 +278,47 @@ router.put("/:id/verdict", requireAuth, requireLandlord, async (req, res) => {
     const { id } = req.params;
     const { verdict_type, fine_amount, notes } = req.body;
 
-    if (!verdict_type || !["warning", "fine", "dismissed"].includes(verdict_type)) {
-      return res.status(400).json({ error: "Valid verdict_type is required (warning, fine, dismissed)" });
+    if (
+      !verdict_type ||
+      !["warning", "fine", "dismissed"].includes(verdict_type)
+    ) {
+      return res
+        .status(400)
+        .json({
+          error: "Valid verdict_type is required (warning, fine, dismissed)",
+        });
     }
 
     const landlordRes = await pool.query(
       "SELECT id FROM landlord WHERE user_id = $1",
-      [req.userId]
+      [req.userId],
     );
     const landlordId = landlordRes.rows[0]?.id;
-    if (!landlordId) return res.status(404).json({ error: "Landlord not found" });
+    if (!landlordId)
+      return res.status(404).json({ error: "Landlord not found" });
 
     const complaint = await pool.query(
       "SELECT * FROM complaint WHERE id = $1 AND status IN ('open', 'under_review', 'awaiting_clarification', 'approved')",
-      [id]
+      [id],
     );
     if (!complaint.rows.length) {
-      return res.status(404).json({ error: "Complaint not found or cannot issue verdict" });
+      return res
+        .status(404)
+        .json({ error: "Complaint not found or cannot issue verdict" });
     }
 
     const targetTenantId = complaint.rows[0].against_tenant_id;
     const complaintSubject = complaint.rows[0].subject;
 
-    await pool.query("DELETE FROM complaint_verdict WHERE complaint_id = $1", [id]);
+    await pool.query("DELETE FROM complaint_verdict WHERE complaint_id = $1", [
+      id,
+    ]);
 
     const verdictResult = await pool.query(
       `INSERT INTO complaint_verdict (complaint_id, verdict_type, fine_amount, issued_by, notes)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [id, verdict_type, fine_amount || null, req.userId, notes || null]
+      [id, verdict_type, fine_amount || null, req.userId, notes || null],
     );
 
     if (targetTenantId) {
@@ -314,13 +326,13 @@ router.put("/:id/verdict", requireAuth, requireLandlord, async (req, res) => {
         await pool.query(
           `UPDATE tenant SET total_warnings = total_warnings + 1, updated_at = NOW()
            WHERE id = $1`,
-          [targetTenantId]
+          [targetTenantId],
         );
       } else if (verdict_type === "fine") {
         await pool.query(
           `UPDATE tenant SET total_fines = COALESCE(total_fines, 0) + $2, updated_at = NOW()
            WHERE id = $1`,
-          [targetTenantId, fine_amount || 0]
+          [targetTenantId, fine_amount || 0],
         );
 
         await createFineInvoice(
@@ -328,7 +340,7 @@ router.put("/:id/verdict", requireAuth, requireLandlord, async (req, res) => {
           landlordId,
           fine_amount,
           req.userId,
-          complaintSubject
+          complaintSubject,
         );
       }
 
@@ -341,7 +353,7 @@ router.put("/:id/verdict", requireAuth, requireLandlord, async (req, res) => {
     const newStatus = verdict_type === "dismissed" ? "dismissed" : "resolved";
     await pool.query(
       "UPDATE complaint SET status = $2, resolved_by = $3, resolved_at = NOW(), resolution_notes = $4, updated_at = NOW() WHERE id = $1",
-      [id, newStatus, req.userId, notes || `Verdict: ${verdict_type}`]
+      [id, newStatus, req.userId, notes || `Verdict: ${verdict_type}`],
     );
 
     if (complaint.rows[0].filed_by) {
@@ -351,14 +363,14 @@ router.put("/:id/verdict", requireAuth, requireLandlord, async (req, res) => {
         "Complaint Resolved",
         `Your complaint "${complaintSubject}" resolved: ${verdict_type.replace(/_/g, " ")}.`,
         id,
-        "complaint"
+        "complaint",
       );
     }
 
     if (targetTenantId && verdict_type !== "dismissed") {
       const againstUser = await pool.query(
         "SELECT user_id FROM tenant WHERE id = $1",
-        [targetTenantId]
+        [targetTenantId],
       );
       if (againstUser.rows.length) {
         await createNotification(
@@ -367,7 +379,7 @@ router.put("/:id/verdict", requireAuth, requireLandlord, async (req, res) => {
           "Verdict Issued",
           `A ${verdict_type} has been issued against you: "${complaintSubject}"`,
           id,
-          "complaint"
+          "complaint",
         );
       }
     }
@@ -553,7 +565,7 @@ router.post(
 
       const complaint = await pool.query(
         "SELECT * FROM complaint WHERE id = $1 AND status = 'escalated'",
-        [id]
+        [id],
       );
 
       if (!complaint.rows.length) {
@@ -564,7 +576,7 @@ router.post(
 
       const landlord = await pool.query(
         "SELECT id FROM landlord WHERE user_id = $1",
-        [req.userId]
+        [req.userId],
       );
       const landlordId = landlord.rows[0]?.id;
 
@@ -572,9 +584,10 @@ router.post(
         return res.status(404).json({ error: "Landlord not found" });
       }
 
-      await pool.query("DELETE FROM complaint_verdict WHERE complaint_id = $1", [
-        id,
-      ]);
+      await pool.query(
+        "DELETE FROM complaint_verdict WHERE complaint_id = $1",
+        [id],
+      );
 
       const verdictResult = await pool.query(
         `INSERT INTO complaint_verdict (complaint_id, verdict_type, fine_amount, issued_by, notes)
@@ -586,7 +599,7 @@ router.post(
           fine_amount || null,
           req.userId,
           notes || null,
-        ]
+        ],
       );
 
       const targetTenantId = complaint.rows[0].against_tenant_id;
@@ -597,13 +610,13 @@ router.post(
           await pool.query(
             `UPDATE tenant SET total_warnings = total_warnings + 1, updated_at = NOW()
              WHERE id = $1`,
-            [targetTenantId]
+            [targetTenantId],
           );
         } else if (verdict_type === "fine") {
           await pool.query(
             `UPDATE tenant SET total_fines = COALESCE(total_fines, 0) + $2, updated_at = NOW()
              WHERE id = $1`,
-            [targetTenantId, fine_amount || 0]
+            [targetTenantId, fine_amount || 0],
           );
 
           await createFineInvoice(
@@ -611,17 +624,17 @@ router.post(
             landlordId,
             fine_amount,
             req.userId,
-            complaintSubject
+            complaintSubject,
           );
         } else if (verdict_type === "final_warning") {
           await pool.query(
             `UPDATE tenant SET standing = 'final_warning', standing_updated_at = NOW(), standing_reason = $2, total_warnings = total_warnings + 1 WHERE id = $1`,
-            [targetTenantId, notes || "Final warning issued by landlord"]
+            [targetTenantId, notes || "Final warning issued by landlord"],
           );
         } else if (verdict_type === "eviction_notice") {
           await pool.query(
             `UPDATE tenant SET standing = 'eviction_notice', standing_updated_at = NOW(), standing_reason = $2 WHERE id = $1`,
-            [targetTenantId, notes || "Eviction notice issued by landlord"]
+            [targetTenantId, notes || "Eviction notice issued by landlord"],
           );
         }
 
@@ -634,7 +647,7 @@ router.post(
       if (targetTenantId) {
         const targetUser = await pool.query(
           "SELECT user_id FROM tenant WHERE id = $1",
-          [targetTenantId]
+          [targetTenantId],
         );
         if (targetUser.rows.length) {
           await createNotification(
@@ -643,19 +656,19 @@ router.post(
             "Verdict Issued",
             `Landlord issued ${verdict_type.replace(/_/g, " ")} regarding: "${complaintSubject}"`,
             id,
-            "complaint"
+            "complaint",
           );
         }
       }
 
       await pool.query(
         "UPDATE complaint SET status = 'resolved', resolved_by = $2, resolved_at = NOW(), updated_at = NOW() WHERE id = $1",
-        [id, req.userId]
+        [id, req.userId],
       );
 
       const caretaker = await pool.query(
         "SELECT u.id FROM users u JOIN caretaker c ON c.user_id = u.id WHERE c.assigned_property = $1",
-        [complaint.rows[0].property_id]
+        [complaint.rows[0].property_id],
       );
       if (caretaker.rows.length) {
         await createNotification(
@@ -664,7 +677,7 @@ router.post(
           "Verdict Overridden",
           `Landlord overrode verdict on "${complaintSubject}" — ${verdict_type.replace(/_/g, " ")}.`,
           id,
-          "complaint"
+          "complaint",
         );
       }
 
@@ -675,7 +688,7 @@ router.post(
           "Complaint Resolved",
           `Your complaint "${complaintSubject}" resolved by landlord.`,
           id,
-          "complaint"
+          "complaint",
         );
       }
 
@@ -687,7 +700,7 @@ router.post(
       console.error("Override verdict:", err);
       res.status(500).json({ error: "Server error" });
     }
-  }
+  },
 );
 
 // PUT /:id/reject-escalation - Return escalated complaint to caretaker
@@ -734,6 +747,39 @@ router.put(
       });
     } catch (err) {
       console.error("Reject escalation:", err);
+      res.status(500).json({ error: "Server error" });
+    }
+  },
+);
+
+/*GET Function to collect the stats for a caretaker
+ * 1. gets all complaints againts a tenant
+ * 2. gets all complaints filed by tenant
+ * 3. gets all complaints filed for different people
+ * 4. gets all complaints against for different peopl
+ */
+router.get(
+  "/stats/:tenantId",
+  requireAuth,
+  requireLandlord,
+  async (req, res) => {
+    try {
+      const { tenantId } = req.params;
+
+      const result = await pool.query(
+        `SELECT
+         (SELECT COUNT(*) FROM complaint WHERE against_tenant_id = $1) AS times_complained_about,
+         (SELECT COUNT(*) FROM complaint WHERE filed_by_tenant_id = $1) AS times_filed,
+         (SELECT COUNT(DISTINCT against_tenant_id) FROM complaint 
+            WHERE filed_by_tenant_id = $1 AND against_tenant_id IS NOT NULL) AS distinct_people_filed_against,
+         (SELECT COUNT(DISTINCT filed_by_tenant_id) FROM complaint 
+            WHERE against_tenant_id = $1) AS distinct_people_complained_by`,
+        [tenantId],
+      );
+
+      res.json({ stats: result.rows[0] });
+    } catch (err) {
+      console.error("Get tenant complaint stats:", err);
       res.status(500).json({ error: "Server error" });
     }
   },

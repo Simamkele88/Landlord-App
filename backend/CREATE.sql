@@ -1,25 +1,46 @@
+--
+-- PostgreSQL database dump
+--
+
+
+-- Dumped from database version 18.3
+-- Dumped by pg_dump version 18.3
+
+-- Started on 2026-08-24 00:05:20
+
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET transaction_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
+SET check_function_bodies = false;
+SET xmloption = content;
+SET client_min_messages = warning;
+SET row_security = off;
+
+--
+-- TOC entry 2 (class 3079 OID 48501)
+-- Name: pgcrypto; Type: EXTENSION; Schema: -; Owner: -
+--
+
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public;
 
-CREATE SEQUENCE public.invoice_number_seq
-    START WITH 1000
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
 
-CREATE SEQUENCE public.maintenance_request_number_seq
-    START WITH 1000
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+--
+-- TOC entry 5881 (class 0 OID 0)
+-- Dependencies: 2
+-- Name: EXTENSION pgcrypto; Type: COMMENT; Schema: -; Owner: 
+--
 
-CREATE SEQUENCE public.receipt_number_seq
-    START WITH 1000
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+COMMENT ON EXTENSION pgcrypto IS 'cryptographic functions';
+
+
+--
+-- TOC entry 996 (class 1247 OID 48754)
+-- Name: complaint_category; Type: TYPE; Schema: public; Owner: postgres
+--
 
 CREATE TYPE public.complaint_category AS ENUM (
     'noise',
@@ -34,12 +55,28 @@ CREATE TYPE public.complaint_category AS ENUM (
     'other'
 );
 
+
+ALTER TYPE public.complaint_category OWNER TO postgres;
+
+--
+-- TOC entry 999 (class 1247 OID 48776)
+-- Name: complaint_scope; Type: TYPE; Schema: public; Owner: postgres
+--
+
 CREATE TYPE public.complaint_scope AS ENUM (
     'specific_tenant',
     'common_area',
     'unknown',
     'property_wide'
 );
+
+
+ALTER TYPE public.complaint_scope OWNER TO postgres;
+
+--
+-- TOC entry 993 (class 1247 OID 48736)
+-- Name: complaint_status; Type: TYPE; Schema: public; Owner: postgres
+--
 
 CREATE TYPE public.complaint_status AS ENUM (
     'open',
@@ -52,6 +89,14 @@ CREATE TYPE public.complaint_status AS ENUM (
     'rejected'
 );
 
+
+ALTER TYPE public.complaint_status OWNER TO postgres;
+
+--
+-- TOC entry 975 (class 1247 OID 48644)
+-- Name: deposit_status; Type: TYPE; Schema: public; Owner: postgres
+--
+
 CREATE TYPE public.deposit_status AS ENUM (
     'unpaid',
     'paid',
@@ -59,6 +104,14 @@ CREATE TYPE public.deposit_status AS ENUM (
     'fully_refunded',
     'forfeited'
 );
+
+
+ALTER TYPE public.deposit_status OWNER TO postgres;
+
+--
+-- TOC entry 1023 (class 1247 OID 48864)
+-- Name: document_type; Type: TYPE; Schema: public; Owner: postgres
+--
 
 CREATE TYPE public.document_type AS ENUM (
     'id_document',
@@ -74,6 +127,14 @@ CREATE TYPE public.document_type AS ENUM (
     'complaint_evidence'
 );
 
+
+ALTER TYPE public.document_type OWNER TO postgres;
+
+--
+-- TOC entry 1011 (class 1247 OID 48816)
+-- Name: employment_status; Type: TYPE; Schema: public; Owner: postgres
+--
+
 CREATE TYPE public.employment_status AS ENUM (
     'employed',
     'self_employed',
@@ -83,12 +144,28 @@ CREATE TYPE public.employment_status AS ENUM (
     'other'
 );
 
+
+ALTER TYPE public.employment_status OWNER TO postgres;
+
+--
+-- TOC entry 1014 (class 1247 OID 48830)
+-- Name: gender; Type: TYPE; Schema: public; Owner: postgres
+--
+
 CREATE TYPE public.gender AS ENUM (
     'male',
     'female',
     'other',
     'prefer_not_to_say'
 );
+
+
+ALTER TYPE public.gender OWNER TO postgres;
+
+--
+-- TOC entry 1020 (class 1247 OID 48852)
+-- Name: id_document_type; Type: TYPE; Schema: public; Owner: postgres
+--
 
 CREATE TYPE public.id_document_type AS ENUM (
     'sa_id',
@@ -97,6 +174,14 @@ CREATE TYPE public.id_document_type AS ENUM (
     'asylum_seeker',
     'work_permit'
 );
+
+
+ALTER TYPE public.id_document_type OWNER TO postgres;
+
+--
+-- TOC entry 972 (class 1247 OID 48630)
+-- Name: invoice_status; Type: TYPE; Schema: public; Owner: postgres
+--
 
 CREATE TYPE public.invoice_status AS ENUM (
     'draft',
@@ -108,6 +193,14 @@ CREATE TYPE public.invoice_status AS ENUM (
     'void'
 );
 
+
+ALTER TYPE public.invoice_status OWNER TO postgres;
+
+--
+-- TOC entry 987 (class 1247 OID 48704)
+-- Name: lease_status; Type: TYPE; Schema: public; Owner: postgres
+--
+
 CREATE TYPE public.lease_status AS ENUM (
     'draft',
     'active',
@@ -116,6 +209,14 @@ CREATE TYPE public.lease_status AS ENUM (
     'renewed',
     'cancelled'
 );
+
+
+ALTER TYPE public.lease_status OWNER TO postgres;
+
+--
+-- TOC entry 984 (class 1247 OID 48684)
+-- Name: maintenance_category; Type: TYPE; Schema: public; Owner: postgres
+--
 
 CREATE TYPE public.maintenance_category AS ENUM (
     'plumbing',
@@ -129,6 +230,14 @@ CREATE TYPE public.maintenance_category AS ENUM (
     'other'
 );
 
+
+ALTER TYPE public.maintenance_category OWNER TO postgres;
+
+--
+-- TOC entry 981 (class 1247 OID 48672)
+-- Name: maintenance_priority; Type: TYPE; Schema: public; Owner: postgres
+--
+
 CREATE TYPE public.maintenance_priority AS ENUM (
     'low',
     'medium',
@@ -136,6 +245,14 @@ CREATE TYPE public.maintenance_priority AS ENUM (
     'urgent',
     'emergency'
 );
+
+
+ALTER TYPE public.maintenance_priority OWNER TO postgres;
+
+--
+-- TOC entry 978 (class 1247 OID 48656)
+-- Name: maintenance_status; Type: TYPE; Schema: public; Owner: postgres
+--
 
 CREATE TYPE public.maintenance_status AS ENUM (
     'needs_repair',
@@ -147,6 +264,14 @@ CREATE TYPE public.maintenance_status AS ENUM (
     'closed'
 );
 
+
+ALTER TYPE public.maintenance_status OWNER TO postgres;
+
+--
+-- TOC entry 1017 (class 1247 OID 48840)
+-- Name: marital_status; Type: TYPE; Schema: public; Owner: postgres
+--
+
 CREATE TYPE public.marital_status AS ENUM (
     'single',
     'married',
@@ -155,12 +280,28 @@ CREATE TYPE public.marital_status AS ENUM (
     'separated'
 );
 
+
+ALTER TYPE public.marital_status OWNER TO postgres;
+
+--
+-- TOC entry 1029 (class 1247 OID 48902)
+-- Name: message_priority; Type: TYPE; Schema: public; Owner: postgres
+--
+
 CREATE TYPE public.message_priority AS ENUM (
     'low',
     'normal',
     'high',
     'urgent'
 );
+
+
+ALTER TYPE public.message_priority OWNER TO postgres;
+
+--
+-- TOC entry 1026 (class 1247 OID 48888)
+-- Name: message_type; Type: TYPE; Schema: public; Owner: postgres
+--
 
 CREATE TYPE public.message_type AS ENUM (
     'direct',
@@ -170,6 +311,14 @@ CREATE TYPE public.message_type AS ENUM (
     'lease_renewal',
     'announcement'
 );
+
+
+ALTER TYPE public.message_type OWNER TO postgres;
+
+--
+-- TOC entry 1032 (class 1247 OID 48912)
+-- Name: notification_type; Type: TYPE; Schema: public; Owner: postgres
+--
 
 CREATE TYPE public.notification_type AS ENUM (
     'payment_due',
@@ -188,12 +337,28 @@ CREATE TYPE public.notification_type AS ENUM (
     'account_status'
 );
 
+
+ALTER TYPE public.notification_type OWNER TO postgres;
+
+--
+-- TOC entry 969 (class 1247 OID 48620)
+-- Name: payment_frequency; Type: TYPE; Schema: public; Owner: postgres
+--
+
 CREATE TYPE public.payment_frequency AS ENUM (
     'weekly',
     'monthly',
     'quarterly',
     'annually'
 );
+
+
+ALTER TYPE public.payment_frequency OWNER TO postgres;
+
+--
+-- TOC entry 966 (class 1247 OID 48606)
+-- Name: payment_method; Type: TYPE; Schema: public; Owner: postgres
+--
 
 CREATE TYPE public.payment_method AS ENUM (
     'bank_transfer',
@@ -203,6 +368,14 @@ CREATE TYPE public.payment_method AS ENUM (
     'mobile_wallet',
     'direct_deposit'
 );
+
+
+ALTER TYPE public.payment_method OWNER TO postgres;
+
+--
+-- TOC entry 963 (class 1247 OID 48590)
+-- Name: payment_status; Type: TYPE; Schema: public; Owner: postgres
+--
 
 CREATE TYPE public.payment_status AS ENUM (
     'pending',
@@ -214,17 +387,41 @@ CREATE TYPE public.payment_status AS ENUM (
     'collections'
 );
 
+
+ALTER TYPE public.payment_status OWNER TO postgres;
+
+--
+-- TOC entry 954 (class 1247 OID 48558)
+-- Name: property_type; Type: TYPE; Schema: public; Owner: postgres
+--
+
 CREATE TYPE public.property_type AS ENUM (
     'residential',
     'commercial',
     'mixed_use'
 );
 
+
+ALTER TYPE public.property_type OWNER TO postgres;
+
+--
+-- TOC entry 1005 (class 1247 OID 48794)
+-- Name: reliability_score; Type: TYPE; Schema: public; Owner: postgres
+--
+
 CREATE TYPE public.reliability_score AS ENUM (
     'reliable',
     'moderate_risk',
     'high_risk'
 );
+
+
+ALTER TYPE public.reliability_score OWNER TO postgres;
+
+--
+-- TOC entry 1008 (class 1247 OID 48802)
+-- Name: tenant_standing; Type: TYPE; Schema: public; Owner: postgres
+--
 
 CREATE TYPE public.tenant_standing AS ENUM (
     'good_standing',
@@ -234,6 +431,14 @@ CREATE TYPE public.tenant_standing AS ENUM (
     'eviction_notice',
     'evicted'
 );
+
+
+ALTER TYPE public.tenant_standing OWNER TO postgres;
+
+--
+-- TOC entry 990 (class 1247 OID 48718)
+-- Name: termination_reason; Type: TYPE; Schema: public; Owner: postgres
+--
 
 CREATE TYPE public.termination_reason AS ENUM (
     'non_payment',
@@ -246,12 +451,28 @@ CREATE TYPE public.termination_reason AS ENUM (
     'other'
 );
 
+
+ALTER TYPE public.termination_reason OWNER TO postgres;
+
+--
+-- TOC entry 960 (class 1247 OID 48580)
+-- Name: unit_status; Type: TYPE; Schema: public; Owner: postgres
+--
+
 CREATE TYPE public.unit_status AS ENUM (
     'occupied',
     'vacant',
     'maintenance',
     'reserved'
 );
+
+
+ALTER TYPE public.unit_status OWNER TO postgres;
+
+--
+-- TOC entry 957 (class 1247 OID 48566)
+-- Name: unit_type; Type: TYPE; Schema: public; Owner: postgres
+--
 
 CREATE TYPE public.unit_type AS ENUM (
     'studio',
@@ -262,11 +483,27 @@ CREATE TYPE public.unit_type AS ENUM (
     'penthouse'
 );
 
+
+ALTER TYPE public.unit_type OWNER TO postgres;
+
+--
+-- TOC entry 948 (class 1247 OID 48540)
+-- Name: user_role; Type: TYPE; Schema: public; Owner: postgres
+--
+
 CREATE TYPE public.user_role AS ENUM (
     'landlord',
     'caretaker',
     'tenant'
 );
+
+
+ALTER TYPE public.user_role OWNER TO postgres;
+
+--
+-- TOC entry 951 (class 1247 OID 48548)
+-- Name: user_status; Type: TYPE; Schema: public; Owner: postgres
+--
 
 CREATE TYPE public.user_status AS ENUM (
     'active',
@@ -275,11 +512,590 @@ CREATE TYPE public.user_status AS ENUM (
     'pending_verification'
 );
 
+
+ALTER TYPE public.user_status OWNER TO postgres;
+
+--
+-- TOC entry 1002 (class 1247 OID 48786)
+-- Name: verdict_type; Type: TYPE; Schema: public; Owner: postgres
+--
+
 CREATE TYPE public.verdict_type AS ENUM (
     'warning',
     'fine',
     'dismissed'
 );
+
+
+ALTER TYPE public.verdict_type OWNER TO postgres;
+
+--
+-- TOC entry 309 (class 1255 OID 50138)
+-- Name: apply_complaint_verdict(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.apply_complaint_verdict() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  target_tenant uuid;
+  current_standing public.tenant_standing;
+  current_warnings integer;
+BEGIN
+  SELECT against_tenant_id INTO target_tenant
+  FROM public.complaint WHERE id = NEW.complaint_id;
+
+  IF NEW.verdict_type = 'dismissed' THEN
+    UPDATE public.complaint
+      SET status = 'dismissed', resolved_at = now(), resolved_by = NEW.issued_by
+      WHERE id = NEW.complaint_id;
+    RETURN NEW;
+  END IF;
+
+  IF target_tenant IS NULL THEN
+    -- verdict on a complaint with no specific tenant target (common_area etc.)
+    -- gets recorded but doesn't move a standing that doesn't exist
+    UPDATE public.complaint
+      SET status = 'resolved', resolved_at = now(), resolved_by = NEW.issued_by
+      WHERE id = NEW.complaint_id;
+    RETURN NEW;
+  END IF;
+
+  SELECT standing, total_warnings INTO current_standing, current_warnings
+  FROM public.tenant WHERE id = target_tenant;
+
+  IF NEW.verdict_type = 'fine' THEN
+    UPDATE public.tenant SET
+      standing = CASE WHEN current_standing IN ('final_warning','eviction_notice','evicted')
+                       THEN current_standing ELSE 'fine_issued' END,
+      standing_updated_at = now(),
+      standing_reason = COALESCE(NEW.notes, 'Fine issued'),
+      total_fines = total_fines + NEW.fine_amount,
+      total_warnings = total_warnings + 1
+    WHERE id = target_tenant;
+
+  ELSIF NEW.verdict_type = 'warning' THEN
+    UPDATE public.tenant SET
+      standing = CASE
+        WHEN current_standing IN ('eviction_notice','evicted') THEN current_standing
+        WHEN current_warnings >= 2 THEN 'final_warning'
+        ELSE 'warning_issued'
+      END,
+      standing_updated_at = now(),
+      standing_reason = COALESCE(NEW.notes, 'Warning issued'),
+      total_warnings = total_warnings + 1
+    WHERE id = target_tenant;
+  END IF;
+
+  UPDATE public.complaint
+    SET status = 'resolved', resolved_at = now(), resolved_by = NEW.issued_by
+    WHERE id = NEW.complaint_id;
+
+  RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION public.apply_complaint_verdict() OWNER TO postgres;
+
+--
+-- TOC entry 308 (class 1255 OID 48942)
+-- Name: check_user_role(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.check_user_role() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  actual_role public.user_role;
+BEGIN
+  SELECT role INTO actual_role FROM public.users WHERE id = NEW.user_id;
+  IF actual_role IS NULL THEN
+    RAISE EXCEPTION 'user % does not exist', NEW.user_id;
+  ELSIF actual_role::text != TG_ARGV[0] THEN
+    RAISE EXCEPTION 'user % has role % but is being inserted into %, which requires role %',
+      NEW.user_id, actual_role, TG_TABLE_NAME, TG_ARGV[0];
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION public.check_user_role() OWNER TO postgres;
+
+--
+-- TOC entry 321 (class 1255 OID 50140)
+-- Name: get_tenant_standing_summary(uuid); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.get_tenant_standing_summary(p_tenant_id uuid) RETURNS TABLE(standing public.tenant_standing, total_complaints_against bigint, total_warnings integer, total_fines numeric, active_complaints bigint, last_verdict_date timestamp with time zone, risk_level text)
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    t.standing,
+    (SELECT COUNT(*) FROM public.complaint WHERE against_tenant_id = p_tenant_id),
+    t.total_warnings,
+    t.total_fines,
+    (SELECT COUNT(*) FROM public.complaint
+       WHERE against_tenant_id = p_tenant_id
+       AND status NOT IN ('resolved','rejected','dismissed')),
+    (SELECT MAX(cv.issued_at) FROM public.complaint_verdict cv
+       JOIN public.complaint c ON c.id = cv.complaint_id
+       WHERE c.against_tenant_id = p_tenant_id),
+    CASE
+      WHEN t.standing IN ('eviction_notice', 'evicted') THEN 'Critical'
+      WHEN t.standing = 'final_warning' THEN 'High'
+      WHEN t.standing = 'fine_issued' THEN 'Elevated'
+      WHEN t.standing = 'warning_issued' THEN 'Moderate'
+      WHEN (SELECT COUNT(*) FROM public.complaint WHERE against_tenant_id = p_tenant_id) >= 3 THEN 'Watch'
+      ELSE 'Low'
+    END
+  FROM public.tenant t
+  WHERE t.id = p_tenant_id;
+END;
+$$;
+
+
+ALTER FUNCTION public.get_tenant_standing_summary(p_tenant_id uuid) OWNER TO postgres;
+
+--
+-- TOC entry 326 (class 1255 OID 53085)
+-- Name: handle_payment_status_change(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.handle_payment_status_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    -- Only proceed if invoice_id is NOT NULL
+    IF NEW.invoice_id IS NOT NULL THEN
+        -- When a payment is approved, create invoice_payments record if it doesn't exist
+        IF NEW.status = 'paid' AND OLD.status != 'paid' THEN
+            INSERT INTO public.invoice_payments (
+                invoice_id,
+                payment_id,
+                amount,
+                payment_date,
+                method,
+                reference,
+                status,
+                allocated_rent,
+                allocated_utilities,
+                allocated_late_fees,
+                notes
+            ) VALUES (
+                NEW.invoice_id,
+                NEW.id,
+                NEW.amount_paid,
+                NEW.payment_date,
+                NEW.payment_method,
+                NEW.bank_reference,
+                'approved',
+                COALESCE(NEW.allocated_rent, NEW.amount_paid),
+                COALESCE(NEW.allocated_utilities, 0),
+                COALESCE(NEW.allocated_late_fees, 0),
+                'Auto-created from payment approval'
+            )
+            ON CONFLICT (payment_id) WHERE payment_id IS NOT NULL
+            DO UPDATE SET
+                status = 'approved',
+                amount = EXCLUDED.amount,
+                payment_date = EXCLUDED.payment_date
+            WHERE invoice_payments.payment_id = NEW.id;
+        END IF;
+
+        -- When payment is rejected, update the invoice_payments status
+        IF NEW.status = 'rejected' AND OLD.status != 'rejected' THEN
+            UPDATE public.invoice_payments
+            SET status = 'rejected'
+            WHERE payment_id = NEW.id;
+        END IF;
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION public.handle_payment_status_change() OWNER TO postgres;
+
+--
+-- TOC entry 323 (class 1255 OID 51476)
+-- Name: recalculate_invoice_status(uuid); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.recalculate_invoice_status(p_invoice_id uuid) RETURNS public.invoice_status
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+    v_amount_due numeric;
+    v_current_status public.invoice_status;
+    v_total_paid numeric;
+    v_new_status public.invoice_status;
+BEGIN
+    -- Get invoice details
+    SELECT amount_due, status INTO v_amount_due, v_current_status
+    FROM public.invoice WHERE id = p_invoice_id;
+
+    IF v_amount_due IS NULL THEN
+        RAISE EXCEPTION 'invoice % not found', p_invoice_id;
+    END IF;
+
+    -- Calculate total paid from invoice_payments
+    SELECT COALESCE(SUM(amount), 0) INTO v_total_paid
+    FROM public.invoice_payments
+    WHERE invoice_id = p_invoice_id AND status = 'approved';
+
+    -- Determine new status
+    IF v_total_paid >= v_amount_due AND v_amount_due > 0 THEN
+        v_new_status := 'paid';
+    ELSIF v_total_paid > 0 AND v_total_paid < v_amount_due THEN
+        v_new_status := 'partial';
+    ELSE
+        -- No payments, revert to appropriate status
+        IF v_current_status IN ('paid', 'partial') THEN
+            v_new_status := 'sent';
+        ELSE
+            v_new_status := v_current_status;
+        END IF;
+    END IF;
+
+    -- Update invoice
+    UPDATE public.invoice SET
+        paid_amount = v_total_paid,
+        status = v_new_status,
+        paid_date = CASE 
+            WHEN v_new_status = 'paid' THEN CURRENT_DATE 
+            ELSE NULL 
+        END
+    WHERE id = p_invoice_id;
+
+    -- Trigger tenant score recalculation
+    PERFORM public.recalculate_tenant_score(
+        (SELECT tenant_id FROM public.invoice WHERE id = p_invoice_id),
+        (SELECT approved_by FROM public.payment WHERE invoice_id = p_invoice_id LIMIT 1)
+    );
+
+    RETURN v_new_status;
+END;
+$$;
+
+
+ALTER FUNCTION public.recalculate_invoice_status(p_invoice_id uuid) OWNER TO postgres;
+
+--
+-- TOC entry 5882 (class 0 OID 0)
+-- Dependencies: 323
+-- Name: FUNCTION recalculate_invoice_status(p_invoice_id uuid); Type: COMMENT; Schema: public; Owner: postgres
+--
+
+COMMENT ON FUNCTION public.recalculate_invoice_status(p_invoice_id uuid) IS 'Sums all successful payments against an invoice and derives paid_amount/status from that total — replaces routes directly setting status=''paid'' and overwriting paid_amount with a single payment''s amount.';
+
+
+--
+-- TOC entry 325 (class 1255 OID 51473)
+-- Name: recalculate_payment_history(uuid); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.recalculate_payment_history(p_tenant_id uuid) RETURNS void
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+    v_on_time integer := 0;
+    v_late integer := 0;
+    v_missed integer := 0;
+    v_partial integer := 0;
+    v_avg_late numeric;
+    v_longest integer := 0;
+    v_current integer := 0;
+BEGIN
+    WITH base AS (
+        SELECT
+            inv.id,
+            inv.due_date,
+            inv.status AS invoice_status,
+            l.grace_period_days,
+            ip.status AS payment_status,
+            ip.payment_date
+        FROM public.invoice inv
+        JOIN public.lease l ON l.id = inv.lease_id
+        LEFT JOIN LATERAL (
+            SELECT ip.status, ip.payment_date
+            FROM public.invoice_payments ip
+            WHERE ip.invoice_id = inv.id AND ip.status = 'approved'
+            ORDER BY ip.payment_date DESC
+            LIMIT 1
+        ) ip ON true
+        WHERE inv.tenant_id = p_tenant_id
+        AND inv.status IN ('paid', 'overdue', 'partial', 'sent')
+    ),
+    flagged AS (
+        SELECT
+            *,
+            (payment_status = 'approved' AND payment_date::date <= due_date + grace_period_days) AS is_on_time,
+            (payment_status = 'approved' AND payment_date::date > due_date + grace_period_days) AS is_late,
+            (invoice_status = 'overdue' AND payment_status IS NULL) AS is_missed,
+            (invoice_status = 'partial') AS is_partial
+        FROM base
+    ),
+    ordered AS (
+        SELECT *, ROW_NUMBER() OVER (ORDER BY due_date) AS rn
+        FROM flagged
+    ),
+    islands AS (
+        SELECT *, rn - ROW_NUMBER() OVER (PARTITION BY is_on_time ORDER BY rn) AS grp
+        FROM ordered
+    ),
+    streaks AS (
+        SELECT grp, COUNT(*) AS len, MAX(rn) AS last_rn
+        FROM islands
+        WHERE is_on_time
+        GROUP BY grp
+    )
+    SELECT
+        COUNT(*) FILTER (WHERE is_on_time),
+        COUNT(*) FILTER (WHERE is_late),
+        COUNT(*) FILTER (WHERE is_missed),
+        COUNT(*) FILTER (WHERE is_partial),
+        AVG(GREATEST(0, payment_date::date - due_date)) FILTER (WHERE is_late),
+        COALESCE((SELECT MAX(len) FROM streaks), 0),
+        COALESCE((SELECT len FROM streaks WHERE last_rn = (SELECT MAX(rn) FROM ordered)), 0)
+    INTO v_on_time, v_late, v_missed, v_partial, v_avg_late, v_longest, v_current
+    FROM flagged;
+
+    INSERT INTO public.tenant_payment_history (
+        tenant_id, on_time_payments, late_payments, missed_payments, partial_payments,
+        average_days_late, longest_streak_ontime, current_streak_ontime, last_calculated
+    )
+    VALUES (
+        p_tenant_id, v_on_time, v_late, v_missed, v_partial,
+        v_avg_late, v_longest, v_current, now()
+    )
+    ON CONFLICT (tenant_id) DO UPDATE SET
+        on_time_payments = EXCLUDED.on_time_payments,
+        late_payments = EXCLUDED.late_payments,
+        missed_payments = EXCLUDED.missed_payments,
+        partial_payments = EXCLUDED.partial_payments,
+        average_days_late = EXCLUDED.average_days_late,
+        longest_streak_ontime = EXCLUDED.longest_streak_ontime,
+        current_streak_ontime = EXCLUDED.current_streak_ontime,
+        last_calculated = EXCLUDED.last_calculated;
+END;
+$$;
+
+
+ALTER FUNCTION public.recalculate_payment_history(p_tenant_id uuid) OWNER TO postgres;
+
+--
+-- TOC entry 5883 (class 0 OID 0)
+-- Dependencies: 325
+-- Name: FUNCTION recalculate_payment_history(p_tenant_id uuid); Type: COMMENT; Schema: public; Owner: postgres
+--
+
+COMMENT ON FUNCTION public.recalculate_payment_history(p_tenant_id uuid) IS 'Recomputes tenant_payment_history from actual invoice+payment+lease data. Call after any payment approval, rejection, or invoice status change — replaces hand-incrementing counters, which is how a late payment previously got counted as on-time.';
+
+
+--
+-- TOC entry 322 (class 1255 OID 50141)
+-- Name: recalculate_tenant_score(uuid, uuid); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.recalculate_tenant_score(p_tenant_id uuid, p_changed_by uuid DEFAULT NULL::uuid) RETURNS public.reliability_score
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  v_landlord_id uuid;
+  s public.landlord_settings%ROWTYPE;
+  h public.tenant_payment_history%ROWTYPE;
+  v_old_score public.reliability_score;
+  v_old_score_value numeric;
+  v_standing public.tenant_standing;
+  v_total_payments integer;
+  payment_subscore numeric := 60;  -- neutral starting point for new tenants
+  complaints_subscore numeric := 100;
+  lease_subscore numeric := 100;
+  maintenance_subscore numeric := 100;
+  tenure_subscore numeric := 60;
+  weighted numeric;
+  new_score public.reliability_score;
+  terminated_bad_leases integer;
+  months_tenure numeric;
+  warnings_12m integer := 0;
+  fines_12m integer := 0;
+  complaint_penalty numeric := 15;
+BEGIN
+  SELECT landlord_id, reliability_score, reliability_score_value, standing
+    INTO v_landlord_id, v_old_score, v_old_score_value, v_standing
+  FROM public.tenant
+  WHERE id = p_tenant_id;
+
+  IF v_landlord_id IS NULL THEN
+    RAISE EXCEPTION 'tenant % not found', p_tenant_id;
+  END IF;
+
+  SELECT * INTO s FROM public.landlord_settings WHERE landlord_id = v_landlord_id;
+  SELECT * INTO h FROM public.tenant_payment_history WHERE tenant_id = p_tenant_id;
+
+  -- ========== PAYMENT SUB-SCORE ==========
+  v_total_payments := COALESCE(h.on_time_payments,0) + COALESCE(h.late_payments,0)
+                     + COALESCE(h.missed_payments,0) + COALESCE(h.partial_payments,0);
+
+  IF v_total_payments > 0 THEN
+    payment_subscore := 100.0 * (
+        COALESCE(h.on_time_payments,0)
+        + 0.7 * COALESCE(h.late_payments,0)
+        + 0.4 * COALESCE(h.partial_payments,0)
+    ) / v_total_payments;
+  END IF;
+
+  -- ========== COMPLAINTS SUB-SCORE ==========
+  -- Count warnings and fines from the last 12 months only
+  SELECT
+    COUNT(*) FILTER (WHERE cv.verdict_type = 'warning'),
+    COUNT(*) FILTER (WHERE cv.verdict_type = 'fine')
+  INTO warnings_12m, fines_12m
+  FROM public.complaint_verdict cv
+  JOIN public.complaint c ON c.id = cv.complaint_id
+  WHERE c.against_tenant_id = p_tenant_id
+    AND cv.issued_at >= now() - interval '12 months';
+
+  IF COALESCE(s.score_double_upheld_complaints, true) THEN
+    complaint_penalty := 30;
+  END IF;
+
+  -- Warnings cost 15 (or 30 if doubled), fines cost 25 (or 50 if doubled)
+  complaints_subscore := GREATEST(0, 100 - (
+      warnings_12m * complaint_penalty
+    + fines_12m * complaint_penalty * 1.6667  -- fine hurts ~1.67x more than warning
+  ));
+
+  -- ========== LEASE SUB-SCORE ==========
+  SELECT COUNT(*) INTO terminated_bad_leases
+  FROM public.lease
+  WHERE tenant_id = p_tenant_id
+    AND status = 'terminated'
+    AND termination_reason IN ('non_payment', 'breach_of_contract', 'property_damage');
+  lease_subscore := GREATEST(0, 100 - terminated_bad_leases * 25);
+
+  -- ========== TENURE SUB-SCORE ==========
+  SELECT COALESCE(GREATEST(0, EXTRACT(YEAR FROM age(now(), tenant_since)) * 12
+                    + EXTRACT(MONTH FROM age(now(), tenant_since))), 0)
+    INTO months_tenure
+  FROM public.tenant
+  WHERE id = p_tenant_id;
+
+  tenure_subscore := LEAST(100, 40 + months_tenure * 2);
+
+  -- ========== WEIGHTED TOTAL ==========
+  weighted := (
+      payment_subscore     * COALESCE(s.score_payment_weight, 40)
+    + complaints_subscore  * COALESCE(s.score_complaints_weight, 25)
+    + lease_subscore       * COALESCE(s.score_lease_weight, 15)
+    + maintenance_subscore * COALESCE(s.score_maintenance_weight, 10)
+    + tenure_subscore      * COALESCE(s.score_tenure_weight, 10)
+  ) / 100.0;
+
+  -- ========== INSTANT DEMOTION ==========
+  IF COALESCE(s.score_instant_demotion_eviction, true) AND v_standing IN ('eviction_notice', 'evicted') THEN
+    new_score := 'high_risk';
+    weighted := LEAST(weighted, COALESCE(s.score_high_risk_threshold, 30) - 1);
+  ELSIF weighted >= COALESCE(s.score_reliable_threshold, 80) THEN
+    new_score := 'reliable';
+  ELSIF weighted >= COALESCE(s.score_moderate_threshold, 50) THEN
+    new_score := 'moderate_risk';
+  ELSE
+    new_score := 'high_risk';
+  END IF;
+
+  -- ========== UPDATE TENANT ==========
+  UPDATE public.tenant
+    SET reliability_score = new_score,
+        reliability_score_value = weighted
+    WHERE id = p_tenant_id;
+
+  -- ========== LOG IF CHANGED ==========
+  IF new_score IS DISTINCT FROM v_old_score
+     OR weighted IS DISTINCT FROM v_old_score_value THEN
+    INSERT INTO public.tenant_score_history
+      (tenant_id, old_score, new_score, old_score_value, new_score_value, reason, changed_by)
+    VALUES
+      (p_tenant_id, v_old_score, new_score, v_old_score_value, weighted,
+       jsonb_build_object(
+         'payment', payment_subscore,
+         'complaints', complaints_subscore,
+         'lease', lease_subscore,
+         'tenure', tenure_subscore,
+         'trigger', 'recalculated'
+       )::text,
+       p_changed_by);
+  END IF;
+
+  RETURN new_score;
+END;
+$$;
+
+
+ALTER FUNCTION public.recalculate_tenant_score(p_tenant_id uuid, p_changed_by uuid) OWNER TO postgres;
+
+--
+-- TOC entry 5884 (class 0 OID 0)
+-- Dependencies: 322
+-- Name: FUNCTION recalculate_tenant_score(p_tenant_id uuid, p_changed_by uuid); Type: COMMENT; Schema: public; Owner: postgres
+--
+
+COMMENT ON FUNCTION public.recalculate_tenant_score(p_tenant_id uuid, p_changed_by uuid) IS 'Call this after anything that should affect a tenant''s score: a payment recorded, a verdict issued, a lease terminated. Sub-score formulas are intentionally simple starting points — read the function body before trusting the numbers in a demo.';
+
+
+--
+-- TOC entry 307 (class 1255 OID 48941)
+-- Name: set_updated_at(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.set_updated_at() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION public.set_updated_at() OWNER TO postgres;
+
+--
+-- TOC entry 324 (class 1255 OID 51654)
+-- Name: trigger_recalculate_invoice_status(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.trigger_recalculate_invoice_status() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    -- When invoice_payments changes, recalculate the invoice status
+    PERFORM public.recalculate_invoice_status(
+        CASE 
+            WHEN TG_OP = 'DELETE' THEN OLD.invoice_id
+            ELSE NEW.invoice_id
+        END
+    );
+    RETURN NULL;
+END;
+$$;
+
+
+ALTER FUNCTION public.trigger_recalculate_invoice_status() OWNER TO postgres;
+
+SET default_tablespace = '';
+
+SET default_table_access_method = heap;
+
+--
+-- TOC entry 258 (class 1259 OID 50021)
+-- Name: audit_log; Type: TABLE; Schema: public; Owner: postgres
+--
 
 CREATE TABLE public.audit_log (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -293,6 +1109,14 @@ CREATE TABLE public.audit_log (
     user_agent text,
     created_at timestamp with time zone DEFAULT now()
 );
+
+
+ALTER TABLE public.audit_log OWNER TO postgres;
+
+--
+-- TOC entry 229 (class 1259 OID 49051)
+-- Name: caretaker; Type: TABLE; Schema: public; Owner: postgres
+--
 
 CREATE TABLE public.caretaker (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -308,6 +1132,14 @@ CREATE TABLE public.caretaker (
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now()
 );
+
+
+ALTER TABLE public.caretaker OWNER TO postgres;
+
+--
+-- TOC entry 226 (class 1259 OID 48943)
+-- Name: users; Type: TABLE; Schema: public; Owner: postgres
+--
 
 CREATE TABLE public.users (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -330,6 +1162,54 @@ CREATE TABLE public.users (
     updated_at timestamp with time zone DEFAULT now()
 );
 
+
+ALTER TABLE public.users OWNER TO postgres;
+
+--
+-- TOC entry 5885 (class 0 OID 0)
+-- Dependencies: 226
+-- Name: TABLE users; Type: COMMENT; Schema: public; Owner: postgres
+--
+
+COMMENT ON TABLE public.users IS 'One row per person, regardless of role. Role-specific detail lives in landlord/caretaker/tenant, joined on user_id.';
+
+
+--
+-- TOC entry 265 (class 1259 OID 50153)
+-- Name: caretaker_profile; Type: VIEW; Schema: public; Owner: postgres
+--
+
+CREATE VIEW public.caretaker_profile AS
+ SELECT c.id,
+    c.user_id,
+    c.landlord_id,
+    c.id_number,
+    c.address,
+    c.emergency_contact,
+    c.assigned_property,
+    c.hire_date,
+    c.is_active,
+    c.created_by,
+    c.created_at,
+    c.updated_at,
+    u.first_name,
+    u.last_name,
+    u.full_name,
+    u.email,
+    u.phone,
+    u.profile_image_url,
+    u.status AS account_status
+   FROM (public.caretaker c
+     JOIN public.users u ON ((u.id = c.user_id)));
+
+
+ALTER VIEW public.caretaker_profile OWNER TO postgres;
+
+--
+-- TOC entry 242 (class 1259 OID 49490)
+-- Name: collection; Type: TABLE; Schema: public; Owner: postgres
+--
+
 CREATE TABLE public.collection (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     tenant_id uuid NOT NULL,
@@ -347,11 +1227,27 @@ CREATE TABLE public.collection (
     CONSTRAINT collection_outstanding_balance_check CHECK ((outstanding_balance >= (0)::numeric))
 );
 
+
+ALTER TABLE public.collection OWNER TO postgres;
+
+--
+-- TOC entry 243 (class 1259 OID 49531)
+-- Name: collection_invoice; Type: TABLE; Schema: public; Owner: postgres
+--
+
 CREATE TABLE public.collection_invoice (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     collection_id uuid NOT NULL,
     invoice_id uuid NOT NULL
 );
+
+
+ALTER TABLE public.collection_invoice OWNER TO postgres;
+
+--
+-- TOC entry 250 (class 1259 OID 49781)
+-- Name: complaint; Type: TABLE; Schema: public; Owner: postgres
+--
 
 CREATE TABLE public.complaint (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -379,6 +1275,14 @@ CREATE TABLE public.complaint (
     CONSTRAINT complaint_severity_check CHECK (((severity >= 1) AND (severity <= 5)))
 );
 
+
+ALTER TABLE public.complaint OWNER TO postgres;
+
+--
+-- TOC entry 251 (class 1259 OID 49837)
+-- Name: complaint_evidence; Type: TABLE; Schema: public; Owner: postgres
+--
+
 CREATE TABLE public.complaint_evidence (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     complaint_id uuid NOT NULL,
@@ -387,6 +1291,14 @@ CREATE TABLE public.complaint_evidence (
     uploaded_by uuid NOT NULL,
     uploaded_at timestamp with time zone DEFAULT now()
 );
+
+
+ALTER TABLE public.complaint_evidence OWNER TO postgres;
+
+--
+-- TOC entry 252 (class 1259 OID 49865)
+-- Name: complaint_verdict; Type: TABLE; Schema: public; Owner: postgres
+--
 
 CREATE TABLE public.complaint_verdict (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -399,6 +1311,14 @@ CREATE TABLE public.complaint_verdict (
     CONSTRAINT complaint_verdict_check CHECK (((verdict_type <> 'fine'::public.verdict_type) OR (fine_amount IS NOT NULL))),
     CONSTRAINT complaint_verdict_fine_amount_check CHECK ((fine_amount >= (0)::numeric))
 );
+
+
+ALTER TABLE public.complaint_verdict OWNER TO postgres;
+
+--
+-- TOC entry 241 (class 1259 OID 49457)
+-- Name: deposit; Type: TABLE; Schema: public; Owner: postgres
+--
 
 CREATE TABLE public.deposit (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -424,6 +1344,14 @@ CREATE TABLE public.deposit (
     CONSTRAINT deposit_refund_amount_check CHECK ((refund_amount >= (0)::numeric))
 );
 
+
+ALTER TABLE public.deposit OWNER TO postgres;
+
+--
+-- TOC entry 246 (class 1259 OID 49624)
+-- Name: document; Type: TABLE; Schema: public; Owner: postgres
+--
+
 CREATE TABLE public.document (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     tenant_id uuid,
@@ -447,6 +1375,29 @@ CREATE TABLE public.document (
     updated_at timestamp with time zone DEFAULT now(),
     CONSTRAINT document_file_size_check CHECK ((file_size >= 0))
 );
+
+
+ALTER TABLE public.document OWNER TO postgres;
+
+--
+-- TOC entry 235 (class 1259 OID 49313)
+-- Name: invoice_number_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.invoice_number_seq
+    START WITH 1000
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.invoice_number_seq OWNER TO postgres;
+
+--
+-- TOC entry 238 (class 1259 OID 49316)
+-- Name: invoice; Type: TABLE; Schema: public; Owner: postgres
+--
 
 CREATE TABLE public.invoice (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -482,6 +1433,14 @@ CREATE TABLE public.invoice (
     CONSTRAINT invoice_utilities_amount_check CHECK ((utilities_amount >= (0)::numeric))
 );
 
+
+ALTER TABLE public.invoice OWNER TO postgres;
+
+--
+-- TOC entry 267 (class 1259 OID 51618)
+-- Name: invoice_payments; Type: TABLE; Schema: public; Owner: postgres
+--
+
 CREATE TABLE public.invoice_payments (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     invoice_id uuid NOT NULL,
@@ -502,6 +1461,40 @@ CREATE TABLE public.invoice_payments (
     CONSTRAINT invoice_payments_status_check CHECK (((status)::text = ANY ((ARRAY['pending'::character varying, 'approved'::character varying, 'rejected'::character varying])::text[])))
 );
 
+
+ALTER TABLE public.invoice_payments OWNER TO postgres;
+
+--
+-- TOC entry 268 (class 1259 OID 51658)
+-- Name: invoice_payment_summary; Type: VIEW; Schema: public; Owner: postgres
+--
+
+CREATE VIEW public.invoice_payment_summary AS
+ SELECT i.id AS invoice_id,
+    i.invoice_number,
+    i.tenant_id,
+    i.amount_due,
+    i.paid_amount,
+    i.remaining_balance,
+    i.status AS invoice_status,
+    count(ip.id) AS payment_count,
+    COALESCE(sum(ip.amount) FILTER (WHERE ((ip.status)::text = 'pending'::text)), (0)::numeric) AS pending_amount,
+    COALESCE(sum(ip.amount) FILTER (WHERE ((ip.status)::text = 'approved'::text)), (0)::numeric) AS approved_amount,
+    COALESCE(sum(ip.amount) FILTER (WHERE ((ip.status)::text = 'rejected'::text)), (0)::numeric) AS rejected_amount,
+    max(ip.payment_date) FILTER (WHERE ((ip.status)::text = 'approved'::text)) AS last_payment_date,
+    json_agg(json_build_object('id', ip.id, 'amount', ip.amount, 'payment_date', ip.payment_date, 'method', ip.method, 'status', ip.status, 'allocated_rent', ip.allocated_rent, 'allocated_utilities', ip.allocated_utilities, 'allocated_late_fees', ip.allocated_late_fees) ORDER BY ip.payment_date DESC) AS payments
+   FROM (public.invoice i
+     LEFT JOIN public.invoice_payments ip ON ((i.id = ip.invoice_id)))
+  GROUP BY i.id, i.invoice_number, i.tenant_id, i.amount_due, i.paid_amount, i.remaining_balance, i.status;
+
+
+ALTER VIEW public.invoice_payment_summary OWNER TO postgres;
+
+--
+-- TOC entry 227 (class 1259 OID 48969)
+-- Name: landlord; Type: TABLE; Schema: public; Owner: postgres
+--
+
 CREATE TABLE public.landlord (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -517,6 +1510,46 @@ CREATE TABLE public.landlord (
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now()
 );
+
+
+ALTER TABLE public.landlord OWNER TO postgres;
+
+--
+-- TOC entry 264 (class 1259 OID 50148)
+-- Name: landlord_profile; Type: VIEW; Schema: public; Owner: postgres
+--
+
+CREATE VIEW public.landlord_profile AS
+ SELECT l.id,
+    l.user_id,
+    l.company_name,
+    l.registration_number,
+    l.vat_number,
+    l.address_line1,
+    l.address_line2,
+    l.city,
+    l.province,
+    l.postal_code,
+    l.country,
+    l.created_at,
+    l.updated_at,
+    u.first_name,
+    u.last_name,
+    u.full_name,
+    u.email,
+    u.phone,
+    u.profile_image_url,
+    u.status AS account_status
+   FROM (public.landlord l
+     JOIN public.users u ON ((u.id = l.user_id)));
+
+
+ALTER VIEW public.landlord_profile OWNER TO postgres;
+
+--
+-- TOC entry 228 (class 1259 OID 48991)
+-- Name: landlord_settings; Type: TABLE; Schema: public; Owner: postgres
+--
 
 CREATE TABLE public.landlord_settings (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -568,6 +1601,23 @@ CREATE TABLE public.landlord_settings (
     CONSTRAINT landlord_settings_score_tenure_weight_check CHECK (((score_tenure_weight >= 0) AND (score_tenure_weight <= 100)))
 );
 
+
+ALTER TABLE public.landlord_settings OWNER TO postgres;
+
+--
+-- TOC entry 5886 (class 0 OID 0)
+-- Dependencies: 228
+-- Name: CONSTRAINT chk_score_weights_sum_100 ON landlord_settings; Type: COMMENT; Schema: public; Owner: postgres
+--
+
+COMMENT ON CONSTRAINT chk_score_weights_sum_100 ON public.landlord_settings IS 'The five score_*_weight columns must always sum to exactly 100. The DB enforces this so the frontend cannot silently save an inconsistent weighting.';
+
+
+--
+-- TOC entry 233 (class 1259 OID 49219)
+-- Name: lease; Type: TABLE; Schema: public; Owner: postgres
+--
+
 CREATE TABLE public.lease (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     tenant_id uuid NOT NULL,
@@ -608,6 +1658,14 @@ CREATE TABLE public.lease (
     CONSTRAINT lease_rent_amount_check CHECK ((rent_amount >= (0)::numeric))
 );
 
+
+ALTER TABLE public.lease OWNER TO postgres;
+
+--
+-- TOC entry 234 (class 1259 OID 49279)
+-- Name: lease_history; Type: TABLE; Schema: public; Owner: postgres
+--
+
 CREATE TABLE public.lease_history (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     lease_id uuid NOT NULL,
@@ -621,6 +1679,14 @@ CREATE TABLE public.lease_history (
     created_at timestamp with time zone DEFAULT now()
 );
 
+
+ALTER TABLE public.lease_history OWNER TO postgres;
+
+--
+-- TOC entry 249 (class 1259 OID 49752)
+-- Name: maintenance_photo; Type: TABLE; Schema: public; Owner: postgres
+--
+
 CREATE TABLE public.maintenance_photo (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     request_id uuid NOT NULL,
@@ -630,6 +1696,29 @@ CREATE TABLE public.maintenance_photo (
     uploaded_at timestamp with time zone DEFAULT now(),
     CONSTRAINT maintenance_photo_photo_type_check CHECK (((photo_type)::text = ANY ((ARRAY['before'::character varying, 'after'::character varying])::text[])))
 );
+
+
+ALTER TABLE public.maintenance_photo OWNER TO postgres;
+
+--
+-- TOC entry 237 (class 1259 OID 49315)
+-- Name: maintenance_request_number_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.maintenance_request_number_seq
+    START WITH 1000
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.maintenance_request_number_seq OWNER TO postgres;
+
+--
+-- TOC entry 247 (class 1259 OID 49672)
+-- Name: maintenance_request; Type: TABLE; Schema: public; Owner: postgres
+--
 
 CREATE TABLE public.maintenance_request (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -667,6 +1756,14 @@ CREATE TABLE public.maintenance_request (
     CONSTRAINT maintenance_request_estimated_cost_check CHECK ((estimated_cost >= (0)::numeric))
 );
 
+
+ALTER TABLE public.maintenance_request OWNER TO postgres;
+
+--
+-- TOC entry 248 (class 1259 OID 49729)
+-- Name: maintenance_update; Type: TABLE; Schema: public; Owner: postgres
+--
+
 CREATE TABLE public.maintenance_update (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     request_id uuid NOT NULL,
@@ -676,6 +1773,14 @@ CREATE TABLE public.maintenance_update (
     notes text,
     created_at timestamp with time zone DEFAULT now()
 );
+
+
+ALTER TABLE public.maintenance_update OWNER TO postgres;
+
+--
+-- TOC entry 253 (class 1259 OID 49890)
+-- Name: message; Type: TABLE; Schema: public; Owner: postgres
+--
 
 CREATE TABLE public.message (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -693,11 +1798,27 @@ CREATE TABLE public.message (
     CONSTRAINT message_check CHECK (((message_type = 'broadcast'::public.message_type) OR (recipient_id IS NOT NULL)))
 );
 
+
+ALTER TABLE public.message OWNER TO postgres;
+
+--
+-- TOC entry 254 (class 1259 OID 49929)
+-- Name: message_attachment; Type: TABLE; Schema: public; Owner: postgres
+--
+
 CREATE TABLE public.message_attachment (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     message_id uuid NOT NULL,
     document_id uuid NOT NULL
 );
+
+
+ALTER TABLE public.message_attachment OWNER TO postgres;
+
+--
+-- TOC entry 255 (class 1259 OID 49948)
+-- Name: notification; Type: TABLE; Schema: public; Owner: postgres
+--
 
 CREATE TABLE public.notification (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -715,6 +1836,14 @@ CREATE TABLE public.notification (
     created_at timestamp with time zone DEFAULT now()
 );
 
+
+ALTER TABLE public.notification OWNER TO postgres;
+
+--
+-- TOC entry 260 (class 1259 OID 50057)
+-- Name: password_reset; Type: TABLE; Schema: public; Owner: postgres
+--
+
 CREATE TABLE public.password_reset (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     email character varying(150) NOT NULL,
@@ -723,6 +1852,14 @@ CREATE TABLE public.password_reset (
     used boolean DEFAULT false,
     created_at timestamp with time zone DEFAULT now()
 );
+
+
+ALTER TABLE public.password_reset OWNER TO postgres;
+
+--
+-- TOC entry 239 (class 1259 OID 49376)
+-- Name: payment; Type: TABLE; Schema: public; Owner: postgres
+--
 
 CREATE TABLE public.payment (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -751,6 +1888,14 @@ CREATE TABLE public.payment (
     CONSTRAINT payment_allocated_utilities_check CHECK ((allocated_utilities >= (0)::numeric)),
     CONSTRAINT payment_amount_paid_check CHECK ((amount_paid >= (0)::numeric))
 );
+
+
+ALTER TABLE public.payment OWNER TO postgres;
+
+--
+-- TOC entry 230 (class 1259 OID 49084)
+-- Name: property; Type: TABLE; Schema: public; Owner: postgres
+--
 
 CREATE TABLE public.property (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -786,6 +1931,14 @@ CREATE TABLE public.property (
     CONSTRAINT property_monthly_rates_check CHECK ((monthly_rates >= (0)::numeric))
 );
 
+
+ALTER TABLE public.property OWNER TO postgres;
+
+--
+-- TOC entry 262 (class 1259 OID 50088)
+-- Name: push_tokens; Type: TABLE; Schema: public; Owner: postgres
+--
+
 CREATE TABLE public.push_tokens (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -794,6 +1947,29 @@ CREATE TABLE public.push_tokens (
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now()
 );
+
+
+ALTER TABLE public.push_tokens OWNER TO postgres;
+
+--
+-- TOC entry 236 (class 1259 OID 49314)
+-- Name: receipt_number_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.receipt_number_seq
+    START WITH 1000
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.receipt_number_seq OWNER TO postgres;
+
+--
+-- TOC entry 240 (class 1259 OID 49426)
+-- Name: receipt; Type: TABLE; Schema: public; Owner: postgres
+--
 
 CREATE TABLE public.receipt (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -804,6 +1980,14 @@ CREATE TABLE public.receipt (
     issued_by uuid,
     issued_at timestamp with time zone DEFAULT now()
 );
+
+
+ALTER TABLE public.receipt OWNER TO postgres;
+
+--
+-- TOC entry 245 (class 1259 OID 49595)
+-- Name: repayment_instalment; Type: TABLE; Schema: public; Owner: postgres
+--
 
 CREATE TABLE public.repayment_instalment (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -819,6 +2003,14 @@ CREATE TABLE public.repayment_instalment (
     CONSTRAINT repayment_instalment_amount_paid_check CHECK ((amount_paid >= (0)::numeric)),
     CONSTRAINT repayment_instalment_instalment_number_check CHECK ((instalment_number >= 1))
 );
+
+
+ALTER TABLE public.repayment_instalment OWNER TO postgres;
+
+--
+-- TOC entry 244 (class 1259 OID 49552)
+-- Name: repayment_plan; Type: TABLE; Schema: public; Owner: postgres
+--
 
 CREATE TABLE public.repayment_plan (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -841,10 +2033,26 @@ CREATE TABLE public.repayment_plan (
     CONSTRAINT repayment_plan_total_amount_check CHECK ((total_amount >= (0)::numeric))
 );
 
+
+ALTER TABLE public.repayment_plan OWNER TO postgres;
+
+--
+-- TOC entry 269 (class 1259 OID 57182)
+-- Name: repayment_plan_invoice; Type: TABLE; Schema: public; Owner: postgres
+--
+
 CREATE TABLE public.repayment_plan_invoice (
     repayment_plan_id uuid NOT NULL,
     invoice_id uuid NOT NULL
 );
+
+
+ALTER TABLE public.repayment_plan_invoice OWNER TO postgres;
+
+--
+-- TOC entry 259 (class 1259 OID 50038)
+-- Name: system_setting; Type: TABLE; Schema: public; Owner: postgres
+--
 
 CREATE TABLE public.system_setting (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -855,6 +2063,14 @@ CREATE TABLE public.system_setting (
     updated_at timestamp with time zone DEFAULT now()
 );
 
+
+ALTER TABLE public.system_setting OWNER TO postgres;
+
+--
+-- TOC entry 261 (class 1259 OID 50069)
+-- Name: temp_password; Type: TABLE; Schema: public; Owner: postgres
+--
+
 CREATE TABLE public.temp_password (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
@@ -863,6 +2079,14 @@ CREATE TABLE public.temp_password (
     used boolean DEFAULT false,
     created_at timestamp with time zone DEFAULT now()
 );
+
+
+ALTER TABLE public.temp_password OWNER TO postgres;
+
+--
+-- TOC entry 232 (class 1259 OID 49157)
+-- Name: tenant; Type: TABLE; Schema: public; Owner: postgres
+--
 
 CREATE TABLE public.tenant (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -923,6 +2147,32 @@ CREATE TABLE public.tenant (
     CONSTRAINT tenant_vehicle_count_check CHECK ((vehicle_count >= 0))
 );
 
+
+ALTER TABLE public.tenant OWNER TO postgres;
+
+--
+-- TOC entry 266 (class 1259 OID 50158)
+-- Name: tenant_needs_attention; Type: VIEW; Schema: public; Owner: postgres
+--
+
+CREATE VIEW public.tenant_needs_attention AS
+ SELECT id AS tenant_id,
+    landlord_id,
+    reliability_score,
+    standing,
+    (reliability_score = 'high_risk'::public.reliability_score) AS payment_flag,
+    (standing <> 'good_standing'::public.tenant_standing) AS standing_flag,
+    ((reliability_score = 'high_risk'::public.reliability_score) OR (standing <> 'good_standing'::public.tenant_standing)) AS needs_attention
+   FROM public.tenant t;
+
+
+ALTER VIEW public.tenant_needs_attention OWNER TO postgres;
+
+--
+-- TOC entry 256 (class 1259 OID 49971)
+-- Name: tenant_payment_history; Type: TABLE; Schema: public; Owner: postgres
+--
+
 CREATE TABLE public.tenant_payment_history (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     tenant_id uuid NOT NULL,
@@ -942,6 +2192,83 @@ CREATE TABLE public.tenant_payment_history (
     CONSTRAINT tenant_payment_history_partial_payments_check CHECK ((partial_payments >= 0))
 );
 
+
+ALTER TABLE public.tenant_payment_history OWNER TO postgres;
+
+--
+-- TOC entry 263 (class 1259 OID 50143)
+-- Name: tenant_profile; Type: VIEW; Schema: public; Owner: postgres
+--
+
+CREATE VIEW public.tenant_profile AS
+ SELECT t.id,
+    t.user_id,
+    t.landlord_id,
+    t.date_of_birth,
+    t.gender,
+    t.nationality,
+    t.marital_status,
+    t.id_document_type,
+    t.id_number,
+    t.passport_number,
+    t.home_address_line1,
+    t.home_address_line2,
+    t.home_city,
+    t.home_postal_code,
+    t.home_province,
+    t.home_country,
+    t.employment_status,
+    t.employer_company,
+    t.employer_address,
+    t.employer_contact,
+    t.employer_official_email,
+    t.job_title,
+    t.monthly_income,
+    t.payslip_url,
+    t.three_months_statements,
+    t.income_verified,
+    t.emergency_name,
+    t.emergency_relationship,
+    t.emergency_phone,
+    t.emergency_email,
+    t.emergency_address,
+    t.number_of_occupants,
+    t.has_pets,
+    t.pet_details,
+    t.vehicle_count,
+    t.reliability_score,
+    t.reliability_score_value,
+    t.tenant_since,
+    t.special_note,
+    t.profile_completed,
+    t.standing,
+    t.standing_updated_at,
+    t.standing_reason,
+    t.total_fines,
+    t.total_warnings,
+    t.active_complaints_count,
+    t.created_by,
+    t.updated_by,
+    t.created_at,
+    t.updated_at,
+    u.first_name,
+    u.last_name,
+    u.full_name,
+    u.email,
+    u.phone,
+    u.profile_image_url,
+    u.status AS account_status
+   FROM (public.tenant t
+     JOIN public.users u ON ((u.id = t.user_id)));
+
+
+ALTER VIEW public.tenant_profile OWNER TO postgres;
+
+--
+-- TOC entry 257 (class 1259 OID 49999)
+-- Name: tenant_score_history; Type: TABLE; Schema: public; Owner: postgres
+--
+
 CREATE TABLE public.tenant_score_history (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     tenant_id uuid NOT NULL,
@@ -953,6 +2280,14 @@ CREATE TABLE public.tenant_score_history (
     changed_by uuid,
     created_at timestamp with time zone DEFAULT now()
 );
+
+
+ALTER TABLE public.tenant_score_history OWNER TO postgres;
+
+--
+-- TOC entry 231 (class 1259 OID 49125)
+-- Name: unit; Type: TABLE; Schema: public; Owner: postgres
+--
 
 CREATE TABLE public.unit (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -983,439 +2318,1943 @@ CREATE TABLE public.unit (
     CONSTRAINT unit_square_meters_check CHECK ((square_meters >= (0)::numeric))
 );
 
+
+ALTER TABLE public.unit OWNER TO postgres;
+
+--
+-- TOC entry 5565 (class 2606 OID 50032)
+-- Name: audit_log audit_log_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.audit_log
     ADD CONSTRAINT audit_log_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 5466 (class 2606 OID 49064)
+-- Name: caretaker caretaker_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.caretaker
     ADD CONSTRAINT caretaker_pkey PRIMARY KEY (id);
 
+
+--
+-- TOC entry 5468 (class 2606 OID 49066)
+-- Name: caretaker caretaker_user_id_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.caretaker
     ADD CONSTRAINT caretaker_user_id_key UNIQUE (user_id);
+
+
+--
+-- TOC entry 5518 (class 2606 OID 49541)
+-- Name: collection_invoice collection_invoice_collection_id_invoice_id_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.collection_invoice
     ADD CONSTRAINT collection_invoice_collection_id_invoice_id_key UNIQUE (collection_id, invoice_id);
 
+
+--
+-- TOC entry 5520 (class 2606 OID 49539)
+-- Name: collection_invoice collection_invoice_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.collection_invoice
     ADD CONSTRAINT collection_invoice_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 5515 (class 2606 OID 49509)
+-- Name: collection collection_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.collection
     ADD CONSTRAINT collection_pkey PRIMARY KEY (id);
 
+
+--
+-- TOC entry 5545 (class 2606 OID 49849)
+-- Name: complaint_evidence complaint_evidence_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.complaint_evidence
     ADD CONSTRAINT complaint_evidence_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 5541 (class 2606 OID 49805)
+-- Name: complaint complaint_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.complaint
     ADD CONSTRAINT complaint_pkey PRIMARY KEY (id);
 
+
+--
+-- TOC entry 5547 (class 2606 OID 49879)
+-- Name: complaint_verdict complaint_verdict_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.complaint_verdict
     ADD CONSTRAINT complaint_verdict_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 5513 (class 2606 OID 49478)
+-- Name: deposit deposit_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.deposit
     ADD CONSTRAINT deposit_pkey PRIMARY KEY (id);
 
+
+--
+-- TOC entry 5528 (class 2606 OID 49640)
+-- Name: document document_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.document
     ADD CONSTRAINT document_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 5499 (class 2606 OID 49355)
+-- Name: invoice invoice_invoice_number_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.invoice
     ADD CONSTRAINT invoice_invoice_number_key UNIQUE (invoice_number);
 
+
+--
+-- TOC entry 5585 (class 2606 OID 51638)
+-- Name: invoice_payments invoice_payments_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.invoice_payments
     ADD CONSTRAINT invoice_payments_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 5501 (class 2606 OID 49353)
+-- Name: invoice invoice_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.invoice
     ADD CONSTRAINT invoice_pkey PRIMARY KEY (id);
 
+
+--
+-- TOC entry 5457 (class 2606 OID 48981)
+-- Name: landlord landlord_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.landlord
     ADD CONSTRAINT landlord_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 5462 (class 2606 OID 49044)
+-- Name: landlord_settings landlord_settings_landlord_id_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.landlord_settings
     ADD CONSTRAINT landlord_settings_landlord_id_key UNIQUE (landlord_id);
 
+
+--
+-- TOC entry 5464 (class 2606 OID 49042)
+-- Name: landlord_settings landlord_settings_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.landlord_settings
     ADD CONSTRAINT landlord_settings_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 5459 (class 2606 OID 48983)
+-- Name: landlord landlord_user_id_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.landlord
     ADD CONSTRAINT landlord_user_id_key UNIQUE (user_id);
 
+
+--
+-- TOC entry 5495 (class 2606 OID 49292)
+-- Name: lease_history lease_history_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.lease_history
     ADD CONSTRAINT lease_history_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 5493 (class 2606 OID 49257)
+-- Name: lease lease_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.lease
     ADD CONSTRAINT lease_pkey PRIMARY KEY (id);
 
+
+--
+-- TOC entry 5539 (class 2606 OID 49765)
+-- Name: maintenance_photo maintenance_photo_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.maintenance_photo
     ADD CONSTRAINT maintenance_photo_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 5533 (class 2606 OID 49700)
+-- Name: maintenance_request maintenance_request_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.maintenance_request
     ADD CONSTRAINT maintenance_request_pkey PRIMARY KEY (id);
 
+
+--
+-- TOC entry 5535 (class 2606 OID 49702)
+-- Name: maintenance_request maintenance_request_request_number_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.maintenance_request
     ADD CONSTRAINT maintenance_request_request_number_key UNIQUE (request_number);
+
+
+--
+-- TOC entry 5537 (class 2606 OID 49741)
+-- Name: maintenance_update maintenance_update_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.maintenance_update
     ADD CONSTRAINT maintenance_update_pkey PRIMARY KEY (id);
 
+
+--
+-- TOC entry 5554 (class 2606 OID 49937)
+-- Name: message_attachment message_attachment_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.message_attachment
     ADD CONSTRAINT message_attachment_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 5552 (class 2606 OID 49908)
+-- Name: message message_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.message
     ADD CONSTRAINT message_pkey PRIMARY KEY (id);
 
+
+--
+-- TOC entry 5557 (class 2606 OID 49965)
+-- Name: notification notification_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.notification
     ADD CONSTRAINT notification_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 5573 (class 2606 OID 50068)
+-- Name: password_reset password_reset_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.password_reset
     ADD CONSTRAINT password_reset_pkey PRIMARY KEY (id);
 
+
+--
+-- TOC entry 5507 (class 2606 OID 49399)
+-- Name: payment payment_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.payment
     ADD CONSTRAINT payment_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 5474 (class 2606 OID 49108)
+-- Name: property property_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.property
     ADD CONSTRAINT property_pkey PRIMARY KEY (id);
 
+
+--
+-- TOC entry 5577 (class 2606 OID 50100)
+-- Name: push_tokens push_tokens_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.push_tokens
     ADD CONSTRAINT push_tokens_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 5579 (class 2606 OID 50102)
+-- Name: push_tokens push_tokens_token_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.push_tokens
     ADD CONSTRAINT push_tokens_token_key UNIQUE (token);
 
+
+--
+-- TOC entry 5509 (class 2606 OID 49439)
+-- Name: receipt receipt_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.receipt
     ADD CONSTRAINT receipt_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 5511 (class 2606 OID 49441)
+-- Name: receipt receipt_receipt_number_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.receipt
     ADD CONSTRAINT receipt_receipt_number_key UNIQUE (receipt_number);
 
+
+--
+-- TOC entry 5524 (class 2606 OID 49611)
+-- Name: repayment_instalment repayment_instalment_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.repayment_instalment
     ADD CONSTRAINT repayment_instalment_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 5526 (class 2606 OID 49613)
+-- Name: repayment_instalment repayment_instalment_repayment_plan_id_instalment_number_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.repayment_instalment
     ADD CONSTRAINT repayment_instalment_repayment_plan_id_instalment_number_key UNIQUE (repayment_plan_id, instalment_number);
 
+
+--
+-- TOC entry 5588 (class 2606 OID 57188)
+-- Name: repayment_plan_invoice repayment_plan_invoice_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.repayment_plan_invoice
     ADD CONSTRAINT repayment_plan_invoice_pkey PRIMARY KEY (repayment_plan_id, invoice_id);
+
+
+--
+-- TOC entry 5522 (class 2606 OID 49573)
+-- Name: repayment_plan repayment_plan_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.repayment_plan
     ADD CONSTRAINT repayment_plan_pkey PRIMARY KEY (id);
 
+
+--
+-- TOC entry 5567 (class 2606 OID 50049)
+-- Name: system_setting system_setting_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.system_setting
     ADD CONSTRAINT system_setting_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 5569 (class 2606 OID 50051)
+-- Name: system_setting system_setting_setting_key_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.system_setting
     ADD CONSTRAINT system_setting_setting_key_key UNIQUE (setting_key);
 
+
+--
+-- TOC entry 5575 (class 2606 OID 50082)
+-- Name: temp_password temp_password_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.temp_password
     ADD CONSTRAINT temp_password_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 5484 (class 2606 OID 49191)
+-- Name: tenant tenant_id_number_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.tenant
     ADD CONSTRAINT tenant_id_number_key UNIQUE (id_number);
 
+
+--
+-- TOC entry 5559 (class 2606 OID 49991)
+-- Name: tenant_payment_history tenant_payment_history_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.tenant_payment_history
     ADD CONSTRAINT tenant_payment_history_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 5561 (class 2606 OID 49993)
+-- Name: tenant_payment_history tenant_payment_history_tenant_id_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.tenant_payment_history
     ADD CONSTRAINT tenant_payment_history_tenant_id_key UNIQUE (tenant_id);
 
+
+--
+-- TOC entry 5486 (class 2606 OID 49187)
+-- Name: tenant tenant_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.tenant
     ADD CONSTRAINT tenant_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 5563 (class 2606 OID 50010)
+-- Name: tenant_score_history tenant_score_history_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.tenant_score_history
     ADD CONSTRAINT tenant_score_history_pkey PRIMARY KEY (id);
 
+
+--
+-- TOC entry 5488 (class 2606 OID 49189)
+-- Name: tenant tenant_user_id_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.tenant
     ADD CONSTRAINT tenant_user_id_key UNIQUE (user_id);
+
+
+--
+-- TOC entry 5478 (class 2606 OID 49148)
+-- Name: unit unit_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.unit
     ADD CONSTRAINT unit_pkey PRIMARY KEY (id);
 
+
+--
+-- TOC entry 5480 (class 2606 OID 49150)
+-- Name: unit unit_property_id_unit_number_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.unit
     ADD CONSTRAINT unit_property_id_unit_number_key UNIQUE (property_id, unit_number);
+
+
+--
+-- TOC entry 5503 (class 2606 OID 51478)
+-- Name: invoice uq_invoice_lease_period; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.invoice
     ADD CONSTRAINT uq_invoice_lease_period UNIQUE (lease_id, billing_period_start, billing_period_end);
 
+
+--
+-- TOC entry 5452 (class 2606 OID 48967)
+-- Name: users users_email_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.users
     ADD CONSTRAINT users_email_key UNIQUE (email);
+
+
+--
+-- TOC entry 5454 (class 2606 OID 48965)
+-- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.users
     ADD CONSTRAINT users_pkey PRIMARY KEY (id);
 
+
+--
+-- TOC entry 5469 (class 1259 OID 50112)
+-- Name: idx_caretaker_landlord_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_caretaker_landlord_id ON public.caretaker USING btree (landlord_id);
+
+
+--
+-- TOC entry 5470 (class 1259 OID 50111)
+-- Name: idx_caretaker_user_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_caretaker_user_id ON public.caretaker USING btree (user_id);
+
+
+--
+-- TOC entry 5516 (class 1259 OID 50137)
+-- Name: idx_collection_tenant_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_collection_tenant_id ON public.collection USING btree (tenant_id);
+
+
+--
+-- TOC entry 5542 (class 1259 OID 50134)
+-- Name: idx_complaint_against_tenant; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_complaint_against_tenant ON public.complaint USING btree (against_tenant_id);
+
+
+--
+-- TOC entry 5543 (class 1259 OID 50135)
+-- Name: idx_complaint_property_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_complaint_property_id ON public.complaint USING btree (property_id);
+
+
+--
+-- TOC entry 5548 (class 1259 OID 50136)
+-- Name: idx_complaint_verdict_complaint_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_complaint_verdict_complaint_id ON public.complaint_verdict USING btree (complaint_id);
+
+
+--
+-- TOC entry 5529 (class 1259 OID 50126)
+-- Name: idx_document_tenant_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_document_tenant_id ON public.document USING btree (tenant_id);
+
+
+--
+-- TOC entry 5496 (class 1259 OID 50122)
+-- Name: idx_invoice_lease_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_invoice_lease_id ON public.invoice USING btree (lease_id);
+
+
+--
+-- TOC entry 5580 (class 1259 OID 51649)
+-- Name: idx_invoice_payments_invoice_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_invoice_payments_invoice_id ON public.invoice_payments USING btree (invoice_id);
+
+
+--
+-- TOC entry 5581 (class 1259 OID 51652)
+-- Name: idx_invoice_payments_payment_date; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_invoice_payments_payment_date ON public.invoice_payments USING btree (payment_date);
+
+
+--
+-- TOC entry 5582 (class 1259 OID 51650)
+-- Name: idx_invoice_payments_payment_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_invoice_payments_payment_id ON public.invoice_payments USING btree (payment_id);
+
+
+--
+-- TOC entry 5583 (class 1259 OID 51651)
+-- Name: idx_invoice_payments_status; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_invoice_payments_status ON public.invoice_payments USING btree (status);
+
+
+--
+-- TOC entry 5497 (class 1259 OID 50123)
+-- Name: idx_invoice_tenant_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_invoice_tenant_id ON public.invoice USING btree (tenant_id);
+
+
+--
+-- TOC entry 5460 (class 1259 OID 50110)
+-- Name: idx_landlord_settings_landlord_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_landlord_settings_landlord_id ON public.landlord_settings USING btree (landlord_id);
+
+
+--
+-- TOC entry 5455 (class 1259 OID 50109)
+-- Name: idx_landlord_user_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_landlord_user_id ON public.landlord USING btree (user_id);
+
+
+--
+-- TOC entry 5489 (class 1259 OID 50121)
+-- Name: idx_lease_landlord_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_lease_landlord_id ON public.lease USING btree (landlord_id);
+
+
+--
+-- TOC entry 5490 (class 1259 OID 50119)
+-- Name: idx_lease_tenant_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_lease_tenant_id ON public.lease USING btree (tenant_id);
+
+
+--
+-- TOC entry 5491 (class 1259 OID 50120)
+-- Name: idx_lease_unit_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_lease_unit_id ON public.lease USING btree (unit_id);
+
+
+--
+-- TOC entry 5530 (class 1259 OID 50128)
+-- Name: idx_maintenance_request_tenant_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_maintenance_request_tenant_id ON public.maintenance_request USING btree (tenant_id);
+
+
+--
+-- TOC entry 5531 (class 1259 OID 50127)
+-- Name: idx_maintenance_request_unit_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_maintenance_request_unit_id ON public.maintenance_request USING btree (unit_id);
+
+
+--
+-- TOC entry 5549 (class 1259 OID 50130)
+-- Name: idx_message_recipient_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_message_recipient_id ON public.message USING btree (recipient_id);
+
+
+--
+-- TOC entry 5550 (class 1259 OID 50129)
+-- Name: idx_message_sender_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_message_sender_id ON public.message USING btree (sender_id);
+
+
+--
+-- TOC entry 5555 (class 1259 OID 50131)
+-- Name: idx_notification_user_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_notification_user_id ON public.notification USING btree (user_id);
+
+
+--
+-- TOC entry 5570 (class 1259 OID 50133)
+-- Name: idx_password_reset_code; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_password_reset_code ON public.password_reset USING btree (code);
+
+
+--
+-- TOC entry 5571 (class 1259 OID 50132)
+-- Name: idx_password_reset_email; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_password_reset_email ON public.password_reset USING btree (email);
+
+
+--
+-- TOC entry 5504 (class 1259 OID 50124)
+-- Name: idx_payment_invoice_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_payment_invoice_id ON public.payment USING btree (invoice_id);
+
+
+--
+-- TOC entry 5505 (class 1259 OID 50125)
+-- Name: idx_payment_tenant_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_payment_tenant_id ON public.payment USING btree (tenant_id);
+
+
+--
+-- TOC entry 5471 (class 1259 OID 50116)
+-- Name: idx_property_caretaker_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_property_caretaker_id ON public.property USING btree (caretaker_id);
+
+
+--
+-- TOC entry 5472 (class 1259 OID 50115)
+-- Name: idx_property_landlord_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_property_landlord_id ON public.property USING btree (landlord_id);
+
+
+--
+-- TOC entry 5481 (class 1259 OID 50114)
+-- Name: idx_tenant_landlord_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_tenant_landlord_id ON public.tenant USING btree (landlord_id);
+
+
+--
+-- TOC entry 5482 (class 1259 OID 50113)
+-- Name: idx_tenant_user_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_tenant_user_id ON public.tenant USING btree (user_id);
+
+
+--
+-- TOC entry 5475 (class 1259 OID 50118)
+-- Name: idx_unit_current_tenant_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_unit_current_tenant_id ON public.unit USING btree (current_tenant_id);
+
+
+--
+-- TOC entry 5476 (class 1259 OID 50117)
+-- Name: idx_unit_property_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_unit_property_id ON public.unit USING btree (property_id);
+
+
+--
+-- TOC entry 5586 (class 1259 OID 51653)
+-- Name: uq_invoice_payments_payment_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE UNIQUE INDEX uq_invoice_payments_payment_id ON public.invoice_payments USING btree (payment_id) WHERE (payment_id IS NOT NULL);
+
+
+--
+-- TOC entry 5686 (class 2620 OID 49083)
+-- Name: caretaker trg_check_role_caretaker; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER trg_check_role_caretaker BEFORE INSERT ON public.caretaker FOR EACH ROW EXECUTE FUNCTION public.check_user_role('caretaker');
+
+
+--
+-- TOC entry 5683 (class 2620 OID 48990)
+-- Name: landlord trg_check_role_landlord; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER trg_check_role_landlord BEFORE INSERT ON public.landlord FOR EACH ROW EXECUTE FUNCTION public.check_user_role('landlord');
+
+
+--
+-- TOC entry 5690 (class 2620 OID 49213)
+-- Name: tenant trg_check_role_tenant; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER trg_check_role_tenant BEFORE INSERT ON public.tenant FOR EACH ROW EXECUTE FUNCTION public.check_user_role('tenant');
+
+
+--
+-- TOC entry 5693 (class 2620 OID 53086)
+-- Name: payment trg_payment_status_change; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER trg_payment_status_change AFTER UPDATE OF status ON public.payment FOR EACH ROW EXECUTE FUNCTION public.handle_payment_status_change();
+
+
+--
+-- TOC entry 5703 (class 2620 OID 51655)
+-- Name: invoice_payments trg_recalculate_invoice_status; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER trg_recalculate_invoice_status AFTER INSERT OR DELETE OR UPDATE OF status, amount ON public.invoice_payments FOR EACH ROW EXECUTE FUNCTION public.trigger_recalculate_invoice_status();
+
+
+--
+-- TOC entry 5687 (class 2620 OID 49082)
+-- Name: caretaker trg_touch_caretaker; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER trg_touch_caretaker BEFORE UPDATE ON public.caretaker FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- TOC entry 5696 (class 2620 OID 49530)
+-- Name: collection trg_touch_collection; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER trg_touch_collection BEFORE UPDATE ON public.collection FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- TOC entry 5700 (class 2620 OID 49836)
+-- Name: complaint trg_touch_complaint; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER trg_touch_complaint BEFORE UPDATE ON public.complaint FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- TOC entry 5695 (class 2620 OID 49489)
+-- Name: deposit trg_touch_deposit; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER trg_touch_deposit BEFORE UPDATE ON public.deposit FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- TOC entry 5698 (class 2620 OID 49671)
+-- Name: document trg_touch_document; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER trg_touch_document BEFORE UPDATE ON public.document FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- TOC entry 5704 (class 2620 OID 51668)
+-- Name: invoice_payments trg_touch_invoice_payments; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER trg_touch_invoice_payments BEFORE UPDATE ON public.invoice_payments FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- TOC entry 5684 (class 2620 OID 48989)
+-- Name: landlord trg_touch_landlord; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER trg_touch_landlord BEFORE UPDATE ON public.landlord FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- TOC entry 5685 (class 2620 OID 49050)
+-- Name: landlord_settings trg_touch_landlord_settings; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER trg_touch_landlord_settings BEFORE UPDATE ON public.landlord_settings FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- TOC entry 5692 (class 2620 OID 49278)
+-- Name: lease trg_touch_lease; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER trg_touch_lease BEFORE UPDATE ON public.lease FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- TOC entry 5699 (class 2620 OID 49728)
+-- Name: maintenance_request trg_touch_maintenance_request; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER trg_touch_maintenance_request BEFORE UPDATE ON public.maintenance_request FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- TOC entry 5694 (class 2620 OID 49425)
+-- Name: payment trg_touch_payment; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER trg_touch_payment BEFORE UPDATE ON public.payment FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- TOC entry 5688 (class 2620 OID 49119)
+-- Name: property trg_touch_property; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER trg_touch_property BEFORE UPDATE ON public.property FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- TOC entry 5702 (class 2620 OID 50108)
+-- Name: push_tokens trg_touch_push_tokens; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER trg_touch_push_tokens BEFORE UPDATE ON public.push_tokens FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- TOC entry 5697 (class 2620 OID 49594)
+-- Name: repayment_plan trg_touch_repayment_plan; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER trg_touch_repayment_plan BEFORE UPDATE ON public.repayment_plan FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- TOC entry 5691 (class 2620 OID 49212)
+-- Name: tenant trg_touch_tenant; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER trg_touch_tenant BEFORE UPDATE ON public.tenant FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- TOC entry 5689 (class 2620 OID 49156)
+-- Name: unit trg_touch_unit; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER trg_touch_unit BEFORE UPDATE ON public.unit FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- TOC entry 5682 (class 2620 OID 48968)
+-- Name: users trg_touch_users; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER trg_touch_users BEFORE UPDATE ON public.users FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- TOC entry 5701 (class 2620 OID 50139)
+-- Name: complaint_verdict trigger_apply_complaint_verdict; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER trigger_apply_complaint_verdict AFTER INSERT ON public.complaint_verdict FOR EACH ROW EXECUTE FUNCTION public.apply_complaint_verdict();
+
+
+--
+-- TOC entry 5674 (class 2606 OID 50033)
+-- Name: audit_log audit_log_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.audit_log
     ADD CONSTRAINT audit_log_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
+-- TOC entry 5591 (class 2606 OID 49077)
+-- Name: caretaker caretaker_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.caretaker
     ADD CONSTRAINT caretaker_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id);
 
+
+--
+-- TOC entry 5592 (class 2606 OID 49072)
+-- Name: caretaker caretaker_landlord_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.caretaker
     ADD CONSTRAINT caretaker_landlord_id_fkey FOREIGN KEY (landlord_id) REFERENCES public.landlord(id);
+
+
+--
+-- TOC entry 5593 (class 2606 OID 49067)
+-- Name: caretaker caretaker_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.caretaker
     ADD CONSTRAINT caretaker_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
 
+
+--
+-- TOC entry 5625 (class 2606 OID 49525)
+-- Name: collection collection_flagged_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.collection
     ADD CONSTRAINT collection_flagged_by_fkey FOREIGN KEY (flagged_by) REFERENCES public.users(id);
+
+
+--
+-- TOC entry 5629 (class 2606 OID 49542)
+-- Name: collection_invoice collection_invoice_collection_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.collection_invoice
     ADD CONSTRAINT collection_invoice_collection_id_fkey FOREIGN KEY (collection_id) REFERENCES public.collection(id) ON DELETE CASCADE;
 
+
+--
+-- TOC entry 5630 (class 2606 OID 49547)
+-- Name: collection_invoice collection_invoice_invoice_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.collection_invoice
     ADD CONSTRAINT collection_invoice_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoice(id);
+
+
+--
+-- TOC entry 5626 (class 2606 OID 49520)
+-- Name: collection collection_landlord_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.collection
     ADD CONSTRAINT collection_landlord_id_fkey FOREIGN KEY (landlord_id) REFERENCES public.landlord(id);
 
+
+--
+-- TOC entry 5627 (class 2606 OID 49515)
+-- Name: collection collection_lease_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.collection
     ADD CONSTRAINT collection_lease_id_fkey FOREIGN KEY (lease_id) REFERENCES public.lease(id);
+
+
+--
+-- TOC entry 5628 (class 2606 OID 49510)
+-- Name: collection collection_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.collection
     ADD CONSTRAINT collection_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenant(id);
 
+
+--
+-- TOC entry 5653 (class 2606 OID 49821)
+-- Name: complaint complaint_against_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.complaint
     ADD CONSTRAINT complaint_against_tenant_id_fkey FOREIGN KEY (against_tenant_id) REFERENCES public.tenant(id);
+
+
+--
+-- TOC entry 5654 (class 2606 OID 49826)
+-- Name: complaint complaint_against_unit_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.complaint
     ADD CONSTRAINT complaint_against_unit_id_fkey FOREIGN KEY (against_unit_id) REFERENCES public.unit(id);
 
+
+--
+-- TOC entry 5659 (class 2606 OID 49850)
+-- Name: complaint_evidence complaint_evidence_complaint_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.complaint_evidence
     ADD CONSTRAINT complaint_evidence_complaint_id_fkey FOREIGN KEY (complaint_id) REFERENCES public.complaint(id);
+
+
+--
+-- TOC entry 5660 (class 2606 OID 49855)
+-- Name: complaint_evidence complaint_evidence_document_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.complaint_evidence
     ADD CONSTRAINT complaint_evidence_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.document(id);
 
+
+--
+-- TOC entry 5661 (class 2606 OID 49860)
+-- Name: complaint_evidence complaint_evidence_uploaded_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.complaint_evidence
     ADD CONSTRAINT complaint_evidence_uploaded_by_fkey FOREIGN KEY (uploaded_by) REFERENCES public.users(id);
+
+
+--
+-- TOC entry 5655 (class 2606 OID 49811)
+-- Name: complaint complaint_filed_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.complaint
     ADD CONSTRAINT complaint_filed_by_fkey FOREIGN KEY (filed_by) REFERENCES public.users(id);
 
+
+--
+-- TOC entry 5656 (class 2606 OID 49816)
+-- Name: complaint complaint_filed_by_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.complaint
     ADD CONSTRAINT complaint_filed_by_tenant_id_fkey FOREIGN KEY (filed_by_tenant_id) REFERENCES public.tenant(id);
+
+
+--
+-- TOC entry 5657 (class 2606 OID 49806)
+-- Name: complaint complaint_property_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.complaint
     ADD CONSTRAINT complaint_property_id_fkey FOREIGN KEY (property_id) REFERENCES public.property(id);
 
+
+--
+-- TOC entry 5658 (class 2606 OID 49831)
+-- Name: complaint complaint_resolved_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.complaint
     ADD CONSTRAINT complaint_resolved_by_fkey FOREIGN KEY (resolved_by) REFERENCES public.users(id);
+
+
+--
+-- TOC entry 5662 (class 2606 OID 49880)
+-- Name: complaint_verdict complaint_verdict_complaint_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.complaint_verdict
     ADD CONSTRAINT complaint_verdict_complaint_id_fkey FOREIGN KEY (complaint_id) REFERENCES public.complaint(id);
 
+
+--
+-- TOC entry 5663 (class 2606 OID 49885)
+-- Name: complaint_verdict complaint_verdict_issued_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.complaint_verdict
     ADD CONSTRAINT complaint_verdict_issued_by_fkey FOREIGN KEY (issued_by) REFERENCES public.users(id);
+
+
+--
+-- TOC entry 5623 (class 2606 OID 49479)
+-- Name: deposit deposit_lease_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.deposit
     ADD CONSTRAINT deposit_lease_id_fkey FOREIGN KEY (lease_id) REFERENCES public.lease(id);
 
+
+--
+-- TOC entry 5624 (class 2606 OID 49484)
+-- Name: deposit deposit_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.deposit
     ADD CONSTRAINT deposit_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenant(id);
+
+
+--
+-- TOC entry 5637 (class 2606 OID 49646)
+-- Name: document document_landlord_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.document
     ADD CONSTRAINT document_landlord_id_fkey FOREIGN KEY (landlord_id) REFERENCES public.landlord(id);
 
+
+--
+-- TOC entry 5638 (class 2606 OID 49656)
+-- Name: document document_property_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.document
     ADD CONSTRAINT document_property_id_fkey FOREIGN KEY (property_id) REFERENCES public.property(id);
+
+
+--
+-- TOC entry 5639 (class 2606 OID 49641)
+-- Name: document document_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.document
     ADD CONSTRAINT document_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenant(id);
 
+
+--
+-- TOC entry 5640 (class 2606 OID 49651)
+-- Name: document document_unit_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.document
     ADD CONSTRAINT document_unit_id_fkey FOREIGN KEY (unit_id) REFERENCES public.unit(id);
+
+
+--
+-- TOC entry 5641 (class 2606 OID 49661)
+-- Name: document document_uploaded_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.document
     ADD CONSTRAINT document_uploaded_by_fkey FOREIGN KEY (uploaded_by) REFERENCES public.users(id);
 
+
+--
+-- TOC entry 5642 (class 2606 OID 49666)
+-- Name: document document_verified_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.document
     ADD CONSTRAINT document_verified_by_fkey FOREIGN KEY (verified_by) REFERENCES public.users(id);
+
+
+--
+-- TOC entry 5594 (class 2606 OID 49120)
+-- Name: caretaker fk_caretaker_assigned_property; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.caretaker
     ADD CONSTRAINT fk_caretaker_assigned_property FOREIGN KEY (assigned_property) REFERENCES public.property(id);
 
+
+--
+-- TOC entry 5597 (class 2606 OID 49214)
+-- Name: unit fk_unit_current_tenant; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.unit
     ADD CONSTRAINT fk_unit_current_tenant FOREIGN KEY (current_tenant_id) REFERENCES public.tenant(id);
+
+
+--
+-- TOC entry 5611 (class 2606 OID 49371)
+-- Name: invoice invoice_landlord_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.invoice
     ADD CONSTRAINT invoice_landlord_id_fkey FOREIGN KEY (landlord_id) REFERENCES public.landlord(id);
 
+
+--
+-- TOC entry 5612 (class 2606 OID 49356)
+-- Name: invoice invoice_lease_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.invoice
     ADD CONSTRAINT invoice_lease_id_fkey FOREIGN KEY (lease_id) REFERENCES public.lease(id);
+
+
+--
+-- TOC entry 5678 (class 2606 OID 51639)
+-- Name: invoice_payments invoice_payments_invoice_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.invoice_payments
     ADD CONSTRAINT invoice_payments_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoice(id) ON DELETE CASCADE;
 
+
+--
+-- TOC entry 5679 (class 2606 OID 51644)
+-- Name: invoice_payments invoice_payments_payment_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.invoice_payments
     ADD CONSTRAINT invoice_payments_payment_id_fkey FOREIGN KEY (payment_id) REFERENCES public.payment(id) ON DELETE SET NULL;
+
+
+--
+-- TOC entry 5613 (class 2606 OID 49361)
+-- Name: invoice invoice_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.invoice
     ADD CONSTRAINT invoice_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenant(id);
 
+
+--
+-- TOC entry 5614 (class 2606 OID 49366)
+-- Name: invoice invoice_unit_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.invoice
     ADD CONSTRAINT invoice_unit_id_fkey FOREIGN KEY (unit_id) REFERENCES public.unit(id);
+
+
+--
+-- TOC entry 5590 (class 2606 OID 49045)
+-- Name: landlord_settings landlord_settings_landlord_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.landlord_settings
     ADD CONSTRAINT landlord_settings_landlord_id_fkey FOREIGN KEY (landlord_id) REFERENCES public.landlord(id) ON DELETE CASCADE;
 
+
+--
+-- TOC entry 5589 (class 2606 OID 48984)
+-- Name: landlord landlord_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.landlord
     ADD CONSTRAINT landlord_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
+-- TOC entry 5603 (class 2606 OID 49273)
+-- Name: lease lease_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.lease
     ADD CONSTRAINT lease_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id);
 
+
+--
+-- TOC entry 5607 (class 2606 OID 49293)
+-- Name: lease_history lease_history_lease_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.lease_history
     ADD CONSTRAINT lease_history_lease_id_fkey FOREIGN KEY (lease_id) REFERENCES public.lease(id);
+
+
+--
+-- TOC entry 5608 (class 2606 OID 49308)
+-- Name: lease_history lease_history_performed_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.lease_history
     ADD CONSTRAINT lease_history_performed_by_fkey FOREIGN KEY (performed_by) REFERENCES public.users(id);
 
+
+--
+-- TOC entry 5609 (class 2606 OID 49298)
+-- Name: lease_history lease_history_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.lease_history
     ADD CONSTRAINT lease_history_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenant(id);
+
+
+--
+-- TOC entry 5610 (class 2606 OID 49303)
+-- Name: lease_history lease_history_unit_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.lease_history
     ADD CONSTRAINT lease_history_unit_id_fkey FOREIGN KEY (unit_id) REFERENCES public.unit(id);
 
+
+--
+-- TOC entry 5604 (class 2606 OID 49268)
+-- Name: lease lease_landlord_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.lease
     ADD CONSTRAINT lease_landlord_id_fkey FOREIGN KEY (landlord_id) REFERENCES public.landlord(id);
+
+
+--
+-- TOC entry 5605 (class 2606 OID 49258)
+-- Name: lease lease_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.lease
     ADD CONSTRAINT lease_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenant(id);
 
+
+--
+-- TOC entry 5606 (class 2606 OID 49263)
+-- Name: lease lease_unit_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.lease
     ADD CONSTRAINT lease_unit_id_fkey FOREIGN KEY (unit_id) REFERENCES public.unit(id);
+
+
+--
+-- TOC entry 5650 (class 2606 OID 49771)
+-- Name: maintenance_photo maintenance_photo_document_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.maintenance_photo
     ADD CONSTRAINT maintenance_photo_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.document(id);
 
+
+--
+-- TOC entry 5651 (class 2606 OID 49766)
+-- Name: maintenance_photo maintenance_photo_request_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.maintenance_photo
     ADD CONSTRAINT maintenance_photo_request_id_fkey FOREIGN KEY (request_id) REFERENCES public.maintenance_request(id);
+
+
+--
+-- TOC entry 5652 (class 2606 OID 49776)
+-- Name: maintenance_photo maintenance_photo_uploaded_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.maintenance_photo
     ADD CONSTRAINT maintenance_photo_uploaded_by_fkey FOREIGN KEY (uploaded_by) REFERENCES public.users(id);
 
+
+--
+-- TOC entry 5643 (class 2606 OID 49723)
+-- Name: maintenance_request maintenance_request_assigned_to_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.maintenance_request
     ADD CONSTRAINT maintenance_request_assigned_to_fkey FOREIGN KEY (assigned_to) REFERENCES public.users(id);
+
+
+--
+-- TOC entry 5644 (class 2606 OID 49708)
+-- Name: maintenance_request maintenance_request_landlord_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.maintenance_request
     ADD CONSTRAINT maintenance_request_landlord_id_fkey FOREIGN KEY (landlord_id) REFERENCES public.landlord(id);
 
+
+--
+-- TOC entry 5645 (class 2606 OID 49718)
+-- Name: maintenance_request maintenance_request_reported_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.maintenance_request
     ADD CONSTRAINT maintenance_request_reported_by_fkey FOREIGN KEY (reported_by) REFERENCES public.users(id);
+
+
+--
+-- TOC entry 5646 (class 2606 OID 49703)
+-- Name: maintenance_request maintenance_request_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.maintenance_request
     ADD CONSTRAINT maintenance_request_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenant(id);
 
+
+--
+-- TOC entry 5647 (class 2606 OID 49713)
+-- Name: maintenance_request maintenance_request_unit_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.maintenance_request
     ADD CONSTRAINT maintenance_request_unit_id_fkey FOREIGN KEY (unit_id) REFERENCES public.unit(id);
+
+
+--
+-- TOC entry 5648 (class 2606 OID 49742)
+-- Name: maintenance_update maintenance_update_request_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.maintenance_update
     ADD CONSTRAINT maintenance_update_request_id_fkey FOREIGN KEY (request_id) REFERENCES public.maintenance_request(id);
 
+
+--
+-- TOC entry 5649 (class 2606 OID 49747)
+-- Name: maintenance_update maintenance_update_updated_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.maintenance_update
     ADD CONSTRAINT maintenance_update_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES public.users(id);
+
+
+--
+-- TOC entry 5668 (class 2606 OID 49943)
+-- Name: message_attachment message_attachment_document_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.message_attachment
     ADD CONSTRAINT message_attachment_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.document(id);
 
+
+--
+-- TOC entry 5669 (class 2606 OID 49938)
+-- Name: message_attachment message_attachment_message_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.message_attachment
     ADD CONSTRAINT message_attachment_message_id_fkey FOREIGN KEY (message_id) REFERENCES public.message(id);
+
+
+--
+-- TOC entry 5664 (class 2606 OID 49924)
+-- Name: message message_parent_message_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.message
     ADD CONSTRAINT message_parent_message_id_fkey FOREIGN KEY (parent_message_id) REFERENCES public.message(id);
 
+
+--
+-- TOC entry 5665 (class 2606 OID 49919)
+-- Name: message message_property_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.message
     ADD CONSTRAINT message_property_id_fkey FOREIGN KEY (property_id) REFERENCES public.property(id);
+
+
+--
+-- TOC entry 5666 (class 2606 OID 49914)
+-- Name: message message_recipient_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.message
     ADD CONSTRAINT message_recipient_id_fkey FOREIGN KEY (recipient_id) REFERENCES public.users(id);
 
+
+--
+-- TOC entry 5667 (class 2606 OID 49909)
+-- Name: message message_sender_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.message
     ADD CONSTRAINT message_sender_id_fkey FOREIGN KEY (sender_id) REFERENCES public.users(id);
+
+
+--
+-- TOC entry 5670 (class 2606 OID 49966)
+-- Name: notification notification_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.notification
     ADD CONSTRAINT notification_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
 
+
+--
+-- TOC entry 5615 (class 2606 OID 49420)
+-- Name: payment payment_approved_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.payment
     ADD CONSTRAINT payment_approved_by_fkey FOREIGN KEY (approved_by) REFERENCES public.users(id);
+
+
+--
+-- TOC entry 5616 (class 2606 OID 49400)
+-- Name: payment payment_invoice_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.payment
     ADD CONSTRAINT payment_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoice(id);
 
+
+--
+-- TOC entry 5617 (class 2606 OID 49415)
+-- Name: payment payment_landlord_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.payment
     ADD CONSTRAINT payment_landlord_id_fkey FOREIGN KEY (landlord_id) REFERENCES public.landlord(id);
+
+
+--
+-- TOC entry 5618 (class 2606 OID 49410)
+-- Name: payment payment_lease_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.payment
     ADD CONSTRAINT payment_lease_id_fkey FOREIGN KEY (lease_id) REFERENCES public.lease(id);
 
+
+--
+-- TOC entry 5619 (class 2606 OID 49405)
+-- Name: payment payment_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.payment
     ADD CONSTRAINT payment_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenant(id);
+
+
+--
+-- TOC entry 5595 (class 2606 OID 49114)
+-- Name: property property_caretaker_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.property
     ADD CONSTRAINT property_caretaker_id_fkey FOREIGN KEY (caretaker_id) REFERENCES public.caretaker(id);
 
+
+--
+-- TOC entry 5596 (class 2606 OID 49109)
+-- Name: property property_landlord_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.property
     ADD CONSTRAINT property_landlord_id_fkey FOREIGN KEY (landlord_id) REFERENCES public.landlord(id);
+
+
+--
+-- TOC entry 5677 (class 2606 OID 50103)
+-- Name: push_tokens push_tokens_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.push_tokens
     ADD CONSTRAINT push_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
 
+
+--
+-- TOC entry 5620 (class 2606 OID 49452)
+-- Name: receipt receipt_issued_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.receipt
     ADD CONSTRAINT receipt_issued_by_fkey FOREIGN KEY (issued_by) REFERENCES public.users(id);
+
+
+--
+-- TOC entry 5621 (class 2606 OID 49442)
+-- Name: receipt receipt_payment_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.receipt
     ADD CONSTRAINT receipt_payment_id_fkey FOREIGN KEY (payment_id) REFERENCES public.payment(id);
 
+
+--
+-- TOC entry 5622 (class 2606 OID 49447)
+-- Name: receipt receipt_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.receipt
     ADD CONSTRAINT receipt_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenant(id);
+
+
+--
+-- TOC entry 5635 (class 2606 OID 49619)
+-- Name: repayment_instalment repayment_instalment_payment_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.repayment_instalment
     ADD CONSTRAINT repayment_instalment_payment_id_fkey FOREIGN KEY (payment_id) REFERENCES public.payment(id);
 
+
+--
+-- TOC entry 5636 (class 2606 OID 49614)
+-- Name: repayment_instalment repayment_instalment_repayment_plan_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.repayment_instalment
     ADD CONSTRAINT repayment_instalment_repayment_plan_id_fkey FOREIGN KEY (repayment_plan_id) REFERENCES public.repayment_plan(id);
+
+
+--
+-- TOC entry 5631 (class 2606 OID 49589)
+-- Name: repayment_plan repayment_plan_approved_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.repayment_plan
     ADD CONSTRAINT repayment_plan_approved_by_fkey FOREIGN KEY (approved_by) REFERENCES public.users(id);
 
+
+--
+-- TOC entry 5632 (class 2606 OID 49584)
+-- Name: repayment_plan repayment_plan_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.repayment_plan
     ADD CONSTRAINT repayment_plan_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id);
+
+
+--
+-- TOC entry 5680 (class 2606 OID 57194)
+-- Name: repayment_plan_invoice repayment_plan_invoice_invoice_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.repayment_plan_invoice
     ADD CONSTRAINT repayment_plan_invoice_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoice(id);
 
+
+--
+-- TOC entry 5681 (class 2606 OID 57189)
+-- Name: repayment_plan_invoice repayment_plan_invoice_repayment_plan_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.repayment_plan_invoice
     ADD CONSTRAINT repayment_plan_invoice_repayment_plan_id_fkey FOREIGN KEY (repayment_plan_id) REFERENCES public.repayment_plan(id);
+
+
+--
+-- TOC entry 5633 (class 2606 OID 49574)
+-- Name: repayment_plan repayment_plan_landlord_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.repayment_plan
     ADD CONSTRAINT repayment_plan_landlord_id_fkey FOREIGN KEY (landlord_id) REFERENCES public.landlord(id);
 
+
+--
+-- TOC entry 5634 (class 2606 OID 49579)
+-- Name: repayment_plan repayment_plan_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.repayment_plan
     ADD CONSTRAINT repayment_plan_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenant(id);
+
+
+--
+-- TOC entry 5675 (class 2606 OID 50052)
+-- Name: system_setting system_setting_updated_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.system_setting
     ADD CONSTRAINT system_setting_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES public.users(id);
 
+
+--
+-- TOC entry 5676 (class 2606 OID 50083)
+-- Name: temp_password temp_password_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.temp_password
     ADD CONSTRAINT temp_password_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- TOC entry 5599 (class 2606 OID 49202)
+-- Name: tenant tenant_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.tenant
     ADD CONSTRAINT tenant_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id);
 
+
+--
+-- TOC entry 5600 (class 2606 OID 49197)
+-- Name: tenant tenant_landlord_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.tenant
     ADD CONSTRAINT tenant_landlord_id_fkey FOREIGN KEY (landlord_id) REFERENCES public.landlord(id);
+
+
+--
+-- TOC entry 5671 (class 2606 OID 49994)
+-- Name: tenant_payment_history tenant_payment_history_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.tenant_payment_history
     ADD CONSTRAINT tenant_payment_history_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenant(id);
 
+
+--
+-- TOC entry 5672 (class 2606 OID 50016)
+-- Name: tenant_score_history tenant_score_history_changed_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.tenant_score_history
     ADD CONSTRAINT tenant_score_history_changed_by_fkey FOREIGN KEY (changed_by) REFERENCES public.users(id);
+
+
+--
+-- TOC entry 5673 (class 2606 OID 50011)
+-- Name: tenant_score_history tenant_score_history_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.tenant_score_history
     ADD CONSTRAINT tenant_score_history_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenant(id);
 
+
+--
+-- TOC entry 5601 (class 2606 OID 49207)
+-- Name: tenant tenant_updated_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.tenant
     ADD CONSTRAINT tenant_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES public.users(id);
+
+
+--
+-- TOC entry 5602 (class 2606 OID 49192)
+-- Name: tenant tenant_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
 
 ALTER TABLE ONLY public.tenant
     ADD CONSTRAINT tenant_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
 
+
+--
+-- TOC entry 5598 (class 2606 OID 49151)
+-- Name: unit unit_property_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
 ALTER TABLE ONLY public.unit
     ADD CONSTRAINT unit_property_id_fkey FOREIGN KEY (property_id) REFERENCES public.property(id);
 
-CREATE UNIQUE INDEX uq_invoice_payments_payment_id ON public.invoice_payments USING btree (payment_id) WHERE (payment_id IS NOT NULL);
+
+--
+-- TOC entry 5861 (class 0 OID 49781)
+-- Dependencies: 250
+-- Name: complaint; Type: ROW SECURITY; Schema: public; Owner: postgres
+--
+
+ALTER TABLE public.complaint ENABLE ROW LEVEL SECURITY;
+
+--
+-- TOC entry 5871 (class 3256 OID 50173)
+-- Name: complaint complaint_landlord_scope; Type: POLICY; Schema: public; Owner: postgres
+--
+
+CREATE POLICY complaint_landlord_scope ON public.complaint USING ((property_id IN ( SELECT property.id
+   FROM public.property
+  WHERE ((property.landlord_id)::text = current_setting('app.current_landlord_id'::text, true)))));
+
+
+--
+-- TOC entry 5859 (class 0 OID 49316)
+-- Dependencies: 238
+-- Name: invoice; Type: ROW SECURITY; Schema: public; Owner: postgres
+--
+
+ALTER TABLE public.invoice ENABLE ROW LEVEL SECURITY;
+
+--
+-- TOC entry 5869 (class 3256 OID 50170)
+-- Name: invoice invoice_landlord_scope; Type: POLICY; Schema: public; Owner: postgres
+--
+
+CREATE POLICY invoice_landlord_scope ON public.invoice USING (((landlord_id)::text = current_setting('app.current_landlord_id'::text, true)));
+
+
+--
+-- TOC entry 5862 (class 0 OID 51618)
+-- Dependencies: 267
+-- Name: invoice_payments; Type: ROW SECURITY; Schema: public; Owner: postgres
+--
+
+ALTER TABLE public.invoice_payments ENABLE ROW LEVEL SECURITY;
+
+--
+-- TOC entry 5874 (class 3256 OID 51666)
+-- Name: invoice_payments invoice_payments_landlord_insert; Type: POLICY; Schema: public; Owner: postgres
+--
+
+CREATE POLICY invoice_payments_landlord_insert ON public.invoice_payments FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
+   FROM public.landlord l
+  WHERE (l.user_id = ( SELECT (current_setting('app.current_user_id'::text, true))::uuid AS current_setting)))));
+
+
+--
+-- TOC entry 5873 (class 3256 OID 51665)
+-- Name: invoice_payments invoice_payments_landlord_select; Type: POLICY; Schema: public; Owner: postgres
+--
+
+CREATE POLICY invoice_payments_landlord_select ON public.invoice_payments FOR SELECT USING ((EXISTS ( SELECT 1
+   FROM public.landlord l
+  WHERE (l.user_id = ( SELECT (current_setting('app.current_user_id'::text, true))::uuid AS current_setting)))));
+
+
+--
+-- TOC entry 5875 (class 3256 OID 51667)
+-- Name: invoice_payments invoice_payments_landlord_update; Type: POLICY; Schema: public; Owner: postgres
+--
+
+CREATE POLICY invoice_payments_landlord_update ON public.invoice_payments FOR UPDATE USING ((EXISTS ( SELECT 1
+   FROM public.landlord l
+  WHERE (l.user_id = ( SELECT (current_setting('app.current_user_id'::text, true))::uuid AS current_setting)))));
+
+
+--
+-- TOC entry 5872 (class 3256 OID 51663)
+-- Name: invoice_payments invoice_payments_tenant_select; Type: POLICY; Schema: public; Owner: postgres
+--
+
+CREATE POLICY invoice_payments_tenant_select ON public.invoice_payments FOR SELECT USING ((EXISTS ( SELECT 1
+   FROM (public.invoice i
+     JOIN public.tenant t ON ((t.id = i.tenant_id)))
+  WHERE ((i.id = invoice_payments.invoice_id) AND (t.user_id = ( SELECT (current_setting('app.current_user_id'::text, true))::uuid AS current_setting))))));
+
+
+--
+-- TOC entry 5870 (class 3256 OID 50171)
+-- Name: invoice invoice_tenant_scope; Type: POLICY; Schema: public; Owner: postgres
+--
+
+CREATE POLICY invoice_tenant_scope ON public.invoice USING ((tenant_id IN ( SELECT tenant.id
+   FROM public.tenant
+  WHERE ((tenant.user_id)::text = current_setting('app.current_user_id'::text, true)))));
+
+
+--
+-- TOC entry 5858 (class 0 OID 49219)
+-- Dependencies: 233
+-- Name: lease; Type: ROW SECURITY; Schema: public; Owner: postgres
+--
+
+ALTER TABLE public.lease ENABLE ROW LEVEL SECURITY;
+
+--
+-- TOC entry 5865 (class 3256 OID 50164)
+-- Name: lease lease_landlord_scope; Type: POLICY; Schema: public; Owner: postgres
+--
+
+CREATE POLICY lease_landlord_scope ON public.lease USING (((landlord_id)::text = current_setting('app.current_landlord_id'::text, true)));
+
+
+--
+-- TOC entry 5866 (class 3256 OID 50165)
+-- Name: lease lease_tenant_scope; Type: POLICY; Schema: public; Owner: postgres
+--
+
+CREATE POLICY lease_tenant_scope ON public.lease USING ((tenant_id IN ( SELECT tenant.id
+   FROM public.tenant
+  WHERE ((tenant.user_id)::text = current_setting('app.current_user_id'::text, true)))));
+
+
+--
+-- TOC entry 5860 (class 0 OID 49376)
+-- Dependencies: 239
+-- Name: payment; Type: ROW SECURITY; Schema: public; Owner: postgres
+--
+
+ALTER TABLE public.payment ENABLE ROW LEVEL SECURITY;
+
+--
+-- TOC entry 5867 (class 3256 OID 50167)
+-- Name: payment payment_landlord_scope; Type: POLICY; Schema: public; Owner: postgres
+--
+
+CREATE POLICY payment_landlord_scope ON public.payment USING (((landlord_id)::text = current_setting('app.current_landlord_id'::text, true)));
+
+
+--
+-- TOC entry 5868 (class 3256 OID 50168)
+-- Name: payment payment_tenant_scope; Type: POLICY; Schema: public; Owner: postgres
+--
+
+CREATE POLICY payment_tenant_scope ON public.payment USING ((tenant_id IN ( SELECT tenant.id
+   FROM public.tenant
+  WHERE ((tenant.user_id)::text = current_setting('app.current_user_id'::text, true)))));
+
+
+--
+-- TOC entry 5857 (class 0 OID 49157)
+-- Dependencies: 232
+-- Name: tenant; Type: ROW SECURITY; Schema: public; Owner: postgres
+--
+
+ALTER TABLE public.tenant ENABLE ROW LEVEL SECURITY;
+
+--
+-- TOC entry 5863 (class 3256 OID 50162)
+-- Name: tenant tenant_landlord_scope; Type: POLICY; Schema: public; Owner: postgres
+--
+
+CREATE POLICY tenant_landlord_scope ON public.tenant USING (((landlord_id)::text = current_setting('app.current_landlord_id'::text, true)));
+
+
+--
+-- TOC entry 5864 (class 3256 OID 50163)
+-- Name: tenant tenant_self_scope; Type: POLICY; Schema: public; Owner: postgres
+--
+
+CREATE POLICY tenant_self_scope ON public.tenant USING (((user_id)::text = current_setting('app.current_user_id'::text, true)));
+
+
+-- Completed on 2026-08-24 00:05:20
+
+--
+-- PostgreSQL database dump complete
+--
+
+

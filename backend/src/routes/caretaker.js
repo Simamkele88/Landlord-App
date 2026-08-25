@@ -734,7 +734,53 @@ router.get("/complaints", requireAuth, requireCaretaker, async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
+// GET /caretaker/complaints/stats - Ranked complaint activity for the property
+router.get("/stats", requireAuth, requireCaretaker, async (req, res) => {
+  try {
+    const cr = await getCaretakerProperty(req.userId);
+    if (!cr || !cr.assigned_property) {
+      return res.status(404).json({ error: "No property assigned" });
+    }
 
+    const [mostComplainedAbout, mostActiveFilers] = await Promise.all([
+      pool.query(
+        `SELECT c.against_tenant_id AS tenant_id, usr.full_name, u.unit_number,
+                COUNT(*)::int AS complaint_count,
+                COUNT(DISTINCT c.filed_by_tenant_id)::int AS distinct_filers
+         FROM complaint c
+         JOIN tenant t ON t.id = c.against_tenant_id
+         JOIN users usr ON usr.id = t.user_id
+         LEFT JOIN unit u ON u.id = c.against_unit_id
+         WHERE c.property_id = $1 AND c.against_tenant_id IS NOT NULL
+         GROUP BY c.against_tenant_id, usr.full_name, u.unit_number
+         ORDER BY complaint_count DESC
+         LIMIT 10`,
+        [cr.assigned_property],
+      ),
+      pool.query(
+        `SELECT c.filed_by_tenant_id AS tenant_id, usr.full_name,
+                COUNT(*)::int AS filed_count,
+                COUNT(DISTINCT c.against_tenant_id)::int AS distinct_targets
+         FROM complaint c
+         JOIN tenant t ON t.id = c.filed_by_tenant_id
+         JOIN users usr ON usr.id = t.user_id
+         WHERE c.property_id = $1
+         GROUP BY c.filed_by_tenant_id, usr.full_name
+         ORDER BY filed_count DESC
+         LIMIT 10`,
+        [cr.assigned_property],
+      ),
+    ]);
+
+    res.json({
+      most_complained_about: mostComplainedAbout.rows,
+      most_active_filers: mostActiveFilers.rows,
+    });
+  } catch (err) {
+    console.error("Get complaint stats ranking:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
 // PUT /caretaker/complaints/:id/review - Mark under review
 router.put(
   "/complaints/:id/review",

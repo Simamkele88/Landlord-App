@@ -660,7 +660,6 @@ router.put(
         return res.status(404).json({ error: "Landlord not found" });
 
       const { planId, instalmentId } = req.params;
-
       const planCheck = await pool.query(
         "SELECT id, tenant_id, total_amount FROM repayment_plan WHERE id = $1 AND landlord_id = $2",
         [planId, landlordId],
@@ -668,37 +667,37 @@ router.put(
       if (!planCheck.rows.length)
         return res.status(404).json({ error: "Plan not found" });
 
-      await client.query(
-        `UPDATE repayment_instalment
-          SET status = 'pending_approval', payment_id = $2
-          WHERE id = $1`,
-        [instalmentId, paymentId],
+      const instResult = await pool.query(
+        `UPDATE repayment_instalment SET status = 'paid', amount_paid = amount_due, paid_date = NOW()
+       WHERE id = $1 AND repayment_plan_id = $2 RETURNING *`,
+        [instalmentId, planId],
       );
       if (!instResult.rows.length)
         return res.status(404).json({ error: "Instalment not found" });
 
       const allPaid = await pool.query(
-        `SELECT COUNT(*) AS total,
-              COUNT(*) FILTER (WHERE status = 'paid') AS paid
+        `SELECT COUNT(*) AS total, COUNT(*) FILTER (WHERE status = 'paid') AS paid
        FROM repayment_instalment WHERE repayment_plan_id = $1`,
         [planId],
       );
-
       const allDone =
         Number(allPaid.rows[0].total) === Number(allPaid.rows[0].paid);
 
       if (allDone) {
         await pool.query(
-          "UPDATE repayment_plan SET status = 'completed' WHERE id = $1",
+          `UPDATE invoice SET status = 'paid', paid_amount = amount_due, updated_at = NOW()
+         WHERE id IN (SELECT invoice_id FROM repayment_plan_invoice WHERE repayment_plan_id = $1)`,
           [planId],
         );
-
+        await pool.query(
+          "UPDATE repayment_plan SET status = 'completed', updated_at = NOW() WHERE id = $1",
+          [planId],
+        );
         await pool.query(
           `UPDATE collection SET status = 'recovered', updated_at = NOW()
-         WHERE tenant_id = $1 AND status IN ('active', 'repayment_agreed')`,
+         WHERE tenant_id = $1 AND status IN ('active', 'repayment_agreed', 'partial_collection')`,
           [planCheck.rows[0].tenant_id],
         );
-
         await createNotification(
           planCheck.rows[0].tenant_id,
           "payment_received",
@@ -713,7 +712,6 @@ router.put(
         planCheck.rows[0].tenant_id,
         req.userId,
       ]);
-
       await createNotification(
         planCheck.rows[0].tenant_id,
         "payment_received",
